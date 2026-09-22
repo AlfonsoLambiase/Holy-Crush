@@ -26,7 +26,7 @@ export const CandyCrushAssetConf = {
     // for game
     backgroundGame: "backgroundGame",
     backgroundScore: "backgroundScore",
-    //logo: "logo",
+    //logo_stage: "logo_stage",
     iconHelp: "iconHelp",
     iconScore: "iconScore",
     iconLive: "iconLive",

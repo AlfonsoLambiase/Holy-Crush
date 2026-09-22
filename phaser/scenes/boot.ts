@@ -87,7 +87,7 @@ export class Boot extends Phaser.Scene {
     this.registry.set("test", this.isTesting);
 
     if (this.sponsorLogo !== "empty") {
-      this.load.image("logo", this.sponsorLogo);
+      this.load.image("logo_stage", this.sponsorLogo);
     }
   }
 

@@ -79,7 +79,7 @@ export class UIManager {
 
     // Logo fisso in alto al centro, dove stava dentro la vecchia fascia
     const logo = this.scene.add
-      .image(this.scene.scale.width / 2, safeTop + margin, "logo")
+      .image(this.scene.scale.width / 2, safeTop + margin, "logo_stage")
       .setOrigin(0.5, 0)
       .setScale(dynamicScale)
       .setDepth(-2)

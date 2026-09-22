@@ -45,7 +45,7 @@ export const createGame = ({
   }
 
   game.scene.start(assetConf.scene.boot, {
-    sponsorLogo: sponsorLogo ?? AssetPaths.image("logo", stage),
+    sponsorLogo: sponsorLogo ?? AssetPaths.image("logo_stage", stage),
     isTesting,
     safeTop,
     stage,
