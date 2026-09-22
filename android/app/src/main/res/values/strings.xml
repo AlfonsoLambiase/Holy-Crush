@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Holy Crush</string>
+    <string name="title_activity_main">Holy Crush</string>
+    <string name="package_name">com.holycrush.app</string>
+    <string name="custom_url_scheme">com.holycrush.app</string>
+</resources>
