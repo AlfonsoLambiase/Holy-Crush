@@ -3,6 +3,7 @@ import * as Phaser from "phaser";
 
 import {Game} from "../scenes/game";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {APP_FONT} from "../shared/config/font.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
@@ -25,6 +26,7 @@ export class UIManager {
   ofssetY: number = 0;
   ofssetX: number = 0;
   scoreContainer!: Phaser.GameObjects.Container;
+  headerCenterY = 0;
   private logoBottom = 0;
 
   helpUsed: number = 0;
@@ -69,8 +71,10 @@ export class UIManager {
   #createLogo() {
     const sponsorLogo = this.scene.registry.get("sponsorLogo");
     const safeTop = this.scene.registry.get("safeTop") || 0; //! notch Area
+    const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
 
     this.logoBottom = safeTop;
+    this.headerCenterY = inset;
 
     if (sponsorLogo === "empty") return;
 
@@ -85,6 +89,7 @@ export class UIManager {
       .setDepth(-2)
       .setScrollFactor(0);
 
+    this.headerCenterY = logo.y + logo.displayHeight / 2;
     this.logoBottom = logo.getBounds().bottom + margin;
   }
 
@@ -101,7 +106,7 @@ export class UIManager {
     //* Larghezza fissa: il papiro non deve respirare quando il punteggio cresce
     this.scoreText = this.scene.add
       .text(0, 0, `${this.score}`, {
-        fontFamily: "Paytone One",
+        fontFamily: APP_FONT,
         fontSize: "48px",
         color: "#4b260f",
       })
@@ -113,7 +118,10 @@ export class UIManager {
     //* Stessa fascia del bottone exit, ma sul lato opposto
     const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
 
-    this.scoreContainer.setPosition(inset + (scoreBg.displayWidth * containerScale) / 2, inset);
+    this.scoreContainer.setPosition(
+      inset + (scoreBg.displayWidth * containerScale) / 2,
+      this.headerCenterY,
+    );
   }
 
   //* La griglia parte sotto l'elemento più basso della testata

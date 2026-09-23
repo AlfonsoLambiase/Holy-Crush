@@ -1,9 +1,12 @@
 import {HomeScreen} from "@/components/HomeScreen";
+import {LanguageProvider} from "@/language/LanguageProvider";
 
 export default function Home() {
   return (
     <main>
-      <HomeScreen />
+      <LanguageProvider>
+        <HomeScreen />
+      </LanguageProvider>
     </main>
   );
 }

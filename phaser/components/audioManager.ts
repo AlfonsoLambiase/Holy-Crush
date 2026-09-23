@@ -1,5 +1,6 @@
 import * as Phaser from "phaser";
 
+import {isMusicEnabled} from "@/settings/music";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
@@ -19,12 +20,14 @@ export class AudioManager {
   }
 
   playAudio(key: keyof typeof assetConf.audio): void {
-    if (this.audios[key]) {
-      this.audios[key].play();
-    }
+    if (!isMusicEnabled() || !this.audios[key]) return;
+
+    this.audios[key].play();
   }
 
   playBackgroundMusic(): void {
+    if (!isMusicEnabled()) return;
+
     const theme = this.scene.sound.add(assetConf.audio.music);
 
     theme.play({

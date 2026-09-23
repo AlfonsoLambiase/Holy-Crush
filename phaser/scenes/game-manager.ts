@@ -5,6 +5,7 @@ import * as Phaser from "phaser";
 import {AudioManager} from "../components/audioManager";
 import {StarsEffectManager} from "../components/starsEffectManager";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {APP_FONT} from "../shared/config/font.const";
 import {
   BOMB,
   Cell,
@@ -810,7 +811,7 @@ export class GameManager extends Phaser.Scene {
     );
     const label = this.add
       .text(0, 0, "Nessuna mossa disponibile\nRimescolo la griglia", {
-        fontFamily: "Paytone One",
+        fontFamily: APP_FONT,
         fontSize: "42px",
         color: "#ffffff",
         align: "center",

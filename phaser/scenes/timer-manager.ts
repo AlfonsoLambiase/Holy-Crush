@@ -2,6 +2,7 @@
 import * as Phaser from "phaser";
 
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {APP_FONT} from "../shared/config/font.const";
 
 import {Game} from "./game";
 
@@ -45,7 +46,7 @@ export class TimerManager extends Phaser.Scene {
       this.gameScene.setDynamicValueBasedOnScale(-80, 115) + this.ofssetY,
       this.timer.toString(), // Text to display
       {
-        fontFamily: "Paytone One",
+        fontFamily: APP_FONT,
         fontSize: "48px", // Font size and font family
         color: "#000000", // Text color
       },

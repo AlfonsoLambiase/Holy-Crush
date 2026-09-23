@@ -94,7 +94,7 @@ export const CandyCrushAssetConf = {
     animStars: "animStars",
   },
   font: {
-    "PaytoneOne-Regular": "PaytoneOne-Regular",
+    "CinzelDecorative-Regular": "Cinzel Decorative",
   },
   registry: {
     score: "score",

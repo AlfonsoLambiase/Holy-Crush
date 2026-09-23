@@ -2,6 +2,7 @@ import * as Phaser from "phaser";
 
 import {getVerseByStage} from "../components/verse";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {APP_FONT} from "../shared/config/font.const";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 
 const assetConf = CandyCrushAssetConf;
@@ -33,7 +34,7 @@ export class VerseScene extends Phaser.Scene {
       .text(width / 2, height / 2, `“${verse.text}”`, {
         align: "center",
         color: "#fff8dc",
-        fontFamily: "Paytone One",
+        fontFamily: APP_FONT,
         fontSize: `${fontSize}px`,
         lineSpacing: Math.round(fontSize * 0.25),
         wordWrap: {width: width * 0.8, useAdvancedWrap: true},
@@ -52,7 +53,7 @@ export class VerseScene extends Phaser.Scene {
       this.add
         .text(width / 2, footerTop + fontSize, verse.reference, {
           color: "#ffd76a",
-          fontFamily: "Paytone One",
+          fontFamily: APP_FONT,
           fontSize: `${Math.round(fontSize * 0.7)}px`,
         })
         .setOrigin(0.5)
@@ -60,7 +61,7 @@ export class VerseScene extends Phaser.Scene {
       this.add
         .text(width / 2, footerTop + fontSize * 2.6, "TOCCA PER CONTINUARE", {
           color: "#fff8dc",
-          fontFamily: "Paytone One",
+          fontFamily: APP_FONT,
           fontSize: `${Math.round(fontSize * 0.45)}px`,
         })
         .setOrigin(0.5)

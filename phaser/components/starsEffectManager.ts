@@ -1,6 +1,7 @@
 import * as Phaser from "phaser";
 
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {APP_FONT} from "../shared/config/font.const";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
@@ -44,7 +45,7 @@ export class StarsEffectManager {
     // metodo per creare testo +1 a caduta
     this.scene.time.delayedCall(500, () => {
       const text = this.scene.add.text(x, y, "+1", {
-        fontFamily: "Paytone One",
+        fontFamily: APP_FONT,
         fontSize: "60px",
         color: "#ffffff",
         stroke: "#000", // imposta colore contorno

@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import * as Phaser from "phaser";
 
+import {getCurrentLanguage, t} from "@/language";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {APP_FONT} from "../shared/config/font.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
 
@@ -11,6 +13,7 @@ const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
 const BUTTON_GAP = 40; // spazio verticale fra conferma e annulla
 const BUTTONS_CENTER_Y = 70; // centro della coppia bottoni (positivo = più in basso)
+const TITLE_Y_RATIO = -0.32; // titolo nella parte alta del pannello
 
 export class ExitManager extends Phaser.Scene {
   private width!: number;
@@ -63,10 +66,17 @@ export class ExitManager extends Phaser.Scene {
       .setScale(this.gameScene.setDynamicValueBasedOnScale(0.4, 0.95));
 
     // Load popup background image
+    const language = getCurrentLanguage();
     const popupExitGame = this.add
       .image(0, 0, assetConf.image.popupExitGame)
       .setOrigin(0.5)
       .setDepth(101);
+
+    const title = this.#addLabel(0, popupExitGame.height * TITLE_Y_RATIO, t("exitTitle", language), {
+      fontSize: 46,
+      color: "#ffd76a",
+      wordWrapWidth: popupExitGame.width * 0.72,
+    });
 
     // Cancel button
     const btnCancel = this.add
@@ -105,8 +115,43 @@ export class ExitManager extends Phaser.Scene {
     btnConfirm.setPosition(0, BUTTONS_CENTER_Y - buttonOffsetY);
     btnCancel.setPosition(0, BUTTONS_CENTER_Y + buttonOffsetY);
 
-    // Add elements to the popup container
-    this.popupContainer.add([popupExitGame, btnCancel, btnConfirm]);
+    const confirmLabel = this.#addLabel(btnConfirm.x, btnConfirm.y, t("confirm", language), {
+      fontSize: 40,
+      color: "#fff8dc",
+    });
+    const cancelLabel = this.#addLabel(btnCancel.x, btnCancel.y, t("cancel", language), {
+      fontSize: 40,
+      color: "#fff8dc",
+    });
+
+    this.popupContainer.add([
+      popupExitGame,
+      title,
+      btnCancel,
+      btnConfirm,
+      confirmLabel,
+      cancelLabel,
+    ]);
+  }
+
+  #addLabel(
+    x: number,
+    y: number,
+    text: string,
+    {fontSize, color, wordWrapWidth}: {fontSize: number; color: string; wordWrapWidth?: number},
+  ) {
+    return this.add
+      .text(x, y, text, {
+        fontFamily: APP_FONT,
+        fontSize: `${fontSize}px`,
+        color,
+        align: "center",
+        wordWrap: wordWrapWidth ? {width: wordWrapWidth} : undefined,
+        stroke: "#3d2614",
+        strokeThickness: 5,
+      })
+      .setOrigin(0.5)
+      .setDepth(103);
   }
 
   public createExitButton(scene: Phaser.Scene, theme?: Phaser.Sound.BaseSound) {
@@ -116,9 +161,10 @@ export class ExitManager extends Phaser.Scene {
     const isTesting: boolean = scene.registry.get("test"); // prende variabile dall'esterno
 
     const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
+    const headerY = this.gameScene.uiManager?.headerCenterY ?? inset;
 
     const exitButton = scene.add
-      .image(width - inset, inset, assetConf.image.btnExitGame)
+      .image(width - inset, headerY, assetConf.image.btnExitGame)
       .setOrigin(0.5)
       .setInteractive()
       .setScrollFactor(0)

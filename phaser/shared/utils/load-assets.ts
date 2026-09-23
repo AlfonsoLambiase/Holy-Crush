@@ -27,7 +27,7 @@ export const loadImages = (scene: Phaser.Scene, stage: number = DEFAULT_STAGE) =
 };
 
 export const loadFonts = (scene: Phaser.Scene) => {
-  for (const key in assetConf.font) {
-    scene.load.font("Paytone One", AssetPaths.font(key), "truetype");
+  for (const [file, family] of Object.entries(assetConf.font)) {
+    scene.load.font(family, AssetPaths.font(file), "truetype");
   }
 };
