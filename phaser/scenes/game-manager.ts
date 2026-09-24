@@ -6,7 +6,7 @@ import {AudioManager} from "../components/audioManager";
 import {StarsEffectManager} from "../components/starsEffectManager";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
-import {getGridSize} from "../shared/config/grid-generation.const";
+import {getCellSize, getGridSize, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
 import {
   BOMB,
   Cell,
@@ -31,10 +31,7 @@ import {Game} from "./game";
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 const gameName = "candy-crush";
 
-const GRID_OFFSET = 32;
-const GRID_SIDE_MARGIN = 0.08;
 const GRID_VERTICAL_PAD = 0.02;
-const PIECE_FIT = 0.78;
 const SWAP_MS = 280; // swipe / scambio pezzi
 const DESTROY_MS = 280; // esplosione match
 const FALL_MS = 420; // caduta e refill
@@ -122,23 +119,16 @@ export class GameManager extends Phaser.Scene {
     });
   }
 
-  //* Scopo: Crea lo sfondo della griglia e i block (colonne x righe dalla generazione attiva)
+  //* Scopo: Crea i block (colonne x righe). Lo sfondo griglia resta, ma spento.
   private createGrid(): void {
     this.mainContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2);
 
-    this.gridBackground = this.add.image(0, 0, assetConf.image.backgroundGriglia).setOrigin(0.5);
+    this.gridBackground = this.add
+      .image(0, 0, assetConf.image.backgroundGriglia)
+      .setOrigin(0.5)
+      .setVisible(false);
     this.mainContainer.add(this.gridBackground);
-    this.layoutGrid();
-
-    const bgW = this.gridBackground.width;
-    const bgH = this.gridBackground.height;
-
-    this.cellW = (bgW - GRID_OFFSET * 2) / this.gridCols;
-    this.cellH = (bgH - GRID_OFFSET * 2) / this.gridRows;
-    this.startX = -bgW / 2 + GRID_OFFSET + this.cellW / 2;
-    this.startY = -bgH / 2 + GRID_OFFSET + this.cellH / 2;
-    this.gridLeft = this.startX - this.cellW / 2;
-    this.gridTop = this.startY - this.cellH / 2;
+    this.applyGridMetrics();
 
     this.board = generatePlayableBoard(this.gridRows, this.gridCols, PIECE_KEYS.length);
     this.blocks = [];
@@ -189,7 +179,7 @@ export class GameManager extends Phaser.Scene {
   }
 
   private fitScale(piece: Phaser.GameObjects.Image): number {
-    return Math.min(this.cellW / piece.width, this.cellH / piece.height) * PIECE_FIT;
+    return Math.min(this.cellW / piece.width, this.cellH / piece.height) * GRID_PIECE_FIT;
   }
 
   private applyPieceLook(piece: Phaser.GameObjects.Image, type: number): void {
@@ -809,8 +799,8 @@ export class GameManager extends Phaser.Scene {
     const overlay = this.add.rectangle(
       0,
       0,
-      this.gridBackground.width,
-      this.gridBackground.height,
+      this.gridCols * this.cellW,
+      this.gridRows * this.cellH,
       0x001428,
       0.55,
     );
@@ -893,41 +883,49 @@ export class GameManager extends Phaser.Scene {
     });
   }
 
-  //* Scopo: Calcola le dimensioni e la posizione centrale dell’area di gioco (background),
-  private computeLayoutDimensions(): void {
-    const config = this.sys.game.config as {width: number; height: number};
+  //* Scopo: Cella quadrata fissa sulla larghezza. 1 o 6 colonne usano la stessa misura.
+  private applyGridMetrics(): void {
+    const cell = getCellSize(this.gameWidth);
 
-    this.gameWidth = Number(config.width);
-    this.gameHeight = Number(config.height);
+    this.cellW = cell;
+    this.cellH = cell;
+
+    const gridW = this.gridCols * cell;
+    const gridH = this.gridRows * cell;
+
+    this.startX = -gridW / 2 + cell / 2;
+    this.startY = -gridH / 2 + cell / 2;
+    this.gridLeft = -gridW / 2;
+    this.gridTop = -gridH / 2;
+  }
+
+  //* Scopo: Calcola le dimensioni e la posizione centrale dell’area di gioco
+  private computeLayoutDimensions(): void {
+    this.gameWidth = this.scale.width;
+    this.gameHeight = this.scale.height;
 
     this.marginTop = this.gameScene.setDynamicValueBasedOnScale(150, 400);
   }
 
   //* Scopo: Bordo sinistro della griglia in coordinate mondo
   public getGridLeft(): number | null {
-    if (!this.mainContainer || !this.gridBackground) return null;
+    if (!this.mainContainer || this.cellW <= 0) return null;
 
-    return this.mainContainer.x - (this.gridBackground.width / 2) * this.mainContainer.scaleX;
+    const gridW = this.gridCols * this.cellW;
+
+    return this.mainContainer.x - (gridW / 2) * this.mainContainer.scaleX;
   }
 
-  //* Scopo: Scala la griglia al massimo nello spazio utile (8% lati, sotto lo score)
+  //* Scopo: Centra la griglia nell'area di gioco. La scala della cella non cambia.
   public layoutGrid(): void {
-    if (!this.mainContainer || !this.gridBackground) return;
+    if (!this.mainContainer) return;
 
     const padY = this.gameHeight * GRID_VERTICAL_PAD;
-    const maxW = this.gameWidth * (1 - GRID_SIDE_MARGIN * 2);
     const top = this.getPlayAreaTop() + padY;
     const bottom = this.gameHeight - padY;
-    const maxH = Math.max(1, bottom - top);
-    const scale = this.gameScene.fitUniformScale(
-      this.gridBackground.width,
-      this.gridBackground.height,
-      maxW,
-      maxH,
-    );
 
-    this.mainContainer.setScale(scale);
-    this.mainContainer.setY((top + bottom) / 2);
+    this.mainContainer.setScale(1);
+    this.mainContainer.setPosition(this.gameWidth / 2, (top + bottom) / 2);
   }
 
   private getPlayAreaTop(): number {
