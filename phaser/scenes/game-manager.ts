@@ -6,6 +6,7 @@ import {AudioManager} from "../components/audioManager";
 import {StarsEffectManager} from "../components/starsEffectManager";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
+import {getCellSize, getGridSize, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
 import {
   BOMB,
   Cell,
@@ -30,12 +31,7 @@ import {Game} from "./game";
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 const gameName = "candy-crush";
 
-const GRID_COLS = 5;
-const GRID_ROWS = 7;
-const GRID_OFFSET = 32;
-const GRID_SIDE_MARGIN = 0.08;
 const GRID_VERTICAL_PAD = 0.02;
-const PIECE_FIT = 0.78;
 const SWAP_MS = 280; // swipe / scambio pezzi
 const DESTROY_MS = 280; // esplosione match
 const FALL_MS = 420; // caduta e refill
@@ -78,6 +74,8 @@ export class GameManager extends Phaser.Scene {
   private pieces: (Phaser.GameObjects.Image | null)[][] = [];
   private board: number[][] = [];
 
+  private gridCols = 0;
+  private gridRows = 0;
   private cellW = 0;
   private cellH = 0;
   private startX = 0;
@@ -104,6 +102,10 @@ export class GameManager extends Phaser.Scene {
 
   create() {
     console.log(`Gioco caricato ${gameName}`);
+    const size = getGridSize();
+
+    this.gridCols = size.cols;
+    this.gridRows = size.rows;
     this.computeLayoutDimensions();
     this.starsEffect = new StarsEffectManager(this);
     this.createGrid();
@@ -117,33 +119,26 @@ export class GameManager extends Phaser.Scene {
     });
   }
 
-  //* Scopo: Crea lo sfondo della griglia e i 5x7 block dentro un container scalabile
+  //* Scopo: Crea i block (colonne x righe). Lo sfondo griglia resta, ma spento.
   private createGrid(): void {
     this.mainContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2);
 
-    this.gridBackground = this.add.image(0, 0, assetConf.image.backgroundGriglia).setOrigin(0.5);
+    this.gridBackground = this.add
+      .image(0, 0, assetConf.image.backgroundGriglia)
+      .setOrigin(0.5)
+      .setVisible(false);
     this.mainContainer.add(this.gridBackground);
-    this.layoutGrid();
+    this.applyGridMetrics();
 
-    const bgW = this.gridBackground.width;
-    const bgH = this.gridBackground.height;
-
-    this.cellW = (bgW - GRID_OFFSET * 2) / GRID_COLS;
-    this.cellH = (bgH - GRID_OFFSET * 2) / GRID_ROWS;
-    this.startX = -bgW / 2 + GRID_OFFSET + this.cellW / 2;
-    this.startY = -bgH / 2 + GRID_OFFSET + this.cellH / 2;
-    this.gridLeft = this.startX - this.cellW / 2;
-    this.gridTop = this.startY - this.cellH / 2;
-
-    this.board = generatePlayableBoard(GRID_ROWS, GRID_COLS, PIECE_KEYS.length);
+    this.board = generatePlayableBoard(this.gridRows, this.gridCols, PIECE_KEYS.length);
     this.blocks = [];
     this.pieces = [];
 
-    for (let row = 0; row < GRID_ROWS; row++) {
+    for (let row = 0; row < this.gridRows; row++) {
       const rowBlocks: Phaser.GameObjects.Image[] = [];
       const rowPieces: (Phaser.GameObjects.Image | null)[] = [];
 
-      for (let col = 0; col < GRID_COLS; col++) {
+      for (let col = 0; col < this.gridCols; col++) {
         const {x, y} = this.cellPos({r: row, c: col});
         const block = this.add
           .image(x, y, assetConf.image.block)
@@ -184,7 +179,7 @@ export class GameManager extends Phaser.Scene {
   }
 
   private fitScale(piece: Phaser.GameObjects.Image): number {
-    return Math.min(this.cellW / piece.width, this.cellH / piece.height) * PIECE_FIT;
+    return Math.min(this.cellW / piece.width, this.cellH / piece.height) * GRID_PIECE_FIT;
   }
 
   private applyPieceLook(piece: Phaser.GameObjects.Image, type: number): void {
@@ -305,7 +300,7 @@ export class GameManager extends Phaser.Scene {
     const col = Math.floor((localX - this.gridLeft) / this.cellW);
     const row = Math.floor((localY - this.gridTop) / this.cellH);
 
-    if (row < 0 || col < 0 || row >= GRID_ROWS || col >= GRID_COLS) return null;
+    if (row < 0 || col < 0 || row >= this.gridRows || col >= this.gridCols) return null;
 
     return {r: row, c: col};
   }
@@ -318,7 +313,7 @@ export class GameManager extends Phaser.Scene {
   }
 
   private inBounds(cell: Cell): boolean {
-    return cell.r >= 0 && cell.c >= 0 && cell.r < GRID_ROWS && cell.c < GRID_COLS;
+    return cell.r >= 0 && cell.c >= 0 && cell.r < this.gridRows && cell.c < this.gridCols;
   }
 
   private async trySwap(a: Cell, b: Cell): Promise<void> {
@@ -653,8 +648,8 @@ export class GameManager extends Phaser.Scene {
     const extra = (isH ? this.cellW : this.cellH) * 1.4;
     const cellSize = isH ? this.cellW : this.cellH;
     const endA = isH
-      ? {x: this.startX + (GRID_COLS - 1) * this.cellW + extra, y}
-      : {x, y: this.startY + (GRID_ROWS - 1) * this.cellH + extra};
+      ? {x: this.startX + (this.gridCols - 1) * this.cellW + extra, y}
+      : {x, y: this.startY + (this.gridRows - 1) * this.cellH + extra};
     const endB = isH ? {x: this.startX - extra, y} : {x, y: this.startY - extra};
 
     const spawnCopy = () => {
@@ -732,11 +727,11 @@ export class GameManager extends Phaser.Scene {
 
     const moves: Promise<void>[] = [];
 
-    for (let col = 0; col < GRID_COLS; col++) {
+    for (let col = 0; col < this.gridCols; col++) {
       const keptSprites: Phaser.GameObjects.Image[] = [];
       const keptTypes: number[] = [];
 
-      for (let row = GRID_ROWS - 1; row >= 0; row--) {
+      for (let row = this.gridRows - 1; row >= 0; row--) {
         const piece = this.pieces[row][col];
 
         if (piece?.active && this.board[row][col] !== EMPTY) {
@@ -752,7 +747,7 @@ export class GameManager extends Phaser.Scene {
       }
 
       for (let i = 0; i < keptSprites.length; i++) {
-        const row = GRID_ROWS - 1 - i;
+        const row = this.gridRows - 1 - i;
         const pos = this.cellPos({r: row, c: col});
 
         this.pieces[row][col] = keptSprites[i];
@@ -763,7 +758,7 @@ export class GameManager extends Phaser.Scene {
         moves.push(this.moveImage(keptSprites[i], pos.x, pos.y, FALL_MS));
       }
 
-      const emptyCount = GRID_ROWS - keptSprites.length;
+      const emptyCount = this.gridRows - keptSprites.length;
 
       for (let i = 0; i < emptyCount; i++) {
         const row = emptyCount - 1 - i;
@@ -783,8 +778,8 @@ export class GameManager extends Phaser.Scene {
   }
 
   private syncPieceVisuals(): void {
-    for (let row = 0; row < GRID_ROWS; row++) {
-      for (let col = 0; col < GRID_COLS; col++) {
+    for (let row = 0; row < this.gridRows; row++) {
+      for (let col = 0; col < this.gridCols; col++) {
         const pos = this.cellPos({r: row, c: col});
         let piece = this.pieces[row][col];
 
@@ -804,8 +799,8 @@ export class GameManager extends Phaser.Scene {
     const overlay = this.add.rectangle(
       0,
       0,
-      this.gridBackground.width,
-      this.gridBackground.height,
+      this.gridCols * this.cellW,
+      this.gridRows * this.cellH,
       0x001428,
       0.55,
     );
@@ -840,8 +835,8 @@ export class GameManager extends Phaser.Scene {
   }
 
   private applyBoardTextures(): void {
-    for (let row = 0; row < GRID_ROWS; row++) {
-      for (let col = 0; col < GRID_COLS; col++) {
+    for (let row = 0; row < this.gridRows; row++) {
+      for (let col = 0; col < this.gridCols; col++) {
         const piece = this.pieces[row][col];
 
         if (!piece) continue;
@@ -888,41 +883,49 @@ export class GameManager extends Phaser.Scene {
     });
   }
 
-  //* Scopo: Calcola le dimensioni e la posizione centrale dell’area di gioco (background),
-  private computeLayoutDimensions(): void {
-    const config = this.sys.game.config as {width: number; height: number};
+  //* Scopo: Cella quadrata fissa sulla larghezza. 1 o 6 colonne usano la stessa misura.
+  private applyGridMetrics(): void {
+    const cell = getCellSize(this.gameWidth);
 
-    this.gameWidth = Number(config.width);
-    this.gameHeight = Number(config.height);
+    this.cellW = cell;
+    this.cellH = cell;
+
+    const gridW = this.gridCols * cell;
+    const gridH = this.gridRows * cell;
+
+    this.startX = -gridW / 2 + cell / 2;
+    this.startY = -gridH / 2 + cell / 2;
+    this.gridLeft = -gridW / 2;
+    this.gridTop = -gridH / 2;
+  }
+
+  //* Scopo: Calcola le dimensioni e la posizione centrale dell’area di gioco
+  private computeLayoutDimensions(): void {
+    this.gameWidth = this.scale.width;
+    this.gameHeight = this.scale.height;
 
     this.marginTop = this.gameScene.setDynamicValueBasedOnScale(150, 400);
   }
 
   //* Scopo: Bordo sinistro della griglia in coordinate mondo
   public getGridLeft(): number | null {
-    if (!this.mainContainer || !this.gridBackground) return null;
+    if (!this.mainContainer || this.cellW <= 0) return null;
 
-    return this.mainContainer.x - (this.gridBackground.width / 2) * this.mainContainer.scaleX;
+    const gridW = this.gridCols * this.cellW;
+
+    return this.mainContainer.x - (gridW / 2) * this.mainContainer.scaleX;
   }
 
-  //* Scopo: Scala la griglia al massimo nello spazio utile (8% lati, sotto lo score)
+  //* Scopo: Centra la griglia nell'area di gioco. La scala della cella non cambia.
   public layoutGrid(): void {
-    if (!this.mainContainer || !this.gridBackground) return;
+    if (!this.mainContainer) return;
 
     const padY = this.gameHeight * GRID_VERTICAL_PAD;
-    const maxW = this.gameWidth * (1 - GRID_SIDE_MARGIN * 2);
     const top = this.getPlayAreaTop() + padY;
     const bottom = this.gameHeight - padY;
-    const maxH = Math.max(1, bottom - top);
-    const scale = this.gameScene.fitUniformScale(
-      this.gridBackground.width,
-      this.gridBackground.height,
-      maxW,
-      maxH,
-    );
 
-    this.mainContainer.setScale(scale);
-    this.mainContainer.setY((top + bottom) / 2);
+    this.mainContainer.setScale(1);
+    this.mainContainer.setPosition(this.gameWidth / 2, (top + bottom) / 2);
   }
 
   private getPlayAreaTop(): number {
