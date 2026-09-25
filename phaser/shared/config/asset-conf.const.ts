@@ -1,6 +1,8 @@
 export const CandyCrushAssetConf = {
   scene: {
     boot: "boot",
+    opening: "opening",
+    stageMap: "stageMap",
     verse: "verse",
     game: "game",
     timerManager: "timerManager",
@@ -9,7 +11,6 @@ export const CandyCrushAssetConf = {
     outro: "outro",
   },
   audio: {
-    music: "music",
     success: "success",
     error: "error",
     help: "help",
@@ -51,6 +52,14 @@ export const CandyCrushAssetConf = {
     btnCancel: "btnCancel",
     popupExitGame: "popupExitGame",
     containerScore: "containerScore",
+    btnPlay: "btnPlay",
+    btnPlayBlock: "btnPlayBlock",
+    btnRead: "btnRead",
+
+    // intro stage: opening, sfondo e strada
+    opening: "opening",
+    backgroundStage: "backgroundStage",
+    road: "road",
   },
   spritesheet: {
     // for confetti - fine partita

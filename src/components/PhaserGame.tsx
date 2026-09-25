@@ -3,6 +3,8 @@
 import {useEffect, useRef} from "react";
 import type * as PhaserType from "phaser";
 
+import {stopTrack} from "@/settings/soundtrack";
+
 type PhaserGameProps = {
   onExit: () => void;
 };
@@ -56,6 +58,7 @@ export function PhaserGame({onExit}: PhaserGameProps) {
     return () => {
       disposed = true;
       unbind?.();
+      stopTrack();
       game?.destroy(true);
     };
   }, []);

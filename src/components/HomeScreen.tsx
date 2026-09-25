@@ -6,6 +6,7 @@ import {useEffect, useState} from "react";
 import {LANGUAGE_LABELS, LANGUAGES} from "@/language";
 import {useLanguage} from "@/language/LanguageProvider";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
+import {getMusicTrack, playTrack, stopTrack} from "@/settings/soundtrack";
 
 import {PhaserGame} from "./PhaserGame";
 
@@ -14,9 +15,9 @@ const INTRO_MOVE_MS = 1100; // durata della risalita
 const PRESS_MS = 220; // attesa dell'effetto premuto prima di avviare il gioco
 
 const MENU_BUTTONS = [
-  {key: "objectives", src: "/home/objectives.png"},
-  {key: "info", src: "/home/user.png"},
-  {key: "settings", src: "/home/settings.png"},
+  {key: "objectives", src: "/ui_home/objectives.png"},
+  {key: "info", src: "/ui_home/user.png"},
+  {key: "settings", src: "/ui_home/settings.png"},
 ] as const;
 
 type MenuPanel = (typeof MENU_BUTTONS)[number]["key"];
@@ -44,7 +45,7 @@ function WoodPanel({alt, children, onClose}: WoodPanelProps) {
           alt={alt}
           className="h-auto w-full drop-shadow-2xl"
           height={1152}
-          src="/home/settingContainer.png"
+          src="/ui_home/settingContainer.png"
           width={863}
         />
         <div className="absolute inset-[11%] flex flex-col items-center justify-center overflow-hidden px-[6%] text-center">
@@ -126,7 +127,7 @@ export function HomeScreen() {
   const [isStartPressed, setIsStartPressed] = useState(false);
   const [pressedPanel, setPressedPanel] = useState<MenuPanel | null>(null);
   const [openPanel, setOpenPanel] = useState<MenuPanel | null>(null);
-  const [isMusicOn, setIsMusicOn] = useState(true);
+  const [isMusicOn, setIsMusicOn] = useState(isMusicEnabled);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsIntroDone(true), INTRO_HOLD_MS);
@@ -135,8 +136,14 @@ export function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    setIsMusicOn(isMusicEnabled());
-  }, []);
+    if (isPlaying || !isMusicOn) return;
+
+    playTrack("home");
+
+    return () => {
+      if (getMusicTrack() === "home") stopTrack();
+    };
+  }, [isPlaying, isMusicOn]);
 
   useEffect(() => {
     if (!isStartPressed) return;
@@ -158,11 +165,14 @@ export function HomeScreen() {
   }, [pressedPanel]);
 
   if (isPlaying) {
-    return <PhaserGame onExit={() => setIsPlaying(false)} />;
+    return <PhaserGame onExit={() => {
+      setIsPlaying(false);
+      setIsStartPressed(false);
+    }} />;
   }
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-[url('/home/background.png')] bg-cover bg-center bg-no-repeat">
+    <div className="relative h-dvh w-full overflow-hidden bg-[url('/ui_home/background.png')] bg-cover bg-center bg-no-repeat">
       <div
         className="absolute left-1/2 top-0 w-[82%] max-w-sm ease-out"
         style={{
@@ -177,7 +187,7 @@ export function HomeScreen() {
           className="h-auto w-full drop-shadow-xl"
           height={702}
           priority
-          src="/home/logo.png"
+          src="/ui_home/logo.png"
           width={942}
         />
       </div>
@@ -192,11 +202,14 @@ export function HomeScreen() {
           alt={t("start")}
           className="w-[min(62vw,18rem)]"
           height={181}
-          src="/home/start.png"
+          src="/ui_home/start.png"
           width={479}
           isPressed={isStartPressed}
           onClick={() => {
-            if (!isStartPressed) setIsStartPressed(true);
+            if (isStartPressed) return;
+
+            playTrack("stage");
+            setIsStartPressed(true);
           }}
         >
           <span
@@ -257,6 +270,7 @@ export function HomeScreen() {
                   onClick={() => {
                     setIsMusicOn(false);
                     setMusicEnabled(false);
+                    stopTrack();
                   }}
                 />
               </div>

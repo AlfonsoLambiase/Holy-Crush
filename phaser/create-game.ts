@@ -7,6 +7,8 @@ import {Game} from "./scenes/game";
 import {GameManager} from "./scenes/game-manager";
 import {Outro} from "./scenes/outro";
 import {TimerManager} from "./scenes/timer-manager";
+import {OpeningScene} from "./scenes/opening";
+import {StageMapScene} from "./scenes/stage-map";
 import {VerseScene} from "./scenes/verse";
 import {CandyCrushAssetConf} from "./shared/config/asset-conf.const";
 import {AssetPaths, DEFAULT_STAGE} from "./shared/config/asset-paths.const";
@@ -15,6 +17,8 @@ const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
 const SCENES: [string, new () => Phaser.Scene][] = [
   [assetConf.scene.boot, Boot],
+  [assetConf.scene.opening, OpeningScene],
+  [assetConf.scene.stageMap, StageMapScene],
   [assetConf.scene.verse, VerseScene],
   [assetConf.scene.game, Game],
   [assetConf.scene.gameManager, GameManager],

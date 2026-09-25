@@ -37,8 +37,11 @@ const DESTROY_MS = 280; // esplosione match
 const FALL_MS = 420; // caduta e refill
 const SWIPE_RATIO = 0.22; // soglia drag (non è velocità)
 const BOMB_SHOCK_MS = 350;
+const EXPLOSION_AUDIO_MS = 1200;
+const AUDIO_FADE_MS = 450;
 const BOMB_RIPPLE_MS = 60;
 const ROCKET_ZOOM_MS = 200;
+const MISSILE_AUDIO_DELAY_MS = 0;
 const ROCKET_FLY_CELL_MS = 70;
 const HINT_IDLE_MS = 10000;
 const HINT_PULSE_MS = 420;
@@ -481,12 +484,16 @@ export class GameManager extends Phaser.Scene {
 
     if (bombCenters.length) {
       this.cameras.main.shake(140, 0.005);
-      this.gameScene.audioManager.playAudio(assetConf.audio.explosion);
+      this.gameScene.audioManager.playAudio(
+        assetConf.audio.explosion,
+        EXPLOSION_AUDIO_MS,
+        AUDIO_FADE_MS,
+      );
     }
 
     if (rocketCenters.length) {
-      this.time.delayedCall(ROCKET_ZOOM_MS, () => {
-        this.gameScene.audioManager.playAudio(assetConf.audio.missile);
+      this.time.delayedCall(MISSILE_AUDIO_DELAY_MS, () => {
+        this.gameScene.audioManager.playAudio(assetConf.audio.missile, undefined, AUDIO_FADE_MS);
       });
     }
 

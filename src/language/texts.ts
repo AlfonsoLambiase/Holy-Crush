@@ -1,3 +1,5 @@
+import {OPENING_TEXTS} from "./opening_text";
+
 export const LANGUAGES = ["it", "en", "es", "fr"] as const;
 
 export type Language = (typeof LANGUAGES)[number];
@@ -7,7 +9,7 @@ export type TextEntry = {
 } & Record<Language, string>;
 
 //* Aggiungi una riga per ogni stringa: le chiavi it/en/es/fr sono dinamiche
-export const TEXTS: TextEntry[] = [
+const UI_TEXTS: TextEntry[] = [
   {
     key: "start",
     it: "Inizia",
@@ -99,4 +101,13 @@ export const TEXTS: TextEntry[] = [
     es: "Cancelar",
     fr: "Annuler",
   },
+  {
+    key: "tapToContinue",
+    it: "TOCCA PER CONTINUARE",
+    en: "TAP TO CONTINUE",
+    es: "TOCA PARA CONTINUAR",
+    fr: "TOUCHE POUR CONTINUER",
+  },
 ];
+
+export const TEXTS: TextEntry[] = [...UI_TEXTS, ...OPENING_TEXTS];

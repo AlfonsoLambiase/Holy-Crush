@@ -1,16 +1,13 @@
 import * as Phaser from "phaser";
 
+import {getStageIndex} from "@/settings/progress";
 import {loadAudios, loadFonts, loadImages, loadSpritesheets} from "../shared/utils/load-assets";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
-// TODO: We can enhance the readability exporting the load progress status.
 export class Boot extends Phaser.Scene {
-  #loadBar!: Phaser.GameObjects.Graphics;
-  #progressBar!: Phaser.GameObjects.Graphics;
-
   sponsorLogo?: string;
   isTesting: boolean = false;
   safeTop: number = 0; //! notch Area
@@ -32,7 +29,7 @@ export class Boot extends Phaser.Scene {
       this.sponsorLogo = data.sponsorLogo;
       this.isTesting = data.isTesting;
       this.safeTop = data.safeTop || 0; //! notch Area
-      this.stage = data.stage || DEFAULT_STAGE;
+      this.stage = getStageIndex() + 1;
 
       this.registry.set("safeTop", this.safeTop); //! notch Area
 
@@ -42,40 +39,8 @@ export class Boot extends Phaser.Scene {
 
   preload() {
     console.log("Safe area top:", this.safeTop); //! notch Area
-    this.#createBars();
 
-    const loadStartTime = Date.now();
-
-    // Set up progress bar update
-    this.load.on(
-      "progress",
-      (value: number) => {
-        this.#progressBar.clear();
-        this.#progressBar.fillStyle(0xbf5505, 1);
-        this.#progressBar.fillRoundedRect(
-          this.cameras.main.width / 4,
-          this.cameras.main.height - 96,
-          (this.cameras.main.width / 2) * value,
-          16,
-          8,
-        );
-      },
-      this,
-    );
-
-    // Set up loading complete callback
-    this.load.on("complete", () => {
-      const elapsed = Date.now() - loadStartTime;
-      const minDuration = 1000; // 1 secondo
-
-      if (elapsed < minDuration) {
-        setTimeout(() => {
-          this.startGame();
-        }, minDuration - elapsed);
-      } else {
-        this.startGame();
-      }
-    });
+    this.load.on("complete", () => this.startGame());
 
     this.#loadAssets();
 
@@ -92,20 +57,7 @@ export class Boot extends Phaser.Scene {
   }
 
   startGame() {
-    this.scene.start(assetConf.scene.verse);
-  }
-
-  #createBars() {
-    this.#loadBar = this.add.graphics();
-    this.#loadBar.fillStyle(0xef6c00, 1);
-    this.#loadBar.fillRoundedRect(
-      this.cameras.main.width / 4 - 2,
-      this.cameras.main.height - 100,
-      this.cameras.main.width / 2 + 4,
-      24,
-      12,
-    );
-    this.#progressBar = this.add.graphics();
+    this.scene.start(assetConf.scene.opening);
   }
 
   #loadAssets(): void {

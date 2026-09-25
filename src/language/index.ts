@@ -1,6 +1,7 @@
 import {LANGUAGES, TEXTS, type Language} from "./texts";
 
 export {LANGUAGES, TEXTS, type Language, type TextEntry} from "./texts";
+export {openingTextKey} from "./opening_text";
 
 export const LANGUAGE_LABELS: Record<Language, string> = {
   it: "Italiano",

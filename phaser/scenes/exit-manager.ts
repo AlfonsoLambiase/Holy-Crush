@@ -13,7 +13,7 @@ const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
 const BUTTON_GAP = 40; // spazio verticale fra conferma e annulla
 const BUTTONS_CENTER_Y = 70; // centro della coppia bottoni (positivo = più in basso)
-const TITLE_Y_RATIO = -0.32; // titolo nella parte alta del pannello
+const TITLE_Y_RATIO = -0.22; // titolo nella parte alta del pannello
 
 export class ExitManager extends Phaser.Scene {
   private width!: number;

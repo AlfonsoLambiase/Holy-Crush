@@ -5,6 +5,7 @@ import * as Phaser from "phaser";
 
 import {UIManager} from "../components/UIManager";
 import {AudioManager} from "../components/audioManager";
+import {playTrack} from "@/settings/soundtrack";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {StarsEffectManager} from "../components/starsEffectManager";
 
@@ -37,6 +38,7 @@ export class Game extends Phaser.Scene {
 
   init() {
     console.log("Start Scene Game");
+    this.isGameOver = false;
   }
 
   create() {
@@ -52,9 +54,9 @@ export class Game extends Phaser.Scene {
     this.uiManager.createUI();
     this.gameManager.layoutGrid();
 
-    this.audioManager = new AudioManager(this); //* è una semplice classe helper. Si inizializza in questo modo.
+    this.audioManager = new AudioManager(this);
     this.audioManager.loadAudios();
-    //this.audioManager.playBackgroundMusic(); // ! Attivare musica
+    playTrack("game");
 
     const exitManager = this.scene.get(assetConf.scene.exitManager) as ExitManager;
 
@@ -169,15 +171,16 @@ export class Game extends Phaser.Scene {
       .setScale(5)
       .setScrollFactor(0);
 
-    // Create animationLeft
-    this.anims.create({
-      key: "animConfettiLeft",
-      frames: this.anims.generateFrameNumbers(assetConf.spritesheet.confetti_left.key, {
-        start: 0,
-        end: 54,
-      }),
-      frameRate: 20,
-    });
+    if (!this.anims.exists("animConfettiLeft")) {
+      this.anims.create({
+        key: "animConfettiLeft",
+        frames: this.anims.generateFrameNumbers(assetConf.spritesheet.confetti_left.key, {
+          start: 0,
+          end: 54,
+        }),
+        frameRate: 20,
+      });
+    }
 
     spriteLeft.play("animConfettiLeft");
 
@@ -189,15 +192,16 @@ export class Game extends Phaser.Scene {
       .setScale(5)
       .setScrollFactor(0);
 
-    // Create animationRight
-    this.anims.create({
-      key: "animConfettiRight",
-      frames: this.anims.generateFrameNumbers(assetConf.spritesheet.confetti_right.key, {
-        start: 0,
-        end: 54,
-      }),
-      frameRate: 20,
-    });
+    if (!this.anims.exists("animConfettiRight")) {
+      this.anims.create({
+        key: "animConfettiRight",
+        frames: this.anims.generateFrameNumbers(assetConf.spritesheet.confetti_right.key, {
+          start: 0,
+          end: 54,
+        }),
+        frameRate: 20,
+      });
+    }
 
     spriteRight.play("animConfettiRight");
   }

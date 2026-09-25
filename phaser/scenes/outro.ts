@@ -2,8 +2,9 @@
 /* eslint-disable no-console */
 import * as Phaser from "phaser";
 
+import {getStageIndex, registerWin} from "@/settings/progress";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
-import {EventBus, PhaserEvents} from "../shared/event-bus";
+import {AssetPaths} from "../shared/config/asset-paths.const";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
@@ -15,18 +16,41 @@ export class Outro extends Phaser.Scene {
   }
 
   init({resultStatus}: {resultStatus: "Failed" | "Win"}) {
-    if (resultStatus !== "Failed") {
-      this.imageKey = `end${resultStatus}`;
+    const won = resultStatus === "Win";
+
+    this.imageKey = won ? "endWin" : "endFailed";
+
+    const stageCleared = won && registerWin();
+
+    this.time.delayedCall(3000, () => this.#leave(stageCleared));
+  }
+
+  #leave(stageCleared: boolean) {
+    if (!stageCleared) {
+      this.scene.start(assetConf.scene.stageMap);
+
+      return;
     }
 
-    this.time.delayedCall(
-      3000,
-      () => {
-        EventBus.emit(PhaserEvents.END_GAME);
-      },
-      [],
-      this,
-    );
+    const stage = getStageIndex() + 1;
+
+    this.registry.set("stage", stage);
+
+    for (const key of [
+      assetConf.image.opening,
+      assetConf.image.backgroundStage,
+      assetConf.image.road,
+      assetConf.image.backgroundGame,
+      assetConf.image.endBackground,
+    ]) {
+      if (this.textures.exists(key)) this.textures.remove(key);
+      this.load.image(key, AssetPaths.image(key, stage));
+    }
+
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      this.scene.start(assetConf.scene.opening);
+    });
+    this.load.start();
   }
 
   create() {

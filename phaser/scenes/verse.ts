@@ -1,5 +1,6 @@
 import * as Phaser from "phaser";
 
+import {getCurrentLanguage, t} from "@/language";
 import {getVerseByStage} from "../components/verse";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
@@ -59,7 +60,7 @@ export class VerseScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setAlpha(0),
       this.add
-        .text(width / 2, footerTop + fontSize * 2.6, "TOCCA PER CONTINUARE", {
+        .text(width / 2, footerTop + fontSize * 2.6, t("tapToContinue", getCurrentLanguage()), {
           color: "#fff8dc",
           fontFamily: APP_FONT,
           fontSize: `${Math.round(fontSize * 0.45)}px`,
