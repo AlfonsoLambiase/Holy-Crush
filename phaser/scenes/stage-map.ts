@@ -1,5 +1,6 @@
 import * as Phaser from "phaser";
 
+import {playClick, playNoTouch} from "@/settings/click";
 import {playTrack} from "@/settings/soundtrack";
 import {getUnlockedCount} from "@/settings/progress";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
@@ -81,15 +82,17 @@ export class StageMapScene extends Phaser.Scene {
       });
     }
 
-    if (!isOpen) return;
-
     button.setInteractive({useHandCursor: true});
     const restScale = button.scale;
 
-    button.on("pointerdown", () => button.setScale(restScale * 0.92));
+    button.on("pointerdown", () => {
+      if (isOpen) playClick();
+      else playNoTouch();
+      button.setScale(restScale * 0.92);
+    });
     button.on("pointerup", () => {
       button.setScale(restScale);
-      this.scene.start(assetConf.scene.verse);
+      if (isOpen) this.scene.start(assetConf.scene.verse);
     });
     button.on("pointerout", () => button.setScale(restScale));
   }
@@ -153,7 +156,10 @@ export class StageMapScene extends Phaser.Scene {
   ): Phaser.GameObjects.Image {
     const button = this.add.image(x, y, key).setOrigin(0.5).setScale(scale).setInteractive({useHandCursor: true});
 
-    button.on("pointerdown", () => button.setScale(scale * 0.92));
+    button.on("pointerdown", () => {
+      playClick();
+      button.setScale(scale * 0.92);
+    });
     button.on("pointerup", () => {
       button.setScale(scale);
       onPress();

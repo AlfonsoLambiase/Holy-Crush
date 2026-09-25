@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
 
-import {isMusicEnabled} from "@/settings/music";
+import {isEffectsEnabled} from "@/settings/effects";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
@@ -24,7 +24,7 @@ export class AudioManager {
   }
 
   playAudio(key: keyof typeof assetConf.audio, durationMs?: number, fadeMs = 0): void {
-    if (!isMusicEnabled() || !this.audios[key]) return;
+    if (!isEffectsEnabled() || !this.audios[key]) return;
 
     const audio = this.audios[key];
 

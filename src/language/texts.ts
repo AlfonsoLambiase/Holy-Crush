@@ -12,7 +12,7 @@ export type TextEntry = {
 const UI_TEXTS: TextEntry[] = [
   {
     key: "start",
-    it: "Inizia",
+    it: "Gioca",
     en: "Start",
     es: "Empezar",
     fr: "Commencer",
@@ -51,6 +51,13 @@ const UI_TEXTS: TextEntry[] = [
     en: "Music",
     es: "Música",
     fr: "Musique",
+  },
+  {
+    key: "effects",
+    it: "Effetti",
+    en: "Effects",
+    es: "Efectos",
+    fr: "Effets",
   },
   {
     key: "on",

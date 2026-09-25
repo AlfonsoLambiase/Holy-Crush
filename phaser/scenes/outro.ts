@@ -35,6 +35,7 @@ export class Outro extends Phaser.Scene {
     const stage = getStageIndex() + 1;
 
     this.registry.set("stage", stage);
+    this.children.removeAll(true);
 
     for (const key of [
       assetConf.image.opening,

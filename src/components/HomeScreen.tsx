@@ -5,6 +5,8 @@ import {useEffect, useState} from "react";
 
 import {LANGUAGE_LABELS, LANGUAGES} from "@/language";
 import {useLanguage} from "@/language/LanguageProvider";
+import {playClick} from "@/settings/click";
+import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
 import {getMusicTrack, playTrack, stopTrack} from "@/settings/soundtrack";
 
@@ -102,7 +104,10 @@ function HomeImageButton({
       aria-label={alt}
       className={`${className} group relative touch-manipulation`}
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        playClick();
+        onClick?.();
+      }}
     >
       <Image
         alt={alt}
@@ -128,6 +133,7 @@ export function HomeScreen() {
   const [pressedPanel, setPressedPanel] = useState<MenuPanel | null>(null);
   const [openPanel, setOpenPanel] = useState<MenuPanel | null>(null);
   const [isMusicOn, setIsMusicOn] = useState(isMusicEnabled);
+  const [isEffectsOn, setIsEffectsOn] = useState(isEffectsEnabled);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsIntroDone(true), INTRO_HOLD_MS);
@@ -276,20 +282,59 @@ export function HomeScreen() {
               </div>
 
               <p
-                className="mt-10 font-display text-xl font-bold text-[#ffd76a] sm:mt-14 sm:text-2xl"
+                className="mt-6 font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
+                style={{textShadow: PANEL_TEXT_GLOW}}
+              >
+                {t("effects")}
+              </p>
+              <div className="mt-3 grid w-full max-w-md grid-cols-2 gap-3">
+                <SettingsChoice
+                  label={t("on")}
+                  isActive={isEffectsOn}
+                  onClick={() => {
+                    setIsEffectsOn(true);
+                    setEffectsEnabled(true);
+                  }}
+                />
+                <SettingsChoice
+                  label={t("off")}
+                  isActive={!isEffectsOn}
+                  onClick={() => {
+                    setIsEffectsOn(false);
+                    setEffectsEnabled(false);
+                  }}
+                />
+              </div>
+
+              <p
+                className="mt-6 font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
                 style={{textShadow: PANEL_TEXT_GLOW}}
               >
                 {t("language")}
               </p>
-              <div className="mt-3 grid w-full max-w-md grid-cols-2 gap-3">
-                {LANGUAGES.map((code) => (
-                  <SettingsChoice
-                    key={code}
-                    label={LANGUAGE_LABELS[code]}
-                    isActive={language === code}
-                    onClick={() => setLanguage(code)}
-                  />
-                ))}
+              <div className="mt-3 flex w-full max-w-md items-center justify-between gap-3">
+                <SettingsChoice
+                  label="‹"
+                  isActive={false}
+                  onClick={() => {
+                    const index = LANGUAGES.indexOf(language);
+                    setLanguage(LANGUAGES[(index - 1 + LANGUAGES.length) % LANGUAGES.length]);
+                  }}
+                />
+                <p
+                  className="min-w-0 flex-1 font-display text-lg font-bold text-[#fff8dc] sm:text-xl"
+                  style={{textShadow: PANEL_TEXT_GLOW}}
+                >
+                  {LANGUAGE_LABELS[language]}
+                </p>
+                <SettingsChoice
+                  label="›"
+                  isActive={false}
+                  onClick={() => {
+                    const index = LANGUAGES.indexOf(language);
+                    setLanguage(LANGUAGES[(index + 1) % LANGUAGES.length]);
+                  }}
+                />
               </div>
             </>
           ) : (

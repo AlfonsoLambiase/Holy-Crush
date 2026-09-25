@@ -4,7 +4,7 @@ import * as Phaser from "phaser";
 export const createCandyCrushConfig = (
   parent: HTMLElement,
 ): Phaser.Types.Core.GameConfig => ({
-  type: Phaser.CANVAS,
+  type: Phaser.AUTO,
   width: 1920,
   height: 1080,
   parent,

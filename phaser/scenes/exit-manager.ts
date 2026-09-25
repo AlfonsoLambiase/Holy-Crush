@@ -2,6 +2,7 @@
 import * as Phaser from "phaser";
 
 import {getCurrentLanguage, t} from "@/language";
+import {playClick} from "@/settings/click";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
@@ -86,6 +87,7 @@ export class ExitManager extends Phaser.Scene {
       .setInteractive({useHandCursor: true});
 
     btnCancel.on("pointerdown", () => {
+      playClick();
       this.backgroundOverlay.setVisible(false);
       this.popupContainer.setVisible(false);
 
@@ -103,6 +105,7 @@ export class ExitManager extends Phaser.Scene {
       .setInteractive({useHandCursor: true});
 
     btnConfirm.on("pointerdown", () => {
+      playClick();
       const game = this.scene.get(assetConf.scene.game) as Game;
 
       if (game.theme) game.theme.stop();
@@ -172,6 +175,7 @@ export class ExitManager extends Phaser.Scene {
       .setScale(this.gameScene.setDynamicValueBasedOnScale(0.35, 1.0));
 
     exitButton.on("pointerdown", () => {
+      playClick();
       if (isTesting) {
         if (theme) theme.stop();
         EventBus.emit(PhaserEvents.EXIT_GAME);

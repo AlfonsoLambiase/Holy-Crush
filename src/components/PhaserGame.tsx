@@ -59,6 +59,7 @@ export function PhaserGame({onExit}: PhaserGameProps) {
       disposed = true;
       unbind?.();
       stopTrack();
+      game?.loop.stop();
       game?.destroy(true);
     };
   }, []);

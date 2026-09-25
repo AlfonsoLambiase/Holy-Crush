@@ -19,7 +19,7 @@ export class UIManager {
   gameScene!: Game;
 
   public score = 0;
-  public maxScore = 100;
+  public maxScore = 10; //* temporaneo: 10 per le prove, poi torna a 100
   private displayedScore: number = 0;
   private scoreText!: Phaser.GameObjects.Text;
   originalScale: number = 1;
@@ -115,13 +115,16 @@ export class UIManager {
 
     this.scoreContainer.add([scoreBg, this.scoreText]);
 
-    //* Stessa fascia del bottone exit, ma sul lato opposto
+    //* Stesso vuoto dal bordo del bottone esci, sul lato opposto
     const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
+    const exitScale = this.gameScene.setDynamicValueBasedOnScale(0.35, 1);
+    const exitImage = this.scene.textures.get(assetConf.image.btnExitGame).getSourceImage() as {
+      width: number;
+    };
+    const exitHalf = (exitImage.width * exitScale) / 2;
+    const scoreHalf = (scoreBg.displayWidth * containerScale) / 2;
 
-    this.scoreContainer.setPosition(
-      inset + (scoreBg.displayWidth * containerScale) / 2,
-      this.headerCenterY,
-    );
+    this.scoreContainer.setPosition(inset - exitHalf + scoreHalf, this.headerCenterY);
   }
 
   //* La griglia parte sotto l'elemento più basso della testata
