@@ -1,9 +1,8 @@
-//* Generazioni della griglia e limiti. La cella è quadrata e si blocca sulla larghezza.
-export type GridSize = {
-  cols: number;
-  rows: number;
-};
+import {createGrid, type GridShape} from "../../grid/create-grid";
+import {GRID_0000} from "../../grid/grid-0000";
+import {GRID_0001} from "../../grid/grid-0001";
 
+//* Generazioni della griglia e limiti. La cella è quadrata e si blocca sulla larghezza.
 export const GRID_LIMITS = {
   minCols: 1,
   maxCols: 6,
@@ -17,13 +16,21 @@ export const GRID_SIDE_MARGIN = 0.05;
 //* L'obj sta nel block e scala insieme a lui.
 export const GRID_PIECE_FIT = 0.9;
 
-export const GRID_GENERATIONS = {
-  standard: {cols: 6, rows: 9},
-} as const satisfies Record<string, GridSize>;
+const GRIDS = {
+  "grid-0000": createGrid("grid-0000", GRID_0000),
+  "grid-0001": createGrid("grid-0001", GRID_0001),
+} as const;
 
-export type GridGenerationId = keyof typeof GRID_GENERATIONS;
+export type GridId = keyof typeof GRIDS;
 
-export const ACTIVE_GRID_GENERATION: GridGenerationId = "standard";
+//* Il livello in mappa (1-5) sceglie quale disegno creare.
+export const LEVEL_GRIDS = {
+  1: "grid-0001",
+  2: "grid-0000",
+  3: "grid-0000",
+  4: "grid-0000",
+  5: "grid-0000",
+} as const satisfies Record<number, GridId>;
 
 export function getCellSize(gameWidth: number): number {
   const usableWidth = gameWidth * (1 - GRID_SIDE_MARGIN * 2);
@@ -31,17 +38,18 @@ export function getCellSize(gameWidth: number): number {
   return usableWidth / GRID_LIMITS.maxCols;
 }
 
-export function getGridSize(generation: GridGenerationId = ACTIVE_GRID_GENERATION): GridSize {
-  const size = GRID_GENERATIONS[generation];
+export function getGridForLevel(level: number): GridShape {
+  const id = LEVEL_GRIDS[level as keyof typeof LEVEL_GRIDS] ?? "grid-0000";
+  const shape = GRIDS[id];
   const {minCols, maxCols, minRows, maxRows} = GRID_LIMITS;
-  const colsOk = Number.isInteger(size.cols) && size.cols >= minCols && size.cols <= maxCols;
-  const rowsOk = Number.isInteger(size.rows) && size.rows >= minRows && size.rows <= maxRows;
+  const colsOk = shape.cols >= minCols && shape.cols <= maxCols;
+  const rowsOk = shape.rows >= minRows && shape.rows <= maxRows;
 
   if (!colsOk || !rowsOk) {
     throw new Error(
-      `Griglia "${generation}" fuori limite: ${size.cols}x${size.rows}. Colonne ${minCols}-${maxCols}, righe ${minRows}-${maxRows}.`,
+      `Griglia "${id}" fuori limite: ${shape.cols}x${shape.rows}. Colonne ${minCols}-${maxCols}, righe ${minRows}-${maxRows}.`,
     );
   }
 
-  return size;
+  return shape;
 }

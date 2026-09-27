@@ -2,11 +2,13 @@
 /* eslint-disable no-console */
 import * as Phaser from "phaser";
 
+import {getUnlockedCount} from "@/settings/progress";
+
 import {AudioManager} from "../components/audioManager";
 import {StarsEffectManager} from "../components/starsEffectManager";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
-import {getCellSize, getGridSize, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
+import {getCellSize, getGridForLevel, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
 import {
   BOMB,
   Cell,
@@ -73,7 +75,8 @@ export class GameManager extends Phaser.Scene {
 
   private mainContainer!: Phaser.GameObjects.Container;
   private gridBackground!: Phaser.GameObjects.Image;
-  private blocks: Phaser.GameObjects.Image[][] = [];
+  private blocks: (Phaser.GameObjects.Image | null)[][] = [];
+  private gridMask: boolean[][] = [];
   private pieces: (Phaser.GameObjects.Image | null)[][] = [];
   private board: number[][] = [];
 
@@ -105,10 +108,11 @@ export class GameManager extends Phaser.Scene {
 
   create() {
     console.log(`Gioco caricato ${gameName}`);
-    const size = getGridSize();
+    const shape = getGridForLevel(getUnlockedCount());
 
-    this.gridCols = size.cols;
-    this.gridRows = size.rows;
+    this.gridMask = shape.mask;
+    this.gridCols = shape.cols;
+    this.gridRows = shape.rows;
     this.computeLayoutDimensions();
     this.starsEffect = new StarsEffectManager(this);
     this.createGrid();
@@ -133,15 +137,27 @@ export class GameManager extends Phaser.Scene {
     this.mainContainer.add(this.gridBackground);
     this.applyGridMetrics();
 
-    this.board = generatePlayableBoard(this.gridRows, this.gridCols, PIECE_KEYS.length);
+    this.board = generatePlayableBoard(
+      this.gridRows,
+      this.gridCols,
+      PIECE_KEYS.length,
+      (row, col) => this.isOpen(row, col),
+    );
+
     this.blocks = [];
     this.pieces = [];
 
     for (let row = 0; row < this.gridRows; row++) {
-      const rowBlocks: Phaser.GameObjects.Image[] = [];
+      const rowBlocks: (Phaser.GameObjects.Image | null)[] = [];
       const rowPieces: (Phaser.GameObjects.Image | null)[] = [];
 
       for (let col = 0; col < this.gridCols; col++) {
+        if (!this.isOpen(row, col)) {
+          rowBlocks.push(null);
+          rowPieces.push(null);
+          continue;
+        }
+
         const {x, y} = this.cellPos({r: row, c: col});
         const block = this.add
           .image(x, y, assetConf.image.block)
@@ -303,7 +319,9 @@ export class GameManager extends Phaser.Scene {
     const col = Math.floor((localX - this.gridLeft) / this.cellW);
     const row = Math.floor((localY - this.gridTop) / this.cellH);
 
-    if (row < 0 || col < 0 || row >= this.gridRows || col >= this.gridCols) return null;
+    if (row < 0 || col < 0 || row >= this.gridRows || col >= this.gridCols || !this.isOpen(row, col)) {
+      return null;
+    }
 
     return {r: row, c: col};
   }
@@ -313,6 +331,10 @@ export class GameManager extends Phaser.Scene {
       x: this.startX + cell.c * this.cellW,
       y: this.startY + cell.r * this.cellH,
     };
+  }
+
+  private isOpen(row: number, col: number): boolean {
+    return this.gridMask[row]?.[col] === true;
   }
 
   private inBounds(cell: Cell): boolean {
@@ -735,10 +757,16 @@ export class GameManager extends Phaser.Scene {
     const moves: Promise<void>[] = [];
 
     for (let col = 0; col < this.gridCols; col++) {
+      const slots: number[] = [];
+
+      for (let row = this.gridRows - 1; row >= 0; row--) {
+        if (this.isOpen(row, col)) slots.push(row);
+      }
+
       const keptSprites: Phaser.GameObjects.Image[] = [];
       const keptTypes: number[] = [];
 
-      for (let row = this.gridRows - 1; row >= 0; row--) {
+      for (const row of slots) {
         const piece = this.pieces[row][col];
 
         if (piece?.active && this.board[row][col] !== EMPTY) {
@@ -754,7 +782,7 @@ export class GameManager extends Phaser.Scene {
       }
 
       for (let i = 0; i < keptSprites.length; i++) {
-        const row = this.gridRows - 1 - i;
+        const row = slots[i];
         const pos = this.cellPos({r: row, c: col});
 
         this.pieces[row][col] = keptSprites[i];
@@ -765,10 +793,10 @@ export class GameManager extends Phaser.Scene {
         moves.push(this.moveImage(keptSprites[i], pos.x, pos.y, FALL_MS));
       }
 
-      const emptyCount = this.gridRows - keptSprites.length;
+      const missing = slots.length - keptSprites.length;
 
-      for (let i = 0; i < emptyCount; i++) {
-        const row = emptyCount - 1 - i;
+      for (let i = 0; i < missing; i++) {
+        const row = slots[keptSprites.length + i];
         const type = Phaser.Math.Between(0, PIECE_KEYS.length - 1);
         const fromY = this.startY - (i + 1) * this.cellH;
         const piece = this.spawnPiece(row, col, type, fromY);
@@ -787,6 +815,8 @@ export class GameManager extends Phaser.Scene {
   private syncPieceVisuals(): void {
     for (let row = 0; row < this.gridRows; row++) {
       for (let col = 0; col < this.gridCols; col++) {
+        if (!this.isOpen(row, col) || this.board[row][col] === EMPTY) continue;
+
         const pos = this.cellPos({r: row, c: col});
         let piece = this.pieces[row][col];
 
