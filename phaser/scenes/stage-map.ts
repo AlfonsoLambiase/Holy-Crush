@@ -11,8 +11,7 @@ import {EventBus, PhaserEvents} from "../shared/event-bus";
 
 const assetConf = CandyCrushAssetConf;
 
-const NEAR_SCALE = 0.11;
-const FAR_SCALE = 0.075;
+const LEVEL_SCALE = 0.11;
 
 export class StageMapScene extends Phaser.Scene {
   constructor() {
@@ -37,12 +36,17 @@ export class StageMapScene extends Phaser.Scene {
 
     stops.forEach((stop, index) => {
       const isOpen = index < unlocked;
-      const depth = stops.length === 1 ? 0 : (index + 1) / (stops.length - 1);
-      const size = NEAR_SCALE + (FAR_SCALE - NEAR_SCALE) * depth;
-      const x = width * stop.x;
-      const y = height * stop.y;
 
-      this.#addLevelButton(x, y, size, index + 1, isOpen, isOpen && index === unlocked - 1, map, tint);
+      this.#addLevelButton(
+        width * stop.x,
+        height * stop.y,
+        LEVEL_SCALE,
+        index + 1,
+        isOpen,
+        isOpen && index === unlocked - 1,
+        map,
+        tint,
+      );
     });
 
     this.#addHeader();
