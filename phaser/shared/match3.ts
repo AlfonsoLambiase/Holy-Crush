@@ -56,6 +56,10 @@ export function swapCells(board: number[][], a: Cell, b: Cell): void {
   board[b.r][b.c] = tmp;
 }
 
+function isPiece(type: number): boolean {
+  return isRegular(type) || isSpecial(type);
+}
+
 function sameRegular(board: number[][], a: Cell, b: Cell): boolean {
   const typeA = board[a.r][a.c];
   const typeB = board[b.r][b.c];
@@ -322,14 +326,24 @@ export function findHintMove(board: number[][]): {a: Cell; b: Cell} | null {
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
+      if (!isPiece(board[r][c])) continue;
+
+      const neighbors: Cell[] = [
+        {r, c: c + 1},
+        {r: r + 1, c},
+        {r, c: c - 1},
+        {r: r - 1, c},
+      ];
+
       if (isSpecial(board[r][c])) {
-        if (c + 1 < cols) return {a: {r, c}, b: {r, c: c + 1}};
-        if (r + 1 < rows) return {a: {r, c}, b: {r: r + 1, c}};
-        if (c > 0) return {a: {r, c}, b: {r, c: c - 1}};
-        if (r > 0) return {a: {r, c}, b: {r: r - 1, c}};
+        const neighbor = neighbors.find(
+          (cell) => inBounds(board, cell.r, cell.c) && isPiece(board[cell.r][cell.c]),
+        );
+
+        if (neighbor) return {a: {r, c}, b: neighbor};
       }
 
-      if (c + 1 < cols) {
+      if (c + 1 < cols && isPiece(board[r][c + 1])) {
         swapCells(board, {r, c}, {r, c: c + 1});
         const hit = hasMatches(board);
 
@@ -337,7 +351,7 @@ export function findHintMove(board: number[][]): {a: Cell; b: Cell} | null {
         if (hit) return {a: {r, c}, b: {r, c: c + 1}};
       }
 
-      if (r + 1 < rows) {
+      if (r + 1 < rows && isPiece(board[r + 1][c])) {
         swapCells(board, {r, c}, {r: r + 1, c});
         const hit = hasMatches(board);
 
@@ -354,7 +368,12 @@ export function hasValidMove(board: number[][]): boolean {
   return findHintMove(board) !== null;
 }
 
-export function generatePlayableBoard(rows: number, cols: number, typeCount: number): number[][] {
+export function generatePlayableBoard(
+  rows: number,
+  cols: number,
+  typeCount: number,
+  isOpen: (row: number, col: number) => boolean = () => true,
+): number[][] {
   let board = createEmptyBoard(rows, cols);
 
   for (let attempt = 0; attempt < 80; attempt++) {
@@ -362,6 +381,8 @@ export function generatePlayableBoard(rows: number, cols: number, typeCount: num
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
+        if (!isOpen(r, c)) continue;
+
         let type = randomType(typeCount);
         let guard = 0;
 
@@ -384,12 +405,18 @@ export function shuffleBoard(board: number[][], typeCount: number): void {
   const rows = board.length;
   const cols = board[0].length;
 
-  for (let attempt = 0; attempt < 80; attempt++) {
-    const types: number[] = [];
+  const open: Cell[] = [];
 
-    for (const row of board) {
-      for (const type of row) types.push(type);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (board[r][c] !== EMPTY) open.push({r, c});
     }
+  }
+
+  const isOpen = (r: number, c: number) => board[r][c] !== EMPTY;
+
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const types = open.map((cell) => board[cell.r][cell.c]);
 
     for (let i = types.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -399,22 +426,16 @@ export function shuffleBoard(board: number[][], typeCount: number): void {
       types[j] = tmp;
     }
 
-    let i = 0;
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        board[r][c] = types[i++];
-      }
-    }
+    open.forEach((cell, index) => {
+      board[cell.r][cell.c] = types[index];
+    });
 
     if (!hasMatches(board) && hasValidMove(board)) return;
   }
 
-  const fresh = generatePlayableBoard(rows, cols, typeCount);
+  const fresh = generatePlayableBoard(rows, cols, typeCount, isOpen);
 
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      board[r][c] = fresh[r][c];
-    }
+  for (const cell of open) {
+    board[cell.r][cell.c] = fresh[cell.r][cell.c];
   }
 }
