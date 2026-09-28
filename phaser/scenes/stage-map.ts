@@ -1,25 +1,18 @@
 import * as Phaser from "phaser";
 
 import {playClick, playNoTouch} from "@/settings/click";
+import {getStageIndex, getUnlockedCount} from "@/settings/progress";
+import {darkenHex, getStageMap, hexToInt, stagePoint, type StageMapConfig} from "@/settings/stage-map";
 import {playTrack} from "@/settings/soundtrack";
-import {getUnlockedCount} from "@/settings/progress";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {APP_FONT} from "../shared/config/font.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
 
 const assetConf = CandyCrushAssetConf;
 
-//* Sul tracciato, dal più vicino (basso, grande) al più lontano (alto, piccolo)
-const STOPS = [
-  {x: 0.65, y: 0.84},
-  {x: 0.17, y: 0.67},
-  {x: 0.62, y: 0.46},
-  {x: 0.19, y: 0.29},
-  {x: 0.47, y: 0.13},
-] as const;
-
-const NEAR_SCALE = 0.15;
-const FAR_SCALE = 0.11;
+const NEAR_SCALE = 0.11;
+const FAR_SCALE = 0.075;
 
 export class StageMapScene extends Phaser.Scene {
   constructor() {
@@ -29,6 +22,9 @@ export class StageMapScene extends Phaser.Scene {
   create() {
     const {width, height} = this.scale;
     const unlocked = getUnlockedCount();
+    const map = getStageMap(getStageIndex());
+    const tint = hexToInt(map.pathColor);
+    const stops = Array.from({length: map.levels}, (_, index) => stagePoint(map, index));
 
     playTrack("stage");
 
@@ -37,64 +33,118 @@ export class StageMapScene extends Phaser.Scene {
       .setDisplaySize(width, height)
       .setDepth(0);
 
-    this.add
-      .image(width / 2, height / 2, assetConf.image.road)
-      .setDisplaySize(width, height)
-      .setDepth(1);
+    this.#drawPath(width, height, map);
 
-    STOPS.forEach((stop, index) => {
+    stops.forEach((stop, index) => {
       const isOpen = index < unlocked;
-      const depth = (index + 1) / (STOPS.length - 1);
+      const depth = stops.length === 1 ? 0 : (index + 1) / (stops.length - 1);
       const size = NEAR_SCALE + (FAR_SCALE - NEAR_SCALE) * depth;
       const x = width * stop.x;
       const y = height * stop.y;
 
-      this.#addLevelButton(x, y, size, isOpen, isOpen && index === unlocked - 1);
+      this.#addLevelButton(x, y, size, index + 1, isOpen, isOpen && index === unlocked - 1, map, tint);
     });
 
     this.#addHeader();
   }
 
-  #addLevelButton(x: number, y: number, size: number, isOpen: boolean, pulse: boolean) {
+  #drawPath(width: number, height: number, map: StageMapConfig) {
+    const steps = Math.max(1, (map.levels - 1) * 8);
+    const samples = Array.from({length: steps + 1}, (_, step) => {
+      const t = (step / steps) * Math.max(1, map.levels - 1);
+      const point = stagePoint(map, t);
+
+      return new Phaser.Math.Vector2(width * point.x, height * point.y);
+    });
+    const stub = Math.min(width, height) * 0.03;
+    const startStub = map.up ? stub : -stub;
+    const path = new Phaser.Curves.Path(samples[0].x, samples[0].y + startStub);
+    const last = samples[samples.length - 1];
+
+    path.lineTo(samples[0].x, samples[0].y);
+    path.splineTo(samples.slice(1));
+    path.lineTo(last.x, last.y - startStub);
+
+    const road = this.add.graphics().setDepth(1);
+    const thick = Math.min(width, height) * 0.036;
+    const fill = hexToInt(map.pathColor);
+
+    road.lineStyle(thick, hexToInt(darkenHex(map.pathColor)), 1);
+    path.draw(road, 256);
+    road.lineStyle(thick * 0.52, fill, 1);
+    path.draw(road, 256);
+  }
+
+  #addLevelButton(
+    x: number,
+    y: number,
+    size: number,
+    level: number,
+    isOpen: boolean,
+    pulse: boolean,
+    map: StageMapConfig,
+    tint: number,
+  ) {
     const {width, height} = this.scale;
-    const color = isOpen ? 0xfff4c2 : 0xb388ff;
-    const button = this.add
-      .image(x, y, isOpen ? assetConf.image.btnPlay : assetConf.image.btnPlayBlock)
-      .setDepth(3);
+    const button = this.add.image(x, y, assetConf.image.btnPlay).setDepth(3);
 
     button.setScale((Math.min(width, height) * size) / button.width);
 
-    const glow = this.add
-      .circle(x, y, button.displayWidth * 0.55, color, 0.7)
+    const label = this.add
+      .text(x, y, `${level}`, {
+        color: map.numberColor,
+        fontFamily: APP_FONT,
+        fontSize: `${Math.round(button.displayHeight * 0.4)}px`,
+        fontStyle: "bold",
+        stroke: darkenHex(map.numberColor),
+        strokeThickness: 6,
+      })
       .setOrigin(0.5)
-      .setDepth(2)
-      .setBlendMode(Phaser.BlendModes.ADD);
+      .setDepth(4);
 
-    if (pulse) {
-      this.tweens.add({
-        targets: glow,
-        alpha: 0.25,
-        scale: 1.2,
-        duration: 900,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
+    const lock = isOpen ? null : this.add.image(x, y, assetConf.image.btnPlayBlock).setDepth(5);
+
+    lock?.setScale(button.displayWidth / lock.width);
+
+    if (isOpen) {
+      const glow = this.add
+        .circle(x, y, button.displayWidth * 0.55, tint, 0.7)
+        .setOrigin(0.5)
+        .setDepth(2)
+        .setBlendMode(Phaser.BlendModes.ADD);
+
+      if (pulse) {
+        this.tweens.add({
+          targets: glow,
+          alpha: 0.25,
+          scale: 1.2,
+          duration: 900,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+        });
+      }
     }
 
     button.setInteractive({useHandCursor: true});
     const restScale = button.scale;
+    const restLockScale = lock?.scale ?? 1;
+    const press = (factor: number) => {
+      button.setScale(restScale * factor);
+      label.setScale(factor);
+      lock?.setScale(restLockScale * factor);
+    };
 
     button.on("pointerdown", () => {
       if (isOpen) playClick();
       else playNoTouch();
-      button.setScale(restScale * 0.92);
+      press(0.92);
     });
     button.on("pointerup", () => {
-      button.setScale(restScale);
+      press(1);
       if (isOpen) this.scene.start(assetConf.scene.verse);
     });
-    button.on("pointerout", () => button.setScale(restScale));
+    button.on("pointerout", () => press(1));
   }
 
   #addHeader() {
