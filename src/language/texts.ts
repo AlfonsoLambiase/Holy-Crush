@@ -115,6 +115,27 @@ const UI_TEXTS: TextEntry[] = [
     es: "TOCA PARA CONTINUAR",
     fr: "TOUCHE POUR CONTINUER",
   },
+  {
+    key: "newTestament",
+    it: "Nuovo Testamento",
+    en: "New Testament",
+    es: "Nuevo Testamento",
+    fr: "Nouveau Testament",
+  },
+  {
+    key: "oldTestament",
+    it: "Vecchio Testamento",
+    en: "Old Testament",
+    es: "Antiguo Testamento",
+    fr: "Ancien Testament",
+  },
+  {
+    key: "loading",
+    it: "CARICAMENTO",
+    en: "LOADING",
+    es: "CARGANDO",
+    fr: "CHARGEMENT",
+  },
 ];
 
 export const TEXTS: TextEntry[] = [...UI_TEXTS, ...OPENING_TEXTS];

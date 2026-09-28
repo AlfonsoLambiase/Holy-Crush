@@ -15,6 +15,8 @@ const assetConf = CandyCrushAssetConf; //* Generalizzazione
 const BUTTON_GAP = 40; // spazio verticale fra conferma e annulla
 const BUTTONS_CENTER_Y = 70; // centro della coppia bottoni (positivo = più in basso)
 const TITLE_Y_RATIO = -0.22; // titolo nella parte alta del pannello
+const PRESS_MS = 220; // stessa attesa del premuto sugli altri bottoni
+const PRESS_SCALE = 0.92;
 
 export class ExitManager extends Phaser.Scene {
   private width!: number;
@@ -24,6 +26,7 @@ export class ExitManager extends Phaser.Scene {
   private popupContainer!: Phaser.GameObjects.Container;
 
   gameScene!: Game;
+  private choiceLocked = false;
 
   constructor(scene?: Phaser.Scene) {
     super({key: assetConf.scene.exitManager});
@@ -42,6 +45,7 @@ export class ExitManager extends Phaser.Scene {
     }
 
     this.#addBackgroundOverlay();
+    this.choiceLocked = false;
     this.#addPopup();
   }
 
@@ -79,62 +83,83 @@ export class ExitManager extends Phaser.Scene {
       wordWrapWidth: popupExitGame.width * 0.72,
     });
 
-    // Cancel button
     const btnCancel = this.add
       .image(0, 0, assetConf.image.btnCancel)
       .setOrigin(0.5)
-      .setDepth(102)
       .setInteractive({useHandCursor: true});
-
-    btnCancel.on("pointerdown", () => {
-      playClick();
-      this.backgroundOverlay.setVisible(false);
-      this.popupContainer.setVisible(false);
-
-      if (!this.scene.isActive(assetConf.scene.game)) {
-        this.scene.resume(assetConf.scene.game);
-        this.sound.resumeAll();
-      }
-    });
-
-    // Confirm button
     const btnConfirm = this.add
       .image(0, 0, assetConf.image.btnConfirm)
       .setOrigin(0.5)
-      .setDepth(102)
       .setInteractive({useHandCursor: true});
 
-    btnConfirm.on("pointerdown", () => {
-      playClick();
-      const game = this.scene.get(assetConf.scene.game) as Game;
-
-      if (game.theme) game.theme.stop();
-      EventBus.emit(PhaserEvents.EXIT_GAME);
-    });
-
-    //* Bottoni centrati e impilati: conferma sopra, annulla sotto
+    //* Bottoni centrati e impilati: conferma sopra, annulla sotto. Testo nello stesso contenitore, così il premuto scala tutto insieme
     const buttonOffsetY = (btnConfirm.height + BUTTON_GAP) / 2;
-
-    btnConfirm.setPosition(0, BUTTONS_CENTER_Y - buttonOffsetY);
-    btnCancel.setPosition(0, BUTTONS_CENTER_Y + buttonOffsetY);
-
-    const confirmLabel = this.#addLabel(btnConfirm.x, btnConfirm.y, t("confirm", language), {
-      fontSize: 40,
-      color: "#fff8dc",
-    });
-    const cancelLabel = this.#addLabel(btnCancel.x, btnCancel.y, t("cancel", language), {
-      fontSize: 40,
-      color: "#fff8dc",
-    });
-
-    this.popupContainer.add([
-      popupExitGame,
-      title,
-      btnCancel,
+    const confirmPlate = this.#choicePlate(
+      0,
+      BUTTONS_CENTER_Y - buttonOffsetY,
       btnConfirm,
-      confirmLabel,
-      cancelLabel,
+      t("confirm", language),
+      () => this.#backToStage(),
+    );
+    const cancelPlate = this.#choicePlate(
+      0,
+      BUTTONS_CENTER_Y + buttonOffsetY,
+      btnCancel,
+      t("cancel", language),
+      () => this.#resumeGame(),
+    );
+
+    this.popupContainer.add([popupExitGame, title, confirmPlate, cancelPlate]);
+  }
+
+  #choicePlate(
+    x: number,
+    y: number,
+    button: Phaser.GameObjects.Image,
+    label: string,
+    onPress: () => void,
+  ) {
+    const plate = this.add.container(x, y, [
+      button,
+      this.#addLabel(0, 0, label, {fontSize: 40, color: "#fff8dc"}),
     ]);
+    let pressed = false;
+
+    button.on("pointerdown", () => {
+      if (pressed || this.choiceLocked) return;
+
+      pressed = true;
+      this.choiceLocked = true;
+      playClick();
+      plate.setScale(PRESS_SCALE);
+      this.time.delayedCall(PRESS_MS, () => {
+        plate.setScale(1);
+        onPress();
+      });
+    });
+
+    return plate;
+  }
+
+  #resumeGame() {
+    this.backgroundOverlay.setVisible(false);
+    this.popupContainer.setVisible(false);
+
+    if (!this.scene.isActive(assetConf.scene.game)) {
+      this.scene.resume(assetConf.scene.game);
+      this.sound.resumeAll();
+    }
+  }
+
+  #backToStage() {
+    const game = this.scene.get(assetConf.scene.game) as Game;
+
+    game?.theme?.stop();
+    this.sound.resumeAll();
+    this.scene.stop(assetConf.scene.gameManager);
+    this.scene.stop(assetConf.scene.timerManager);
+    this.scene.stop(assetConf.scene.game);
+    this.scene.start(assetConf.scene.stageMap);
   }
 
   #addLabel(
@@ -155,6 +180,15 @@ export class ExitManager extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(103);
+  }
+
+  showPopup() {
+    this.choiceLocked = false;
+    this.backgroundOverlay?.setVisible(true);
+    this.popupContainer?.setVisible(true);
+    this.popupContainer?.each((child: Phaser.GameObjects.GameObject) => {
+      if (child instanceof Phaser.GameObjects.Container) child.setScale(1);
+    });
   }
 
   public createExitButton(scene: Phaser.Scene, theme?: Phaser.Sound.BaseSound) {
@@ -181,7 +215,9 @@ export class ExitManager extends Phaser.Scene {
         EventBus.emit(PhaserEvents.EXIT_GAME);
       } else {
         scene.scene.launch(assetConf.scene.exitManager);
-        const exitManager = scene.scene.get(assetConf.scene.exitManager) as ExitManager;
+        scene.scene.pause(assetConf.scene.game);
+        scene.sound.pauseAll();
+        (scene.scene.get(assetConf.scene.exitManager) as ExitManager).showPopup();
       }
     });
 

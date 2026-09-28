@@ -2,6 +2,10 @@
 //* numberColor e pathColor vanno tenuti uguali: colorano il numero e il percorso.
 //* Se gli stage finiscono, si ricomincia dal primo.
 
+//* true: ogni partita toglie il 20% del cuore a spicchio, su 360°.
+//* false: lo toglie da destra verso sinistra.
+export const DRAIN_FILL_IN_CIRCLE = false;
+
 export type PathShape = "snake" | "mirror" | "wide" | "tight" | "drift" | "slow";
 
 export type StageMapConfig = {

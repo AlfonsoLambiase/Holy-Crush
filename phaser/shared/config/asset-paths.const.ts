@@ -24,6 +24,8 @@ const STAGE_UI_KEYS = new Set([
   "confetti_right",
   "endBackground",
   "logo_stage",
+  "logo_stage_bg",
+  "logo_stage_fill",
   "iconSandClock",
   "iconHelp",
   "iconScore",

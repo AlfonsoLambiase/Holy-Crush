@@ -7,11 +7,13 @@ import {playTrack} from "@/settings/soundtrack";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
+import {addStageHeart, STAGE_HEART_SCALE} from "../shared/stage-heart";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
 
 const assetConf = CandyCrushAssetConf;
 
 const LEVEL_SCALE = 0.11;
+const PATH_DROP = 100;
 
 export class StageMapScene extends Phaser.Scene {
   constructor() {
@@ -39,7 +41,7 @@ export class StageMapScene extends Phaser.Scene {
 
       this.#addLevelButton(
         width * stop.x,
-        height * stop.y,
+        height * stop.y + PATH_DROP,
         LEVEL_SCALE,
         index + 1,
         isOpen,
@@ -58,7 +60,7 @@ export class StageMapScene extends Phaser.Scene {
       const t = (step / steps) * Math.max(1, map.levels - 1);
       const point = stagePoint(map, t);
 
-      return new Phaser.Math.Vector2(width * point.x, height * point.y);
+      return new Phaser.Math.Vector2(width * point.x, height * point.y + PATH_DROP);
     });
     const stub = Math.min(width, height) * 0.03;
     const startStub = map.up ? stub : -stub;
@@ -90,12 +92,12 @@ export class StageMapScene extends Phaser.Scene {
     tint: number,
   ) {
     const {width, height} = this.scale;
-    const button = this.add.image(x, y, assetConf.image.btnPlay).setDepth(3);
+    const button = this.add.image(0, 0, assetConf.image.btnPlay);
 
     button.setScale((Math.min(width, height) * size) / button.width);
 
     const label = this.add
-      .text(x, y, `${level}`, {
+      .text(0, 0, `${level}`, {
         color: map.numberColor,
         fontFamily: APP_FONT,
         fontSize: `${Math.round(button.displayHeight * 0.4)}px`,
@@ -103,12 +105,21 @@ export class StageMapScene extends Phaser.Scene {
         stroke: darkenHex(map.numberColor),
         strokeThickness: 6,
       })
-      .setOrigin(0.5)
-      .setDepth(4);
+      .setOrigin(0.5);
 
-    const lock = isOpen ? null : this.add.image(x, y, assetConf.image.btnPlayBlock).setDepth(5);
+    const lock = isOpen ? null : this.add.image(0, 0, assetConf.image.btnPlayBlock);
 
     lock?.setScale(button.displayWidth / lock.width);
+
+    const plate = this.add
+      .container(x, y, lock ? [button, label, lock] : [button, label])
+      .setDepth(3);
+
+    const zone = this.add
+      .zone(x, y, button.displayWidth, button.displayHeight)
+      .setOrigin(0.5)
+      .setDepth(12)
+      .setInteractive({useHandCursor: true});
 
     if (isOpen) {
       const glow = this.add
@@ -130,43 +141,43 @@ export class StageMapScene extends Phaser.Scene {
       }
     }
 
-    button.setInteractive({useHandCursor: true});
-    const restScale = button.scale;
-    const restLockScale = lock?.scale ?? 1;
-    const press = (factor: number) => {
-      button.setScale(restScale * factor);
-      label.setScale(factor);
-      lock?.setScale(restLockScale * factor);
-    };
+    const press = (factor: number) => plate.setScale(factor);
+    let isLeaving = false;
 
-    button.on("pointerdown", () => {
+    zone.on("pointerdown", () => {
+      if (isLeaving) return;
+
       if (isOpen) playClick();
       else playNoTouch();
       press(0.92);
+
+      this.input.once("pointerup", () => {
+        if (!isOpen) {
+          press(1);
+
+          return;
+        }
+
+        isLeaving = true;
+        this.time.delayedCall(220, () => {
+          this.registry.set("level", level);
+          this.scene.start(assetConf.scene.verse);
+        });
+      });
     });
-    button.on("pointerup", () => {
-      press(1);
-      if (isOpen) {
-        this.registry.set("level", level);
-        this.scene.start(assetConf.scene.verse);
-      }
-    });
-    button.on("pointerout", () => press(1));
   }
 
   #addHeader() {
     const {width} = this.scale;
     const safeTop = Number(this.registry.get("safeTop")) || 0;
     const inset = this.#gameButtonScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
-    const logoScale = this.#gameButtonScale(0.4, 1);
-    const margin = 40 * logoScale;
-    const logo = this.textures.exists("logo_stage")
-      ? (this.textures.get("logo_stage").getSourceImage() as {height: number})
-      : null;
-    const headerY = logo
-      ? safeTop + margin + (logo.height * logoScale) / 2
-      : safeTop + inset;
     const scale = this.#gameButtonScale(0.35, 1);
+    const readImage = this.textures.exists(assetConf.image.btnRead)
+      ? (this.textures.get(assetConf.image.btnRead).getSourceImage() as {height: number})
+      : null;
+    const heartSize = (readImage?.height ?? 0) * scale * STAGE_HEART_SCALE;
+    const margin = 40 * this.#gameButtonScale(0.4, 1);
+    const headerY = safeTop + margin + heartSize / 2;
 
     const read = this.#headerButton(inset, headerY, assetConf.image.btnRead, scale, () => {
       this.scene.start(assetConf.scene.opening);
@@ -181,8 +192,9 @@ export class StageMapScene extends Phaser.Scene {
       },
     );
 
-    read.setDepth(10);
-    exit.setDepth(10);
+    read.setDepth(11);
+    exit.setDepth(11);
+    addStageHeart(this, width / 2, headerY, read.displayHeight * STAGE_HEART_SCALE);
   }
 
   //* Stessa scala del bottone esci dentro la partita

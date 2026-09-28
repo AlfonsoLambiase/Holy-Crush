@@ -3,6 +3,7 @@ import * as Phaser from "phaser";
 import {getCurrentLanguage, openingTextKey, t} from "@/language";
 import {playTrack} from "@/settings/soundtrack";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {EventBus, PhaserEvents} from "../shared/event-bus";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 import {APP_FONT} from "../shared/config/font.const";
 
@@ -80,6 +81,7 @@ export class OpeningScene extends Phaser.Scene {
 
     this.#startTyping();
     this.input.on("pointerup", this.#advance, this);
+    EventBus.emit(PhaserEvents.OPENING_READY);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.#typeEvent?.remove();
       this.#rayTweens.forEach((tween) => tween.remove());

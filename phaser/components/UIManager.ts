@@ -5,6 +5,7 @@ import {Game} from "../scenes/game";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
+import {addStageHeart, STAGE_HEART_SCALE} from "../shared/stage-heart";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
@@ -69,28 +70,25 @@ export class UIManager {
   }
 
   #createLogo() {
-    const sponsorLogo = this.scene.registry.get("sponsorLogo");
-    const safeTop = this.scene.registry.get("safeTop") || 0; //! notch Area
+    const safeTop = Number(this.scene.registry.get("safeTop")) || 0;
     const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
 
     this.logoBottom = safeTop;
     this.headerCenterY = inset;
 
-    if (sponsorLogo === "empty") return;
+    if (!this.scene.textures.exists(assetConf.image.btnExitGame)) return;
 
-    const dynamicScale = this.gameScene.setDynamicValueBasedOnScale(0.4, 1.0);
-    const margin = LOGO_BAND_MARGIN * dynamicScale;
+    const exitScale = this.gameScene.setDynamicValueBasedOnScale(0.35, 1);
+    const exitImage = this.scene.textures.get(assetConf.image.btnExitGame).getSourceImage() as {
+      height: number;
+    };
+    const heartSize = exitImage.height * exitScale * STAGE_HEART_SCALE;
+    const margin = LOGO_BAND_MARGIN * this.gameScene.setDynamicValueBasedOnScale(0.4, 1);
+    const heartY = safeTop + margin + heartSize / 2;
 
-    // Logo fisso in alto al centro, dove stava dentro la vecchia fascia
-    const logo = this.scene.add
-      .image(this.scene.scale.width / 2, safeTop + margin, "logo_stage")
-      .setOrigin(0.5, 0)
-      .setScale(dynamicScale)
-      .setDepth(-2)
-      .setScrollFactor(0);
-
-    this.headerCenterY = logo.y + logo.displayHeight / 2;
-    this.logoBottom = logo.getBounds().bottom + margin;
+    this.headerCenterY = heartY;
+    this.logoBottom = heartY + heartSize / 2 + margin;
+    addStageHeart(this.scene, this.scene.scale.width / 2, heartY, heartSize, -2);
   }
 
   #createContainerScore() {

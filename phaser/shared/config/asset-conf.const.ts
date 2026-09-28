@@ -56,6 +56,9 @@ export const CandyCrushAssetConf = {
     btnPlayBlock: "btnPlayBlock",
     btnRead: "btnRead",
 
+    logo_stage_bg: "logo_stage_bg",
+    logo_stage_fill: "logo_stage_fill",
+
     // intro stage: opening, sfondo e strada
     opening: "opening",
     line: "line",
