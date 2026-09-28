@@ -58,6 +58,7 @@ export const CandyCrushAssetConf = {
 
     // intro stage: opening, sfondo e strada
     opening: "opening",
+    line: "line",
     backgroundStage: "backgroundStage",
     road: "road",
   },

@@ -19,8 +19,8 @@ export class OpeningScene extends Phaser.Scene {
   #footer!: Phaser.GameObjects.Text;
   #fullText = "";
   #typeEvent?: Phaser.Time.TimerEvent;
-  #rayTween?: Phaser.Tweens.Tween;
-  #rayMask?: Phaser.Display.Masks.GeometryMask;
+  #rayTweens: Phaser.Tweens.Tween[] = [];
+  #rayMasks: Phaser.Display.Masks.GeometryMask[] = [];
   #isComplete = false;
 
   constructor() {
@@ -38,11 +38,11 @@ export class OpeningScene extends Phaser.Scene {
 
     this.#isComplete = false;
     playTrack("stage");
-    this.#placeArt(width, height);
 
+    const art = this.#placeArt(width, height);
     const panelW = width * 0.86;
-    const panelH = height * 0.3;
-    const panelY = height * 0.78;
+    const panelH = Math.min(height * 0.3, art.displayHeight * 0.36);
+    const panelY = art.y + art.displayHeight / 2 - panelH * 0.62;
 
     this.add
       .rectangle(width / 2, panelY, panelW, panelH, 0x140d2d, 0.72)
@@ -82,46 +82,76 @@ export class OpeningScene extends Phaser.Scene {
     this.input.on("pointerup", this.#advance, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.#typeEvent?.remove();
-      this.#rayTween?.remove();
-      this.#rayMask?.destroy();
+      this.#rayTweens.forEach((tween) => tween.remove());
+      this.#rayMasks.forEach((mask) => mask.destroy());
       this.input.off("pointerup", this.#advance, this);
     });
   }
 
-  //* Immagine a larghezza schermo, pivot in basso al centro. Sopra, se avanza spazio, cielo e raggi.
-  #placeArt(width: number, height: number): void {
+  //* Immagine centrata, larga quanto lo schermo. Il riflesso esce sopra e, capovolto, sotto.
+  #placeArt(width: number, height: number): Phaser.GameObjects.Image {
     const art = this.add
-      .image(width / 2, height, assetConf.image.opening)
-      .setOrigin(0.5, 1)
+      .image(width / 2, height / 2, assetConf.image.opening)
+      .setOrigin(0.5)
       .setDepth(2);
 
     art.setScale(width / art.width);
 
-    const gap = height - art.displayHeight;
+    const gap = (height - art.displayHeight) / 2;
 
-    if (gap <= 2) return;
+    if (gap <= 2) return art;
 
-    this.#addSky(width, gap);
-    this.#addRays(width / 2, gap, gap + 48);
-    this.add.rectangle(width / 2, gap, width, 3, GOLD, 0.95).setDepth(3);
+    const top = gap;
+    const bottom = height - gap;
+    const lineH = this.#placeLines(width, top, bottom);
+    const outer = Math.max(0, gap - lineH);
+
+    this.#addSky(width, top, bottom);
+
+    if (outer > 2) {
+      this.#addRays(width / 2, top - lineH, outer + 48, false);
+      this.#addRays(width / 2, bottom + lineH, outer + 48, true);
+    }
+
+    return art;
   }
 
-  #addSky(width: number, gap: number): void {
+  #placeLines(width: number, top: number, bottom: number): number {
+    const key = assetConf.image.line;
+    const above = this.add.image(width / 2, top, key).setOrigin(0.5, 1).setDepth(3);
+    const below = this.add.image(width / 2, bottom, key).setOrigin(0.5, 0).setDepth(3);
+
+    above.setScale(width / above.width);
+    below.setScale(width / below.width);
+
+    return above.displayHeight;
+  }
+
+  #addSky(width: number, top: number, bottom: number): void {
     const sky = this.add.graphics().setDepth(0);
 
     sky.fillGradientStyle(SKY_TOP, SKY_TOP, SKY_HORIZON, SKY_HORIZON, 1);
-    sky.fillRect(0, 0, width, gap);
+    sky.fillRect(0, 0, width, top);
+    sky.fillGradientStyle(SKY_HORIZON, SKY_HORIZON, SKY_TOP, SKY_TOP, 1);
+    sky.fillRect(0, bottom, width, this.scale.height - bottom);
   }
 
-  #addRays(x: number, y: number, reach: number): void {
+  #addRays(x: number, y: number, reach: number, flip: boolean): void {
     const rays = this.add.container(x, y).setDepth(1);
     const maskGraphics = this.make.graphics({x: 0, y: 0});
     const beamKey = this.#softBeamTexture();
 
     maskGraphics.fillStyle(0xffffff);
-    maskGraphics.fillRect(0, 0, this.scale.width, y);
-    this.#rayMask = maskGraphics.createGeometryMask();
-    rays.setMask(this.#rayMask);
+
+    if (flip) maskGraphics.fillRect(0, y, this.scale.width, this.scale.height - y);
+    else maskGraphics.fillRect(0, 0, this.scale.width, y);
+
+    const mask = maskGraphics.createGeometryMask();
+
+    this.#rayMasks.push(mask);
+    rays.setMask(mask);
+
+    if (flip) rays.setScale(1, -1);
 
     const glow = this.add
       .image(0, 0, this.#softGlowTexture())
@@ -146,18 +176,20 @@ export class OpeningScene extends Phaser.Scene {
       rays.add(beam);
     }
 
-    this.#rayTween = this.tweens.add({
-      targets: rays,
-      angle: 360,
-      duration: 36000,
-      repeat: -1,
-    });
+    this.#rayTweens.push(
+      this.tweens.add({
+        targets: rays,
+        angle: 360,
+        duration: 36000,
+        repeat: -1,
+      }),
+    );
   }
 
   #softBeamTexture(): string {
     const key = "opening-ray";
 
-    if (this.textures.exists(key)) this.textures.remove(key);
+    if (this.textures.exists(key)) return key;
 
     const width = 220;
     const height = 640;
@@ -196,7 +228,7 @@ export class OpeningScene extends Phaser.Scene {
   #softGlowTexture(): string {
     const key = "opening-glow";
 
-    if (this.textures.exists(key)) this.textures.remove(key);
+    if (this.textures.exists(key)) return key;
 
     const size = 320;
     const canvas = this.textures.createCanvas(key, size, size);

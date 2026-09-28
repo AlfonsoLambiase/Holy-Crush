@@ -2,13 +2,8 @@
 //* 0 cella piena normale
 //* I caratteri dopo si aggiungono qui. Esempio: B = blocco ostacolo.
 export const GRID_0001 = [
-  "..00..",
-  "..00..",
-  "000000",
-  "000000",
-  "..00..",
-  "..00..",
-  "..00..",
-  "..00..",
-  "..00..",
+  "000",
+  "000",
+  "000",
+  "000",
 ] as const;

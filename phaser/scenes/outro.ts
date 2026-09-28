@@ -20,7 +20,8 @@ export class Outro extends Phaser.Scene {
 
     this.imageKey = won ? "endWin" : "endFailed";
 
-    const stageCleared = won && registerWin();
+    const played = Number(this.registry.get("level"));
+    const stageCleared = won && registerWin(played);
 
     this.time.delayedCall(3000, () => this.#leave(stageCleared));
   }

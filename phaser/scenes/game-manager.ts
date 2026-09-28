@@ -108,7 +108,9 @@ export class GameManager extends Phaser.Scene {
 
   create() {
     console.log(`Gioco caricato ${gameName}`);
-    const shape = getGridForLevel(getUnlockedCount());
+    const selected = Number(this.registry.get("level"));
+    const level = Number.isFinite(selected) && selected > 0 ? selected : getUnlockedCount();
+    const shape = getGridForLevel(level);
 
     this.gridMask = shape.mask;
     this.gridCols = shape.cols;

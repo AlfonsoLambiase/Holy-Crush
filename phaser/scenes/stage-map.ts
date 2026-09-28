@@ -146,7 +146,10 @@ export class StageMapScene extends Phaser.Scene {
     });
     button.on("pointerup", () => {
       press(1);
-      if (isOpen) this.scene.start(assetConf.scene.verse);
+      if (isOpen) {
+        this.registry.set("level", level);
+        this.scene.start(assetConf.scene.verse);
+      }
     });
     button.on("pointerout", () => press(1));
   }

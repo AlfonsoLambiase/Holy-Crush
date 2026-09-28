@@ -56,18 +56,22 @@ export const getUnlockedCount = (): number => {
   return Math.min(getStageMap(progress.stage).levels, progress.cleared + 1);
 };
 
-//* true quando questa vittoria chiude lo stage e si passa al successivo
-export const registerWin = (): boolean => {
+//* true quando questa vittoria chiude lo stage e si passa al successivo.
+//* Si avanza solo battendo il livello più avanti già aperto, non ripetendone uno vecchio.
+export const registerWin = (level?: number): boolean => {
   const progress = readProgress();
-  const cleared = progress.cleared + 1;
+  const frontier = progress.cleared + 1;
+  const played = level && level > 0 ? Math.floor(level) : frontier;
 
-  if (cleared >= getStageMap(progress.stage).levels) {
+  if (played !== frontier) return false;
+
+  if (frontier >= getStageMap(progress.stage).levels) {
     writeProgress({stage: progress.stage + 1, cleared: 0});
 
     return true;
   }
 
-  writeProgress({...progress, cleared});
+  writeProgress({...progress, cleared: frontier});
 
   return false;
 };
