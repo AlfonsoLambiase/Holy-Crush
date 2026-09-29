@@ -314,7 +314,7 @@ export function HomeScreen() {
             }`}
             style={{
               fontSize: "clamp(1.4rem, 6.5vw, 2.1rem)",
-              WebkitTextStroke: "2.5px #c4962e",
+              WebkitTextStroke: "2.5px #a67c22",
               paintOrder: "stroke fill",
             }}
           >
