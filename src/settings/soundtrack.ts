@@ -19,14 +19,13 @@ const element = (): HTMLAudioElement => {
   if (!audio) {
     audio = new Audio();
     audio.loop = true;
+    audio.preload = "auto";
   }
 
   return audio;
 };
 
 const sameFile = (src: string): boolean => element().src.endsWith(src);
-
-const gestureActive = (): boolean => navigator.userActivation?.isActive === true;
 
 export const getMusicTrack = (): MusicTrack | null => current;
 
@@ -64,14 +63,6 @@ export const playTrack = (track: MusicTrack) => {
   if (same && (!el.paused || inFlight)) return;
 
   current = track;
-
-  if (!gestureActive()) {
-    queued = track;
-    armGesture();
-
-    return;
-  }
-
   el.volume = next.volume;
 
   if (!sameFile(next.src)) el.src = next.src;

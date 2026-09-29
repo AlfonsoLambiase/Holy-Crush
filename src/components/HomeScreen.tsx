@@ -18,7 +18,7 @@ const INTRO_MOVE_MS = 1100; // durata della risalita
 const PRESS_MS = 220; // attesa dell'effetto premuto prima di avviare il gioco
 
 const MENU_BUTTONS = [
-  {key: "objectives", src: "/ui_home/objectives.png", duration: "5.2s", delay: "-0.8s", x: "-2px", y: "-3px"},
+  {key: "shop", src: "/ui_home/shop.png", duration: "5.2s", delay: "-0.8s", x: "-2px", y: "-3px"},
   {key: "info", src: "/ui_home/user.png", duration: "4.6s", delay: "-1.6s", x: "2px", y: "-4px"},
   {key: "settings", src: "/ui_home/settings.png", duration: "5.6s", delay: "-2.4s", x: "-1px", y: "-3px"},
 ] as const;
@@ -29,6 +29,16 @@ type MenuPanel = (typeof MENU_BUTTONS)[number]["key"];
 
 const PANEL_TEXT_GLOW =
   "0 0 8px rgba(255,236,170,0.55), 0 2px 2px rgba(0,0,0,0.45)";
+
+const PANEL_OUTLINE: React.CSSProperties = {
+  WebkitTextStroke: "2px #2a160ccc",
+  paintOrder: "stroke fill",
+};
+
+const PANEL_TITLE_STYLE: React.CSSProperties = {
+  textShadow: PANEL_TEXT_GLOW,
+  ...PANEL_OUTLINE,
+};
 
 type WoodPanelProps = {
   alt: string;
@@ -99,12 +109,61 @@ type SettingsChoiceProps = {
   onClick: () => void;
 };
 
+const SHOP_ITEMS = [
+  {src: "/mode_0/stage_ui/logo_stage_fill.png", title: "shopEnergy", body: "shopEnergyBody"},
+  {src: "/mode_0/stage_common/super.png", title: "shopCross", body: "shopCrossBody"},
+  {src: "/mode_0/stage_common/mega.png", title: "shopStar", body: "shopStarBody"},
+] as const;
+
+function ShopMarket() {
+  const {t} = useLanguage();
+
+  return (
+    <div className="flex h-full w-full flex-col overflow-y-auto">
+      <p
+        className="shrink-0 font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
+        style={PANEL_TITLE_STYLE}
+      >
+        {t("shop")}
+      </p>
+      <div className="mt-2 flex min-h-0 flex-1 flex-col justify-evenly gap-2">
+        {SHOP_ITEMS.map((item) => (
+          <div
+            key={item.title}
+            className="flex items-center gap-2 rounded-xl border border-[#e7c27a] bg-[#2a160c]/80 px-1.5 py-1.5"
+          >
+            <Image
+              alt={t(item.title)}
+              className="h-11 w-11 shrink-0 object-contain"
+              height={96}
+              src={item.src}
+              width={96}
+            />
+            <div className="min-w-0 flex-1 text-left">
+              <p className="font-display text-sm font-bold leading-tight text-[#ffd76a]">{t(item.title)}</p>
+              <p className="mt-0.5 font-display text-[0.68rem] leading-snug text-[#fff8dc]">{t(item.body)}</p>
+              <button
+                className="mt-1.5 rounded-xl border-2 border-[#a67c22] bg-[#3d2614] px-2 py-1.5 font-accent text-[0.62rem] font-bold leading-tight text-[#fff8dc]"
+                type="button"
+                onClick={() => playClick()}
+              >
+                {t("watchAd")}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SettingsChoice({label, isActive, isPressed = false, onClick}: SettingsChoiceProps) {
   return (
     <button
-      className={`rounded-2xl px-3 py-3 font-accent text-base font-bold transition-transform duration-100 ${
+      className={`w-[90%] justify-self-center rounded-2xl border-2 border-[#a67c22] px-3 py-2 font-accent text-base font-bold transition-transform duration-100 ${
         isPressed ? "translate-y-1 scale-95" : "active:translate-y-1 active:scale-95"
       } ${isActive ? "bg-[#ffd76a] text-[#140d2d]" : "bg-[#3d2614] text-[#fff8dc]"}`}
+      style={{outline: `2px solid ${isActive ? "#96743c" : "#2a160ccc"}`}}
       type="button"
       onClick={onClick}
     >
@@ -127,7 +186,11 @@ function LanguageArrow({direction, onClick}: {direction: -1 | 1; onClick: () => 
         onClick();
       }}
     >
-      <span key={zoomKey} className={`inline-block ${zoomKey > 0 ? "language-arrow-zoom" : ""}`}>
+      <span
+        key={zoomKey}
+        className={`inline-block ${zoomKey > 0 ? "language-arrow-zoom" : ""}`}
+        style={PANEL_OUTLINE}
+      >
         {isLeft ? "‹" : "›"}
       </span>
     </button>
@@ -375,12 +438,16 @@ export function HomeScreen() {
       )}
 
       {openPanel && (
-        <WoodPanel alt={t(openPanel)} onClose={() => setOpenPanel(null)}>
+        <WoodPanel
+          alt={t(openPanel)}
+          src={openPanel === "shop" ? "/ui_home/gameContainer.png" : undefined}
+          onClose={() => setOpenPanel(null)}
+        >
           {openPanel === "settings" ? (
             <>
               <p
                 className="font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
-                style={{textShadow: PANEL_TEXT_GLOW}}
+                style={PANEL_TITLE_STYLE}
               >
                 {t("music")}
               </p>
@@ -406,7 +473,7 @@ export function HomeScreen() {
 
               <p
                 className="mt-6 font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
-                style={{textShadow: PANEL_TEXT_GLOW}}
+                style={PANEL_TITLE_STYLE}
               >
                 {t("effects")}
               </p>
@@ -431,7 +498,7 @@ export function HomeScreen() {
 
               <p
                 className="mt-6 font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
-                style={{textShadow: PANEL_TEXT_GLOW}}
+                style={PANEL_TITLE_STYLE}
               >
                 {t("language")}
               </p>
@@ -445,7 +512,7 @@ export function HomeScreen() {
                 />
                 <p
                   className="font-display text-lg font-bold text-[#fff8dc] sm:text-xl"
-                  style={{textShadow: PANEL_TEXT_GLOW}}
+                  style={PANEL_TITLE_STYLE}
                 >
                   {LANGUAGE_LABELS[language]}
                 </p>
@@ -458,17 +525,19 @@ export function HomeScreen() {
                 />
               </div>
             </>
+          ) : openPanel === "shop" ? (
+            <ShopMarket />
           ) : (
             <>
               <p
                 className="font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
-                style={{textShadow: PANEL_TEXT_GLOW}}
+                style={PANEL_TITLE_STYLE}
               >
                 {t(openPanel)}
               </p>
               <p
                 className="mt-6 font-display text-base leading-relaxed text-[#fff8dc] sm:text-lg"
-                style={{textShadow: PANEL_TEXT_GLOW}}
+                style={PANEL_TITLE_STYLE}
               >
                 {t(`${openPanel}Body`)}
               </p>
