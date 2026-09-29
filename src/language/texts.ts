@@ -46,6 +46,20 @@ const UI_TEXTS: TextEntry[] = [
     fr: "VOIR LA PUB",
   },
   {
+    key: "energyEmptyTitle",
+    it: "ENERGIA TERMINATA",
+    en: "OUT OF ENERGY",
+    es: "ENERGÍA AGOTADA",
+    fr: "ÉNERGIE ÉPUISÉE",
+  },
+  {
+    key: "energyEmptyBody",
+    it: "Guarda pubblicità per ricaricarla e continuare a giocare",
+    en: "Watch an ad to recharge it and keep playing",
+    es: "Mira un anuncio para recargarla y seguir jugando",
+    fr: "Regarde une pub pour la recharger et continuer à jouer",
+  },
+  {
     key: "shopEnergy",
     it: "Energia",
     en: "Energy",
@@ -93,6 +107,20 @@ const UI_TEXTS: TextEntry[] = [
     en: "Info",
     es: "Info",
     fr: "Infos",
+  },
+  {
+    key: "access",
+    it: "ACCESSO",
+    en: "ACCESS",
+    es: "ACCESO",
+    fr: "ACCÈS",
+  },
+  {
+    key: "googleSignIn",
+    it: "Accedi con Google",
+    en: "Sign in with Google",
+    es: "Accede con Google",
+    fr: "Connexion avec Google",
   },
   {
     key: "language",

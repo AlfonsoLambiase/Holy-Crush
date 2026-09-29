@@ -6,6 +6,7 @@ import {useEffect, useState} from "react";
 import {LANGUAGE_LABELS, LANGUAGES} from "@/language";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick} from "@/settings/click";
+import {refillHeart} from "@/settings/heart";
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
 import {getMusicTrack, playTrack, stopTrack} from "@/settings/soundtrack";
@@ -19,7 +20,7 @@ const PRESS_MS = 220; // attesa dell'effetto premuto prima di avviare il gioco
 
 const MENU_BUTTONS = [
   {key: "shop", src: "/ui_home/shop.png", duration: "5.2s", delay: "-0.8s", x: "-2px", y: "-3px"},
-  {key: "info", src: "/ui_home/user.png", duration: "4.6s", delay: "-1.6s", x: "2px", y: "-4px"},
+  {key: "access", src: "/ui_home/user.png", duration: "4.6s", delay: "-1.6s", x: "2px", y: "-4px"},
   {key: "settings", src: "/ui_home/settings.png", duration: "5.6s", delay: "-2.4s", x: "-1px", y: "-3px"},
 ] as const;
 
@@ -145,7 +146,10 @@ function ShopMarket() {
               <button
                 className="mt-1.5 rounded-xl border-2 border-[#a67c22] bg-[#3d2614] px-2 py-1.5 font-accent text-[0.62rem] font-bold leading-tight text-[#fff8dc]"
                 type="button"
-                onClick={() => playClick()}
+                onClick={() => {
+                  playClick();
+                  if (item.title === "shopEnergy") refillHeart();
+                }}
               >
                 {t("watchAd")}
               </button>
@@ -153,6 +157,53 @@ function ShopMarket() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function GoogleMark() {
+  return (
+    <svg aria-hidden className="h-6 w-6 shrink-0" viewBox="0 0 48 48">
+      <path
+        fill="#FFC107"
+        d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.2-3.5 5.7-6.7 7.1l6.3 5.3C37.4 38.3 44 33 44 24c0-1.3-.1-2.7-.4-3.5z"
+      />
+    </svg>
+  );
+}
+
+function AccessPanel() {
+  const {t} = useLanguage();
+
+  return (
+    <div className="flex w-full flex-col items-center">
+      <p
+        className="font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
+        style={PANEL_TITLE_STYLE}
+      >
+        {t("access")}
+      </p>
+      <button
+        className="mt-8 flex w-full max-w-xs items-center justify-center gap-3 rounded-2xl border-2 border-[#a67c22] bg-[#3d2614] px-3 py-3 font-accent text-base font-bold text-[#fff8dc] transition-transform duration-100 active:translate-y-1 active:scale-95"
+        style={{outline: "2px solid #2a160ccc"}}
+        type="button"
+        onClick={() => playClick()}
+      >
+        <GoogleMark />
+        {t("googleSignIn")}
+      </button>
     </div>
   );
 }
@@ -381,11 +432,11 @@ export function HomeScreen() {
         >
           <span
             className={`pointer-events-none absolute inset-0 flex items-center justify-center font-display font-bold tracking-wide transition-colors duration-100 ${
-              isStartPressed ? "text-[#e0e0e0]" : "text-white group-active:text-[#e0e0e0]"
+              isStartPressed ? "text-[#e0e0e0]" : "text-[#f0ebe2] group-active:text-[#e0e0e0]"
             }`}
             style={{
               fontSize: "clamp(1.4rem, 6.5vw, 2.1rem)",
-              WebkitTextStroke: "2.5px #a67c22",
+              WebkitTextStroke: "2.5px #967018",
               paintOrder: "stroke fill",
             }}
           >
@@ -536,20 +587,7 @@ export function HomeScreen() {
           ) : openPanel === "shop" ? (
             <ShopMarket />
           ) : (
-            <>
-              <p
-                className="font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
-                style={PANEL_TITLE_STYLE}
-              >
-                {t(openPanel)}
-              </p>
-              <p
-                className="mt-6 font-display text-base leading-relaxed text-[#fff8dc] sm:text-lg"
-                style={PANEL_TITLE_STYLE}
-              >
-                {t(`${openPanel}Body`)}
-              </p>
-            </>
+            <AccessPanel />
           )}
         </WoodPanel>
       )}

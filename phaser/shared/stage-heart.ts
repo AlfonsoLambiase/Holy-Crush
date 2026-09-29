@@ -1,16 +1,25 @@
 import * as Phaser from "phaser";
 
-import {getClearedCount} from "@/settings/progress";
+import {getHeartRemaining} from "@/settings/heart";
 import {DRAIN_FILL_IN_CIRCLE} from "@/settings/stage-map";
 import {CandyCrushAssetConf} from "./config/asset-conf.const";
 
 const assetConf = CandyCrushAssetConf;
-const FILL_STEP = 0.2;
+
+export type StageHeart = {
+  setRemaining: (remaining: number) => void;
+};
 
 //* Un filo più grande dei bottoni laterali, che restano centrati sulla sua riga
 export const STAGE_HEART_SCALE = 1.55;
 
-export const addStageHeart = (scene: Phaser.Scene, x: number, y: number, size: number, depth = 9) => {
+export const addStageHeart = (
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  size: number,
+  depth = 9,
+): StageHeart | null => {
   const bgKey = assetConf.image.logo_stage_bg;
   const fillKey = assetConf.image.logo_stage_fill;
 
@@ -19,39 +28,48 @@ export const addStageHeart = (scene: Phaser.Scene, x: number, y: number, size: n
   const bg = scene.add.image(x, y, bgKey).setDepth(depth).setScrollFactor(0);
   const fill = scene.add.image(x, y, fillKey).setDepth(depth + 1).setScrollFactor(0);
   const scale = size / bg.height;
+  let maskGraphics: Phaser.GameObjects.Graphics | null = null;
 
   bg.setScale(scale);
   fill.setScale(scale);
-  maskFill(scene, fill, Math.max(0, 1 - getClearedCount() * FILL_STEP));
 
-  return bg;
-};
+  const setRemaining = (remaining: number) => {
+    const amount = Phaser.Math.Clamp(remaining, 0, 1);
 
-const maskFill = (scene: Phaser.Scene, fill: Phaser.GameObjects.Image, remaining: number) => {
-  if (remaining >= 1) return;
+    fill.clearMask(true);
+    maskGraphics?.destroy();
+    maskGraphics = null;
 
-  if (remaining <= 0) {
-    fill.setVisible(false);
+    if (amount <= 0) {
+      fill.setVisible(false);
 
-    return;
-  }
+      return;
+    }
 
-  const mask = scene.make.graphics({}, false);
+    fill.setVisible(true);
 
-  mask.fillStyle(0xffffff);
+    if (amount >= 1) return;
 
-  if (DRAIN_FILL_IN_CIRCLE) {
-    const radius = Math.max(fill.displayWidth, fill.displayHeight) / 2;
-    const start = -Math.PI / 2 + (1 - remaining) * Math.PI * 2;
+    maskGraphics = scene.make.graphics({}, false);
+    maskGraphics.fillStyle(0xffffff);
 
-    mask.slice(fill.x, fill.y, radius, start, -Math.PI / 2 + Math.PI * 2, false);
-    mask.fillPath();
-  } else {
-    const left = fill.x - fill.displayWidth / 2;
-    const top = fill.y - fill.displayHeight / 2;
+    if (DRAIN_FILL_IN_CIRCLE) {
+      const radius = Math.max(fill.displayWidth, fill.displayHeight) / 2;
+      const start = -Math.PI / 2 + (1 - amount) * Math.PI * 2;
 
-    mask.fillRect(left, top, fill.displayWidth * remaining, fill.displayHeight);
-  }
+      maskGraphics.slice(fill.x, fill.y, radius, start, -Math.PI / 2 + Math.PI * 2, false);
+      maskGraphics.fillPath();
+    } else {
+      const left = fill.x - fill.displayWidth / 2;
+      const top = fill.y - fill.displayHeight / 2;
 
-  fill.setMask(mask.createGeometryMask());
+      maskGraphics.fillRect(left, top, fill.displayWidth * amount, fill.displayHeight);
+    }
+
+    fill.setMask(maskGraphics.createGeometryMask());
+  };
+
+  setRemaining(getHeartRemaining());
+
+  return {setRemaining};
 };
