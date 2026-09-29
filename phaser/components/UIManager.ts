@@ -11,8 +11,9 @@ const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
 const LOGO_BAND_MARGIN = 40; // aria sopra e sotto il logo, al posto della vecchia fascia
 
-const SCORE_BG_WIDTH = 300; // larghezza del papiro dello score, prima della scala del container
 const SCORE_TEXT_SCALE = 1;
+const SCORE_FONT_RATIO = 0.42; // il numero riempie il papiro, che ha la stessa altezza di btnExit
+const SCORE_THREE_DIGIT_SCALE = 0.84; // a 3 cifre il numero si stringe un filo per restare nel papiro
 const SCORE_PULSE_SCALE = 1.25; // ingrandimento momentaneo a ogni punto
 
 export class UIManager {
@@ -22,6 +23,7 @@ export class UIManager {
   public score = 0;
   public maxScore = 10; //* temporaneo: 10 per le prove, poi torna a 100
   private displayedScore: number = 0;
+  private scoreFontSize = 48;
   private scoreText!: Phaser.GameObjects.Text;
   originalScale: number = 1;
   ofssetY: number = 0;
@@ -92,21 +94,31 @@ export class UIManager {
   }
 
   #createContainerScore() {
-    const containerScale = this.gameScene.setDynamicValueBasedOnScale(0.3, 0.55);
+    const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
+    const exitScale = this.gameScene.setDynamicValueBasedOnScale(0.35, 1);
+    const exitImage = this.scene.textures.get(assetConf.image.btnExitGame).getSourceImage() as {
+      width: number;
+      height: number;
+    };
+    const exitSize = exitImage.height * exitScale;
 
     this.scoreContainer = this.scene.add.container(0, 0);
-    this.scoreContainer.setScrollFactor(0).setDepth(10).setScale(containerScale);
+    this.scoreContainer.setScrollFactor(0).setDepth(10);
 
     const scoreBg = this.scene.add.image(0, 0, assetConf.image.containerScore).setOrigin(0.5);
 
-    scoreBg.setScale(SCORE_BG_WIDTH / scoreBg.width);
+    //* Stessa altezza di btnExit: il papiro non deve essere più grande
+    scoreBg.setScale(exitSize / scoreBg.height);
 
-    //* Larghezza fissa: il papiro non deve respirare quando il punteggio cresce
+    this.scoreFontSize = Math.round(exitSize * SCORE_FONT_RATIO);
+
     this.scoreText = this.scene.add
       .text(0, 0, `${this.score}`, {
         fontFamily: APP_FONT,
-        fontSize: "48px",
-        color: "#4b260f",
+        fontSize: `${this.scoreFontSize}px`,
+        color: "#ffd76a",
+        stroke: "#2a160ccc",
+        strokeThickness: Math.max(2, Math.round(this.scoreFontSize * 0.08)),
       })
       .setOrigin(0.5)
       .setScale(SCORE_TEXT_SCALE);
@@ -114,13 +126,8 @@ export class UIManager {
     this.scoreContainer.add([scoreBg, this.scoreText]);
 
     //* Stesso vuoto dal bordo del bottone esci, sul lato opposto
-    const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
-    const exitScale = this.gameScene.setDynamicValueBasedOnScale(0.35, 1);
-    const exitImage = this.scene.textures.get(assetConf.image.btnExitGame).getSourceImage() as {
-      width: number;
-    };
     const exitHalf = (exitImage.width * exitScale) / 2;
-    const scoreHalf = (scoreBg.displayWidth * containerScale) / 2;
+    const scoreHalf = scoreBg.displayWidth / 2;
 
     this.scoreContainer.setPosition(inset - exitHalf + scoreHalf, this.headerCenterY);
   }
@@ -150,6 +157,16 @@ export class UIManager {
     this.iconHelp = iconHelp;
     this.iconHelp.setPosition(iconHelp.x, iconHelp.y);
     this.helpUsed = this.differenceTryLimit;
+  }
+
+  #fitScoreText(value: number): void {
+    const size =
+      `${value}`.length >= 3
+        ? Math.round(this.scoreFontSize * SCORE_THREE_DIGIT_SCALE)
+        : this.scoreFontSize;
+
+    this.scoreText.setFontSize(size);
+    this.scoreText.setStroke("#2a160ccc", Math.max(2, Math.round(size * 0.08)));
   }
 
   //* Scopo: Aggiunge punti al punteggio totale senza superare maxScore
@@ -184,6 +201,7 @@ export class UIManager {
         }
 
         this.scoreText.setText(`${this.displayedScore}`);
+        this.#fitScoreText(this.displayedScore);
 
         this.scoreText.setScale(SCORE_TEXT_SCALE);
 

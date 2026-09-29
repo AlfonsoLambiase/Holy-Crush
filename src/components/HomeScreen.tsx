@@ -243,18 +243,26 @@ function HomeImageButton({
         onClick?.();
       }}
     >
-      <Image
-        alt={alt}
-        className={`h-auto w-full transition-[transform,filter] duration-100 ease-out ${
+      <span
+        className={`relative block w-full transition-transform duration-100 ease-out ${
           isPressed
-            ? "translate-y-1 scale-[0.93] brightness-90 drop-shadow-none"
-            : "drop-shadow-lg group-active:translate-y-1 group-active:scale-[0.93] group-active:brightness-90 group-active:drop-shadow-none"
+            ? "translate-y-1 scale-[0.93]"
+            : "group-active:translate-y-1 group-active:scale-[0.93]"
         }`}
-        height={height}
-        src={src}
-        width={width}
-      />
-      {children}
+      >
+        <Image
+          alt={alt}
+          className={`h-auto w-full transition-[filter] duration-100 ease-out ${
+            isPressed
+              ? "brightness-90 drop-shadow-none"
+              : "drop-shadow-lg group-active:brightness-90 group-active:drop-shadow-none"
+          }`}
+          height={height}
+          src={src}
+          width={width}
+        />
+        {children}
+      </span>
     </button>
   );
 }
@@ -372,8 +380,8 @@ export function HomeScreen() {
           }}
         >
           <span
-            className={`pointer-events-none absolute inset-0 flex items-center justify-center font-display font-bold tracking-wide text-white transition-transform duration-100 ${
-              isStartPressed ? "translate-y-1 scale-[0.93]" : "group-active:translate-y-1 group-active:scale-[0.93]"
+            className={`pointer-events-none absolute inset-0 flex items-center justify-center font-display font-bold tracking-wide transition-colors duration-100 ${
+              isStartPressed ? "text-[#e0e0e0]" : "text-white group-active:text-[#e0e0e0]"
             }`}
             style={{
               fontSize: "clamp(1.4rem, 6.5vw, 2.1rem)",
