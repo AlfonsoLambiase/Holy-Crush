@@ -46,13 +46,13 @@ const FILE_NAME: Record<string, string> = {
 const folderFor = (key: string): string => {
   if (key === "starsEffect" || key === "sparklingStars") return "/effects";
   if (UI_GAME_KEYS.has(key)) return "/ui_game";
-  if (STAGE_COMMON_KEYS.has(key)) return "/stages/stage_common";
-  if (key === "endWin" || key === "endFailed") return "/stages/stage_end";
-  if (key.startsWith("obj_")) return "/stages/stage_obj";
-  if (key.startsWith("op_")) return "/stages/stage_opening";
-  if (STAGE_UI_KEYS.has(key)) return "/stages/stage_ui";
+  if (STAGE_COMMON_KEYS.has(key)) return "/mode_0/stage_common";
+  if (key === "endWin" || key === "endFailed") return "/mode_0/stage_end";
+  if (key.startsWith("obj_")) return "/mode_0/stage_obj";
+  if (key.startsWith("op_")) return "/mode_0/stage_opening";
+  if (STAGE_UI_KEYS.has(key)) return "/mode_0/stage_ui";
 
-  return "/stages/stage_ui";
+  return "/mode_0/stage_ui";
 };
 
 //* I png degli stage partono da 0, lo stage di gioco da 1
@@ -67,14 +67,14 @@ export const roadFileIndex = (stageIndex: number): number =>
   Math.floor(Math.max(0, stageIndex) / ROAD_REUSE) % ROAD_COUNT;
 
 const stageBackground = (index: number) =>
-  `/stages/stage_background/backgroundStage_${index}.png`;
+  `/mode_0/stage_background/backgroundStage_${index}.png`;
 
 const STAGE_FILE: Record<string, (index: number) => string> = {
-  opening: (index) => `/stages/stage_opening/op_${index}.png`,
+  opening: (index) => `/mode_0/stage_opening/op_${index}.png`,
   backgroundStage: stageBackground,
   backgroundGame: stageBackground,
   endBackground: stageBackground,
-  road: (index) => `/stages/stage_road/road_${roadFileIndex(index)}.png`,
+  road: (index) => `/mode_0/stage_road/road_${roadFileIndex(index)}.png`,
 };
 
 export const AssetPaths = {
