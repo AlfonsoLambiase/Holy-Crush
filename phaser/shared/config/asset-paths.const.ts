@@ -13,6 +13,7 @@ const UI_GAME_KEYS = new Set([
   "btnTime",
   "popupExitGame",
   "containerScore",
+  "containerItems",
 ]);
 
 const STAGE_UI_KEYS = new Set([
@@ -34,7 +35,17 @@ const STAGE_UI_KEYS = new Set([
   "animBrokenHeart",
 ]);
 
-const STAGE_COMMON_KEYS = new Set(["bomb", "rocket", "obstacle_0", "obstacle_1", "line"]);
+const STAGE_COMMON_KEYS = new Set([
+  "bomb",
+  "rocket",
+  "obstacle_0",
+  "obstacle_1",
+  "line",
+  "super",
+  "mega",
+  "super_disabled",
+  "mega_disabled",
+]);
 
 //* Il file su disco non coincide col nome logico usato in gioco
 const FILE_NAME: Record<string, string> = {

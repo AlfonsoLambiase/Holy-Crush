@@ -71,3 +71,27 @@ export const addFillPair = (
 
   return {setRemaining};
 };
+
+export const tweenRemaining = (
+  scene: Phaser.Scene,
+  pair: FillPair,
+  from: number,
+  to: number,
+  duration: number,
+  onDone?: () => void,
+) => {
+  const fill = {amount: from};
+
+  pair.setRemaining(from);
+  scene.tweens.add({
+    targets: fill,
+    amount: to,
+    duration,
+    ease: "Sine.easeInOut",
+    onUpdate: () => pair.setRemaining(fill.amount),
+    onComplete: () => {
+      pair.setRemaining(to);
+      onDone?.();
+    },
+  });
+};

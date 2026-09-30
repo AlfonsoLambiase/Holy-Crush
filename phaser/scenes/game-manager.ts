@@ -5,6 +5,7 @@ import * as Phaser from "phaser";
 import {getUnlockedCount} from "@/settings/progress";
 
 import {AudioManager} from "../components/audioManager";
+import {ItemsBar} from "../components/items-bar";
 import {StarsEffectManager} from "../components/starsEffectManager";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
@@ -95,6 +96,7 @@ export class GameManager extends Phaser.Scene {
   private starsEffect!: StarsEffectManager;
   private hintTimer?: Phaser.Time.TimerEvent;
   private hintCells: Cell[] = [];
+  #itemsBar: ItemsBar | null = null;
 
   constructor() {
     super({key: assetConf.scene.gameManager});
@@ -119,6 +121,12 @@ export class GameManager extends Phaser.Scene {
     this.starsEffect = new StarsEffectManager(this);
     this.createGrid();
     this.bindSwipe();
+    this.#itemsBar = new ItemsBar(
+      this,
+      (min, max) => this.gameScene.setDynamicValueBasedOnScale(min, max),
+      (x, y) => this.cellAtWorld(x, y),
+    );
+    this.#itemsBar.create();
     this.layoutGrid();
 
     this.time.delayedCall(50, () => {
@@ -213,6 +221,7 @@ export class GameManager extends Phaser.Scene {
   private bindSwipe(): void {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.restartHintTimer();
+      if (this.#itemsBar?.isOnBar(pointer) || this.#itemsBar?.isBlocking()) return;
       if (!this.canPlay()) return;
 
       const local = this.toLocal(pointer);
@@ -225,6 +234,7 @@ export class GameManager extends Phaser.Scene {
     });
 
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      if (this.#itemsBar?.isBlocking()) return;
       if (!this.canPlay() || !this.swipeStart || this.swipeLocked) return;
 
       const local = this.toLocal(pointer);
@@ -315,6 +325,14 @@ export class GameManager extends Phaser.Scene {
 
   private toLocal(pointer: Phaser.Input.Pointer): Phaser.Math.Vector2 {
     return this.mainContainer.getLocalPoint(pointer.worldX, pointer.worldY);
+  }
+
+  public cellAtWorld(worldX: number, worldY: number): Cell | null {
+    if (!this.mainContainer) return null;
+
+    const local = this.mainContainer.getLocalPoint(worldX, worldY);
+
+    return this.getCellAt(local.x, local.y);
   }
 
   private getCellAt(localX: number, localY: number): Cell | null {
@@ -961,7 +979,8 @@ export class GameManager extends Phaser.Scene {
 
     const padY = this.gameHeight * GRID_VERTICAL_PAD;
     const top = this.getPlayAreaTop() + padY;
-    const bottom = this.gameHeight - padY;
+    const footer = this.#itemsBar?.top ?? this.gameHeight;
+    const bottom = footer - padY;
 
     this.mainContainer.setScale(1);
     this.mainContainer.setPosition(this.gameWidth / 2, (top + bottom) / 2);

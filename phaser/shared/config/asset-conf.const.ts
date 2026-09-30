@@ -47,6 +47,11 @@ export const CandyCrushAssetConf = {
     obj_3_0: "obj_3_0",
     rocket: "rocket",
     bomb: "bomb",
+    super: "super",
+    mega: "mega",
+    super_disabled: "super_disabled",
+    mega_disabled: "mega_disabled",
+    containerItems: "containerItems",
 
     // for exitManager
     btnExitGame: "btnExitGame",

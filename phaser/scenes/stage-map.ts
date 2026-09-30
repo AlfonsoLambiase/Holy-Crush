@@ -11,6 +11,8 @@ import {APP_FONT} from "../shared/config/font.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
 import {addStageHeart, STAGE_HEART_SCALE, type StageHeart} from "../shared/stage-heart";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
+import {tweenRemaining} from "../shared/fill-pair";
+import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
 
 const assetConf = CandyCrushAssetConf;
 
@@ -20,8 +22,7 @@ const RECHARGE_MS = 1200;
 
 export class StageMapScene extends Phaser.Scene {
   #heart: StageHeart | null = null;
-  #energyPopup: Phaser.GameObjects.Container | null = null;
-  #energyOverlay: Phaser.GameObjects.Rectangle | null = null;
+  #energyPopup: WatchAdPopup | null = null;
   #recharging = false;
   #leaving = false;
 
@@ -217,117 +218,28 @@ export class StageMapScene extends Phaser.Scene {
   }
 
   #showEnergyPopup() {
-    if (this.#energyPopup || !this.textures.exists(assetConf.image.popupExitGame)) return;
+    if (this.#energyPopup) return;
 
-    const {width, height} = this.scale;
     const language = getCurrentLanguage();
-    this.#energyOverlay = this.add
-      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.55)
-      .setDepth(40)
-      .setScrollFactor(0)
-      .setInteractive();
-    const plate = this.add.image(0, 0, assetConf.image.popupExitGame).setOrigin(0.5);
-    const wrap = plate.width * 0.62;
-    const title = this.add
-      .text(0, plate.height * -0.16, t("energyEmptyTitle", language), {
-        fontFamily: APP_FONT,
-        fontSize: "42px",
-        color: "#ffd76a",
-        align: "center",
-        wordWrap: {width: wrap},
-        stroke: "#2a160c",
-        strokeThickness: 6,
-      })
-      .setOrigin(0.5);
-    const body = this.add
-      .text(0, plate.height * 0.02, t("energyEmptyBody", language), {
-        fontFamily: APP_FONT,
-        fontSize: "32px",
-        color: "#fff8dc",
-        align: "center",
-        wordWrap: {width: wrap},
-        stroke: "#2a160c",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5);
-    const button = this.#watchAdButton(0, plate.height * 0.24, t("watchAd", language), () => {
-      this.#closeEnergyPopup();
-      this.#rechargeHeart();
+
+    this.#energyPopup = showWatchAdPopup(this, {
+      title: t("energyEmptyTitle", language),
+      body: t("energyEmptyBody", language),
+      scale: this.#gameButtonScale(0.42, 0.9),
+      onClose: () => {
+        this.#energyPopup = null;
+      },
+      onWatch: () => this.#rechargeHeart(),
     });
-
-    this.#energyOverlay.on("pointerdown", () => this.#closeEnergyPopup());
-
-    this.#energyPopup = this.add
-      .container(width / 2, height / 2, [plate, title, body, button])
-      .setDepth(41)
-      .setScrollFactor(0)
-      .setScale(this.#gameButtonScale(0.42, 0.9));
-  }
-
-  #watchAdButton(x: number, y: number, label: string, onPress: () => void) {
-    const width = 520;
-    const height = 96;
-    const radius = 28;
-    const face = this.add.graphics();
-
-    face.fillStyle(0x3d2614, 1);
-    face.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
-    face.lineStyle(4, 0xa67c22, 1);
-    face.strokeRoundedRect(-width / 2, -height / 2, width, height, radius);
-    face.lineStyle(4, 0x2a160c, 0.8);
-    face.strokeRoundedRect(-width / 2 - 6, -height / 2 - 6, width + 12, height + 12, radius + 6);
-
-    const text = this.add
-      .text(0, 0, label, {
-        fontFamily: APP_FONT,
-        fontSize: "28px",
-        color: "#fff8dc",
-        align: "center",
-        stroke: "#2a160c",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5);
-    const hit = this.add.rectangle(0, 0, width, height, 0xffffff, 0.001).setInteractive({useHandCursor: true});
-    const plate = this.add.container(x, y, [face, text, hit]);
-
-    hit.on("pointerdown", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
-      event.stopPropagation();
-      playClick();
-      plate.setScale(0.95);
-      this.time.delayedCall(160, () => {
-        plate.setScale(1);
-        onPress();
-      });
-    });
-
-    return plate;
-  }
-
-  #closeEnergyPopup() {
-    this.#energyPopup?.destroy(true);
-    this.#energyOverlay?.destroy();
-    this.#energyPopup = null;
-    this.#energyOverlay = null;
   }
 
   #rechargeHeart() {
     if (!this.#heart || this.#recharging) return;
 
     this.#recharging = true;
-
-    const fill = {amount: 0};
-
-    this.tweens.add({
-      targets: fill,
-      amount: 1,
-      duration: RECHARGE_MS,
-      ease: "Sine.easeInOut",
-      onUpdate: () => this.#heart?.setRemaining(fill.amount),
-      onComplete: () => {
-        this.#heart?.setRemaining(1);
-        refillHeart();
-        this.#recharging = false;
-      },
+    tweenRemaining(this, this.#heart, 0, 1, RECHARGE_MS, () => {
+      refillHeart();
+      this.#recharging = false;
     });
   }
 
