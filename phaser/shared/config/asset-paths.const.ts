@@ -19,7 +19,6 @@ const STAGE_UI_KEYS = new Set([
   "backgroundGame",
   "backgroundScore",
   "backgroundGriglia",
-  "block",
   "confetti_left",
   "confetti_right",
   "endBackground",
@@ -47,7 +46,7 @@ const folderFor = (key: string): string => {
   if (key === "starsEffect" || key === "sparklingStars") return "/effects";
   if (UI_GAME_KEYS.has(key)) return "/ui_game";
   if (STAGE_COMMON_KEYS.has(key)) return "/mode_0/stage_common";
-  if (key === "endWin" || key === "endFailed") return "/mode_0/stage_end";
+  if (key.startsWith("endWin") || key === "endFailed") return "/mode_0/stage_end";
   if (key.startsWith("obj_")) return "/mode_0/stage_obj";
   if (key.startsWith("op_")) return "/mode_0/stage_opening";
   if (STAGE_UI_KEYS.has(key)) return "/mode_0/stage_ui";
@@ -74,6 +73,7 @@ const STAGE_FILE: Record<string, (index: number) => string> = {
   backgroundStage: stageBackground,
   backgroundGame: stageBackground,
   endBackground: stageBackground,
+  block: (index) => `/mode_0/stage_block/block_${index}.png`,
   road: (index) => `/mode_0/stage_road/road_${roadFileIndex(index)}.png`,
 };
 

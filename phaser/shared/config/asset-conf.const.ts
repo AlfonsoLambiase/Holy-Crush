@@ -33,6 +33,8 @@ export const CandyCrushAssetConf = {
     iconLive: "iconLive",
     logoPhaser: "logoPhaser", //! Solo per test
     endWin: "endWin",
+    endWin_bg: "endWin_bg",
+    endWin_fill: "endWin_fill",
     endFailed: "endFailed",
     endBackground: "endBackground",
 
