@@ -57,6 +57,7 @@ export const CandyCrushAssetConf = {
 
     // for exitManager
     btnExitGame: "btnExitGame",
+    btnReload: "btnReload",
     btnConfirm: "btnConfirm",
     btnCancel: "btnCancel",
     popupExitGame: "popupExitGame",

@@ -40,10 +40,10 @@ const UI_TEXTS: TextEntry[] = [
   },
   {
     key: "watchAd",
-    it: "GUARDA PUBBLICITÀ",
+    it: "GUARDA ANNUNCIO",
     en: "WATCH AD",
     es: "VER ANUNCIO",
-    fr: "VOIR LA PUB",
+    fr: "VOIR L'ANNONCE",
   },
   {
     key: "energyEmptyTitle",
@@ -54,10 +54,10 @@ const UI_TEXTS: TextEntry[] = [
   },
   {
     key: "energyEmptyBody",
-    it: "Guarda pubblicità per ricaricarla e continuare a giocare",
+    it: "Guarda un annuncio per ricaricarla e continuare a giocare",
     en: "Watch an ad to recharge it and keep playing",
     es: "Mira un anuncio para recargarla y seguir jugando",
-    fr: "Regarde une pub pour la recharger et continuer à jouer",
+    fr: "Regarde une annonce pour la recharger et continuer à jouer",
   },
   {
     key: "shopEnergy",
@@ -177,6 +177,13 @@ const UI_TEXTS: TextEntry[] = [
     en: "Do you want to end the game?",
     es: "¿Quieres terminar la partida?",
     fr: "Veux-tu terminer la partie?",
+  },
+  {
+    key: "reloadTitle",
+    it: "Vuoi riavviare la partita?",
+    en: "Do you want to restart the game?",
+    es: "¿Quieres reiniciar la partida?",
+    fr: "Veux-tu recommencer la partie?",
   },
   {
     key: "confirm",

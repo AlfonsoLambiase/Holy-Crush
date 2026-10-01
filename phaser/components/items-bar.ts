@@ -8,9 +8,10 @@ import {
   spendBooster,
   type BoosterId,
 } from "@/settings/boosters";
-import {playClick, playNoTouch} from "@/settings/click";
+import {playClick, playMega, playNoTouch, playSuper} from "@/settings/click";
 import {getCellSize, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
 import {addCountBadge, type CountBadge} from "../shared/count-badge";
 import {addFillPair, tweenRemaining, type FillPair} from "../shared/fill-pair";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
@@ -72,15 +73,20 @@ export class ItemsBar {
 
     if (!this.scene.textures.exists(assetConf.image.containerItems)) return height;
 
-    const plaque = this.scene.add.image(width / 2, 0, assetConf.image.containerItems).setScrollFactor(0);
+    const plaque = this.scene.add.image(0, 0, assetConf.image.containerItems).setScrollFactor(0);
     const iconSize = getCellSize(width) * GRID_PIECE_FIT;
     const pad = iconSize * 0.16;
 
     plaque.setDisplaySize(iconSize * 2 + pad * 4, iconSize + pad * 2).setDepth(8);
-    const margin = this.scaleOf(16, 36);
+    const bottomMargin = this.scaleOf(16, 36);
+    const sideInset = this.scaleOf(HEADER_INSET_MIN, HEADER_INSET_MAX);
+    const rightNudge = this.scaleOf(28, 56);
 
-    this.#top = height - margin - plaque.displayHeight;
-    plaque.setY(this.#top + plaque.displayHeight / 2);
+    this.#top = height - bottomMargin - plaque.displayHeight;
+    plaque
+      .setOrigin(0.5, 0.5)
+      .setX(width - sideInset - plaque.displayWidth / 2 + rightNudge)
+      .setY(this.#top + plaque.displayHeight / 2);
 
     const y = plaque.y;
 
@@ -185,7 +191,9 @@ export class ItemsBar {
 
     if (!onGrid || !spendBooster(id)) return;
 
-    playClick();
+    if (id === "super") playSuper();
+    else playMega();
+
     this.#sync(id);
   }
 

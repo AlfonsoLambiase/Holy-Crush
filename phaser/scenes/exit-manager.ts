@@ -18,19 +18,29 @@ const TITLE_Y_RATIO = -0.22; // titolo nella parte alta del pannello
 const PRESS_MS = 220; // stessa attesa del premuto sugli altri bottoni
 const PRESS_SCALE = 0.92;
 
+type PopupMode = "exit" | "reload";
+
 export class ExitManager extends Phaser.Scene {
   private width!: number;
   private height!: number;
 
   private backgroundOverlay!: Phaser.GameObjects.Graphics;
+  private outsideDismiss!: Phaser.GameObjects.Rectangle;
   private popupContainer!: Phaser.GameObjects.Container;
+  private titleText!: Phaser.GameObjects.Text;
 
   gameScene!: Game;
   private choiceLocked = false;
+  #dismissReady = false;
+  #mode: PopupMode = "exit";
 
   constructor(scene?: Phaser.Scene) {
     super({key: assetConf.scene.exitManager});
     this.gameScene = scene as Game;
+  }
+
+  init(data?: {popupMode?: PopupMode}) {
+    if (data?.popupMode) this.#mode = data.popupMode;
   }
 
   create() {
@@ -45,8 +55,8 @@ export class ExitManager extends Phaser.Scene {
     }
 
     this.#addBackgroundOverlay();
-    this.choiceLocked = false;
     this.#addPopup();
+    this.showPopup(this.#mode);
   }
 
   public setGameScene(scene: Game): void {
@@ -58,6 +68,18 @@ export class ExitManager extends Phaser.Scene {
     this.backgroundOverlay.fillStyle(0x000000, 0.5);
     this.backgroundOverlay.fillRect(0, 0, this.width, this.height);
     this.backgroundOverlay.setDepth(100);
+
+    this.outsideDismiss = this.add
+      .rectangle(this.width / 2, this.height / 2, this.width, this.height, 0x000000, 0.001)
+      .setScrollFactor(0)
+      .setDepth(100)
+      .setInteractive({useHandCursor: false});
+
+    this.outsideDismiss.on("pointerup", () => {
+      if (!this.#dismissReady || !this.popupContainer?.visible || this.choiceLocked) return;
+
+      this.#resumeGame();
+    });
   }
 
   #addPopup() {
@@ -77,7 +99,7 @@ export class ExitManager extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(101);
 
-    const title = this.#addLabel(0, popupExitGame.height * TITLE_Y_RATIO, t("exitTitle", language), {
+    this.titleText = this.#addLabel(0, popupExitGame.height * TITLE_Y_RATIO, t("exitTitle", language), {
       fontSize: 46,
       color: "#ffd76a",
       wordWrapWidth: popupExitGame.width * 0.72,
@@ -99,7 +121,7 @@ export class ExitManager extends Phaser.Scene {
       BUTTONS_CENTER_Y - buttonOffsetY,
       btnConfirm,
       t("confirm", language),
-      () => this.#backToStage(),
+      () => this.#confirmChoice(),
     );
     const cancelPlate = this.#choicePlate(
       0,
@@ -109,7 +131,7 @@ export class ExitManager extends Phaser.Scene {
       () => this.#resumeGame(),
     );
 
-    this.popupContainer.add([popupExitGame, title, confirmPlate, cancelPlate]);
+    this.popupContainer.add([popupExitGame, this.titleText, confirmPlate, cancelPlate]);
   }
 
   #choicePlate(
@@ -123,12 +145,10 @@ export class ExitManager extends Phaser.Scene {
       button,
       this.#addLabel(0, 0, label, {fontSize: 40, color: "#fff8dc"}),
     ]);
-    let pressed = false;
 
     button.on("pointerdown", () => {
-      if (pressed || this.choiceLocked) return;
+      if (this.choiceLocked) return;
 
-      pressed = true;
       this.choiceLocked = true;
       playClick();
       plate.setScale(PRESS_SCALE);
@@ -142,13 +162,27 @@ export class ExitManager extends Phaser.Scene {
   }
 
   #resumeGame() {
+    this.choiceLocked = false;
+    this.#dismissReady = false;
     this.backgroundOverlay.setVisible(false);
     this.popupContainer.setVisible(false);
+    this.outsideDismiss.disableInteractive();
 
-    if (!this.scene.isActive(assetConf.scene.game)) {
+    if (this.scene.isPaused(assetConf.scene.game)) {
       this.scene.resume(assetConf.scene.game);
-      this.sound.resumeAll();
     }
+
+    this.sound.resumeAll();
+  }
+
+  #confirmChoice() {
+    if (this.#mode === "reload") {
+      this.#restartMatch();
+
+      return;
+    }
+
+    this.#backToStage();
   }
 
   #backToStage() {
@@ -160,6 +194,15 @@ export class ExitManager extends Phaser.Scene {
     this.scene.stop(assetConf.scene.timerManager);
     this.scene.stop(assetConf.scene.game);
     this.scene.start(assetConf.scene.stageMap);
+  }
+
+  #restartMatch() {
+    this.sound.resumeAll();
+    this.scene.stop(assetConf.scene.gameManager);
+    this.scene.stop(assetConf.scene.timerManager);
+    this.scene.stop(assetConf.scene.exitManager);
+    this.scene.stop(assetConf.scene.game);
+    this.scene.start(assetConf.scene.game);
   }
 
   #addLabel(
@@ -182,13 +225,37 @@ export class ExitManager extends Phaser.Scene {
       .setDepth(103);
   }
 
-  showPopup() {
+  showPopup(mode: PopupMode = "exit") {
+    this.#mode = mode;
+    this.titleText?.setText(
+      t(this.#mode === "reload" ? "reloadTitle" : "exitTitle", getCurrentLanguage()),
+    );
     this.choiceLocked = false;
+    this.#dismissReady = false;
     this.backgroundOverlay?.setVisible(true);
     this.popupContainer?.setVisible(true);
+    this.outsideDismiss.setInteractive({useHandCursor: false});
     this.popupContainer?.each((child: Phaser.GameObjects.GameObject) => {
       if (child instanceof Phaser.GameObjects.Container) child.setScale(1);
     });
+    this.time.delayedCall(120, () => {
+      this.#dismissReady = true;
+    });
+  }
+
+  #openPopup(scene: Phaser.Scene, mode: PopupMode) {
+    const manager = scene.scene.get(assetConf.scene.exitManager) as ExitManager;
+    const running = scene.scene.isActive(assetConf.scene.exitManager);
+
+    scene.scene.pause(assetConf.scene.game);
+    scene.sound.pauseAll();
+
+    if (!running) {
+      scene.scene.launch(assetConf.scene.exitManager, {popupMode: mode});
+    } else {
+      scene.scene.wake(assetConf.scene.exitManager);
+      manager.showPopup(mode);
+    }
   }
 
   public createExitButton(scene: Phaser.Scene, theme?: Phaser.Sound.BaseSound) {
@@ -199,14 +266,15 @@ export class ExitManager extends Phaser.Scene {
 
     const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
     const headerY = this.gameScene.uiManager?.headerCenterY ?? inset;
+    const buttonScale = this.gameScene.setDynamicValueBasedOnScale(0.35, 1.0);
 
     const exitButton = scene.add
       .image(width - inset, headerY, assetConf.image.btnExitGame)
       .setOrigin(0.5)
-      .setInteractive()
+      .setInteractive({useHandCursor: true})
       .setScrollFactor(0)
       .setDepth(100)
-      .setScale(this.gameScene.setDynamicValueBasedOnScale(0.35, 1.0));
+      .setScale(buttonScale);
 
     exitButton.on("pointerdown", () => {
       playClick();
@@ -214,13 +282,41 @@ export class ExitManager extends Phaser.Scene {
         if (theme) theme.stop();
         EventBus.emit(PhaserEvents.EXIT_GAME);
       } else {
-        scene.scene.launch(assetConf.scene.exitManager);
-        scene.scene.pause(assetConf.scene.game);
-        scene.sound.pauseAll();
-        (scene.scene.get(assetConf.scene.exitManager) as ExitManager).showPopup();
+        this.#openPopup(scene, "exit");
       }
     });
 
     return exitButton;
+  }
+
+  public createReloadButton(scene: Phaser.Scene) {
+    const config = scene.sys.game.config as {width: number; height: number};
+    const width = config.width;
+    const isTesting: boolean = scene.registry.get("test");
+    const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
+    const headerY = this.gameScene.uiManager?.headerCenterY ?? inset;
+    const buttonScale = this.gameScene.setDynamicValueBasedOnScale(0.35, 1.0);
+    const exitX = width - inset;
+    const reloadX = (width / 2 + exitX) / 2;
+
+    if (!scene.textures.exists(assetConf.image.btnReload)) return null;
+
+    const reloadButton = scene.add
+      .image(reloadX, headerY, assetConf.image.btnReload)
+      .setOrigin(0.5)
+      .setInteractive({useHandCursor: true})
+      .setScrollFactor(0)
+      .setDepth(100)
+      .setScale(buttonScale);
+
+    reloadButton.on("pointerdown", () => {
+      playClick();
+
+      if (isTesting) return;
+
+      this.#openPopup(scene, "reload");
+    });
+
+    return reloadButton;
   }
 }

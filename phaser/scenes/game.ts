@@ -62,6 +62,7 @@ export class Game extends Phaser.Scene {
 
     exitManager.setGameScene(this);
     this.exitButton = exitManager.createExitButton(this, this.theme);
+    exitManager.createReloadButton(this);
     this.scene.bringToTop(assetConf.scene.exitManager);
 
     // this.scene.launch(assetConf.scene.timerManager); //* è una estensione della classe Phaser.Scene. Si inizializza in questo modo.
