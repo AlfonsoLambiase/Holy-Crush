@@ -372,7 +372,7 @@ export class StageMapScene extends Phaser.Scene {
     const mascot = this.add
       .image(width / 2, screenH, key)
       .setOrigin(0.5, 1)
-      .setDepth(1)
+      .setDepth(4)
       .setScrollFactor(0);
     mascot.setScale(this.#mascotDisplayHeight(width, screenH) / mascot.height);
   }
