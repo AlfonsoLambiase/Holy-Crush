@@ -10,11 +10,11 @@
 
 export const DRAIN_FILL_IN_CIRCLE = true;
 
-export const STAGE_LEVELS = 15;
+export const STAGE_LEVELS = 20;
 
-//* Stage di contenuto (op_0 … op_17, backgroundStage_0 … backgroundStage_17)
+//* Stage di contenuto (op_0 … op_19, backgroundStage_0 … backgroundStage_19)
 
-export const STAGE_COUNT = 18;
+export const STAGE_COUNT = 20;
 
 export type PathShape =
   "snake" | "mirror" | "wide" | "tight" | "drift" | "slow";
@@ -98,7 +98,7 @@ export const normalizeStageIndex = (stageIndex: number): number => {
 export const getStageMap = (stageIndex: number): StageMapConfig =>
   STAGE_MAPS[normalizeStageIndex(stageIndex)];
 
-//* 1-15 sul primo stage, 16-30 sul secondo, e così via
+//* 1-20 sul primo stage, 21-40 sul secondo, e così via
 
 export const getStageLevelNumber = (
   stageIndex: number,

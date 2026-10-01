@@ -43,10 +43,6 @@ export const CandyCrushAssetConf = {
     // for specific game
     backgroundGriglia: "backgroundGriglia",
     block: "block",
-    obj_0_0: "obj_0_0",
-    obj_1_0: "obj_1_0",
-    obj_2_0: "obj_2_0",
-    obj_3_0: "obj_3_0",
     rocket: "rocket",
     bomb: "bomb",
     super: "super",

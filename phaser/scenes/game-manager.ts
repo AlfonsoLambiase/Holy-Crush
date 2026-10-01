@@ -2,7 +2,8 @@
 /* eslint-disable no-console */
 import * as Phaser from "phaser";
 
-import {getUnlockedCount} from "@/settings/progress";
+import {getPieceKeysForStageLevel} from "@/settings/level-pieces";
+import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 
 import {AudioManager} from "../components/audioManager";
 import {ItemsBar} from "../components/items-bar";
@@ -52,13 +53,6 @@ const HINT_PULSE_SCALE = 1.12;
 
 type RocketOrigin = {cell: Cell; type: number};
 
-const PIECE_KEYS = [
-  assetConf.image.obj_0_0,
-  assetConf.image.obj_1_0,
-  assetConf.image.obj_2_0,
-  assetConf.image.obj_3_0,
-] as const;
-
 export class GameManager extends Phaser.Scene {
   audioManager!: AudioManager;
 
@@ -97,6 +91,7 @@ export class GameManager extends Phaser.Scene {
   private hintTimer?: Phaser.Time.TimerEvent;
   private hintCells: Cell[] = [];
   #itemsBar: ItemsBar | null = null;
+  #pieceKeys: readonly string[] = [];
 
   constructor() {
     super({key: assetConf.scene.gameManager});
@@ -112,6 +107,7 @@ export class GameManager extends Phaser.Scene {
     console.log(`Gioco caricato ${gameName}`);
     const selected = Number(this.registry.get("level"));
     const level = Number.isFinite(selected) && selected > 0 ? selected : getUnlockedCount();
+    this.#pieceKeys = getPieceKeysForStageLevel(level, getStageIndex());
     const shape = getGridForLevel(level);
 
     this.gridMask = shape.mask;
@@ -150,7 +146,7 @@ export class GameManager extends Phaser.Scene {
     this.board = generatePlayableBoard(
       this.gridRows,
       this.gridCols,
-      PIECE_KEYS.length,
+      this.#pieceKeys.length,
       (row, col) => this.isOpen(row, col),
     );
 
@@ -204,7 +200,7 @@ export class GameManager extends Phaser.Scene {
     if (type === ROCKET_H || type === ROCKET_V) return assetConf.image.rocket;
     if (type === BOMB) return assetConf.image.bomb;
 
-    return PIECE_KEYS[type];
+    return this.#pieceKeys[type];
   }
 
   private fitScale(piece: Phaser.GameObjects.Image): number {
@@ -817,7 +813,7 @@ export class GameManager extends Phaser.Scene {
 
       for (let i = 0; i < missing; i++) {
         const row = slots[keptSprites.length + i];
-        const type = Phaser.Math.Between(0, PIECE_KEYS.length - 1);
+        const type = Phaser.Math.Between(0, this.#pieceKeys.length - 1);
         const fromY = this.startY - (i + 1) * this.cellH;
         const piece = this.spawnPiece(row, col, type, fromY);
         const pos = this.cellPos({r: row, c: col});
@@ -879,7 +875,7 @@ export class GameManager extends Phaser.Scene {
     await this.tweenPromise({targets: [overlay, label], alpha: 1, duration: 220});
     await this.delay(900);
 
-    shuffleBoard(this.board, PIECE_KEYS.length);
+    shuffleBoard(this.board, this.#pieceKeys.length);
     this.applyBoardTextures();
 
     await this.tweenPromise({targets: [overlay, label], alpha: 0, duration: 220});

@@ -1,3 +1,5 @@
+import {allObjTextureKeys} from "@/settings/level-pieces";
+
 import {CandyCrushAssetConf} from "../config/asset-conf.const";
 import {AssetPaths, DEFAULT_STAGE} from "../config/asset-paths.const";
 
@@ -22,6 +24,10 @@ export const loadSpritesheets = (scene: Phaser.Scene, stage: number = DEFAULT_ST
 
 export const loadImages = (scene: Phaser.Scene, stage: number = DEFAULT_STAGE) => {
   for (const key in assetConf.image) {
+    scene.load.image(key, AssetPaths.image(key, stage));
+  }
+
+  for (const key of allObjTextureKeys()) {
     scene.load.image(key, AssetPaths.image(key, stage));
   }
 };
