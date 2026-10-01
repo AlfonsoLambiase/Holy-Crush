@@ -5,7 +5,7 @@ import {playClick, playNoTouch, playRecharge} from "@/settings/click";
 import {getHeartRemaining, isHeartEmpty, refillHeart, spendHeart} from "@/settings/heart";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 import {darkenHex, getStageLevelNumber, getStageMap, hexToInt, stagePoint, type StageMapConfig} from "@/settings/stage-map";
-import {playTrack} from "@/settings/soundtrack";
+import {playStageTrack} from "@/settings/soundtrack";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
@@ -72,7 +72,7 @@ export class StageMapScene extends Phaser.Scene {
     const pathBottom = 1 - mascotH / worldH;
     const stops = Array.from({length: map.levels}, (_, index) => stagePoint(map, index, pathBottom));
 
-    playTrack("stage");
+    playStageTrack(stage);
 
     this.add
       .image(width / 2, height / 2, assetConf.image.backgroundStage)

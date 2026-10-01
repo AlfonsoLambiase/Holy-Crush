@@ -1,7 +1,8 @@
 import * as Phaser from "phaser";
 
 import {getCurrentLanguage, openingTextKey, t} from "@/language";
-import {playTrack} from "@/settings/soundtrack";
+import {getStageIndex} from "@/settings/progress";
+import {playStageTrack} from "@/settings/soundtrack";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
@@ -38,7 +39,7 @@ export class OpeningScene extends Phaser.Scene {
     const fontSize = Math.round(Phaser.Math.Clamp(width * 0.042, 26, 58));
 
     this.#isComplete = false;
-    playTrack("stage");
+    playStageTrack(getStageIndex());
 
     const art = this.#placeArt(width, height);
     const panelW = width * 0.86;

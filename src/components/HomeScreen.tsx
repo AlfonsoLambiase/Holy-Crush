@@ -10,7 +10,8 @@ import {addBooster, getBoosterCount, isBoosterFull, type BoosterId} from "@/sett
 import {refillHeart} from "@/settings/heart";
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
-import {getMusicTrack, playTrack, stopTrack} from "@/settings/soundtrack";
+import {getStageIndex} from "@/settings/progress";
+import {getMusicTrack, playStageTrack, playTrack, stopTrack} from "@/settings/soundtrack";
 
 import {HomeLightFall} from "./HomeLightFall";
 import {PhaserGame} from "./PhaserGame";
@@ -390,7 +391,7 @@ export function HomeScreen() {
     if (!isNewTestamentPressed) return;
 
     const timer = setTimeout(() => {
-      playTrack("stage");
+      playStageTrack(getStageIndex());
       setIsPlaying(true);
     }, PRESS_MS);
 

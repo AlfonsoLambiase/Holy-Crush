@@ -11,6 +11,9 @@ import {addFillPair} from "../shared/fill-pair";
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
 const WIN_FILL_MS = 1150;
+const WIN_SOUND_START_VOLUME = 0.04;
+const WIN_SOUND_PEAK_VOLUME = 1;
+const WIN_SOUND_RISE_MS = 2400;
 const RAINBOW_WIDTH = 0.78; // quota della larghezza schermo
 const RAINBOW_Y = 0.3; // centro pagina, sopra Gesù
 
@@ -103,7 +106,31 @@ export class Outro extends Phaser.Scene {
     const key =
       this.imageKey === assetConf.image.endWin ? assetConf.audio.winSound : assetConf.audio.loseSound;
 
-    if (this.cache.audio.exists(key)) this.sound.play(key);
+    if (!this.cache.audio.exists(key)) return;
+
+    if (key !== assetConf.audio.winSound) {
+      this.sound.play(key);
+
+      return;
+    }
+
+    const sfx = this.sound.add(key, {volume: WIN_SOUND_START_VOLUME});
+
+    sfx.play();
+
+    const level = {volume: WIN_SOUND_START_VOLUME};
+
+    this.tweens.add({
+      targets: level,
+      volume: WIN_SOUND_PEAK_VOLUME,
+      duration: WIN_SOUND_RISE_MS,
+      ease: "Sine.easeOut",
+      onUpdate: () => {
+        if ("setVolume" in sfx && typeof sfx.setVolume === "function") {
+          sfx.setVolume(level.volume);
+        }
+      },
+    });
   }
 
   #addWinRainbow(width: number, height: number) {
