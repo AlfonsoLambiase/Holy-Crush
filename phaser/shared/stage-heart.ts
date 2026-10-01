@@ -22,7 +22,7 @@ export const addStageHeart = (
   const bgKey = assetConf.image.logo_stage_bg;
   const fillKey = assetConf.image.logo_stage_fill;
 
-  if (!scene.textures.exists(bgKey) || size <= 0) return null;
+  if (!scene.textures.exists(bgKey) || !scene.textures.exists(fillKey) || size <= 0) return null;
 
   const src = scene.textures.get(bgKey).getSourceImage() as {height: number};
   return addFillPair(

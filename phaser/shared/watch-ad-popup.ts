@@ -7,6 +7,9 @@ import {APP_FONT} from "./config/font.const";
 
 const assetConf = CandyCrushAssetConf;
 
+const WATCH_BTN_W = 520;
+const WATCH_BTN_H = 96;
+
 export type WatchAdPopup = {
   close: () => void;
 };
@@ -26,11 +29,16 @@ export const showWatchAdPopup = (
   if (!scene.textures.exists(assetConf.image.popupExitGame)) return null;
 
   const {width, height} = scene.scale;
+  const scale = options.scale;
   const overlay = scene.add
     .rectangle(width / 2, height / 2, width, height, 0x000000, 0.55)
     .setDepth(40)
+    .setScrollFactor(0);
+  const blocker = scene.add
+    .rectangle(width / 2, height / 2, width, height, 0xffffff, 0.001)
     .setScrollFactor(0)
-    .setInteractive();
+    .setDepth(41)
+    .setInteractive({useHandCursor: false});
   const plate = scene.add.image(0, 0, assetConf.image.popupExitGame).setOrigin(0.5);
   const wrap = plate.width * 0.62;
   const popup = scene.add.container(width / 2, height / 2).setDepth(41).setScrollFactor(0);
@@ -56,40 +64,101 @@ export const showWatchAdPopup = (
       strokeThickness: 4,
     })
     .setOrigin(0.5);
+  const watchVisual = addWatchVisual(scene, 0, plate.height * 0.26);
+
+  let consumed = false;
+
+  popup.add([plate, title, body, watchVisual]);
+  popup.setScale(scale);
+
+  //* Hit separato dal container scalato: in Phaser il touch sui figli annidati spesso non arriva
+  const watchLocalY = plate.height * 0.26;
+  const watchHit = scene.add
+    .rectangle(width / 2, height / 2 + watchLocalY * scale, WATCH_BTN_W * scale, WATCH_BTN_H * scale, 0xffffff, 0.001)
+    .setScrollFactor(0)
+    .setDepth(42)
+    .setInteractive({useHandCursor: true});
+
+  const dismissTargets: Phaser.GameObjects.GameObject[] = [popup, overlay, blocker, watchHit];
+
+  const isInPopup = (target: Phaser.GameObjects.GameObject) => {
+    if (target === blocker || target === watchHit || target === popup) return true;
+
+    let node: Phaser.GameObjects.GameObject | null = target;
+
+    while (node) {
+      if (node === popup) return true;
+      node = (node as Phaser.GameObjects.GameObject & {parentContainer?: Phaser.GameObjects.Container})
+        .parentContainer ?? null;
+    }
+
+    return false;
+  };
 
   const close = () => {
-    popup.destroy(true);
-    overlay.destroy();
+    scene.input.off("pointerup", onOutsideUp);
+    watchHit.off("pointerdown", onWatchPress);
+    for (const target of dismissTargets) target.destroy(true);
     options.onClose?.();
   };
 
-  popup.add([
-    plate,
-    title,
-    body,
-    addWatchButton(scene, 0, plate.height * 0.26, () => {
-      close();
+  const runWatch = () => {
+    if (consumed) return;
+
+    consumed = true;
+
+    try {
       options.onWatch();
-    }),
-  ]);
-  overlay.on("pointerdown", () => close());
-  popup.setScale(options.scale);
+    } catch {
+      consumed = false;
+
+      return;
+    }
+
+    close();
+  };
+
+  const onWatchPress = (
+    _pointer: Phaser.Input.Pointer,
+    _x: number,
+    _y: number,
+    event: Phaser.Types.Input.EventData,
+  ) => {
+    event.stopPropagation();
+    playClick();
+    runWatch();
+  };
+
+  watchHit.on("pointerdown", onWatchPress);
+
+  const onOutsideUp = (pointer: Phaser.Input.Pointer) => {
+    if (!popup.active) return;
+    if (scene.input.hitTestPointer(pointer).some(isInPopup)) return;
+
+    close();
+  };
+
+  scene.input.on("pointerup", onOutsideUp);
 
   return {close};
 };
 
-const addWatchButton = (scene: Phaser.Scene, x: number, y: number, onPress: () => void) => {
-  const width = 520;
-  const height = 96;
+const addWatchVisual = (scene: Phaser.Scene, x: number, y: number) => {
   const radius = 28;
   const face = scene.add.graphics();
 
   face.fillStyle(0x3d2614, 1);
-  face.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
+  face.fillRoundedRect(-WATCH_BTN_W / 2, -WATCH_BTN_H / 2, WATCH_BTN_W, WATCH_BTN_H, radius);
   face.lineStyle(4, 0xa67c22, 1);
-  face.strokeRoundedRect(-width / 2, -height / 2, width, height, radius);
+  face.strokeRoundedRect(-WATCH_BTN_W / 2, -WATCH_BTN_H / 2, WATCH_BTN_W, WATCH_BTN_H, radius);
   face.lineStyle(4, 0x2a160c, 0.8);
-  face.strokeRoundedRect(-width / 2 - 6, -height / 2 - 6, width + 12, height + 12, radius + 6);
+  face.strokeRoundedRect(
+    -WATCH_BTN_W / 2 - 6,
+    -WATCH_BTN_H / 2 - 6,
+    WATCH_BTN_W + 12,
+    WATCH_BTN_H + 12,
+    radius + 6,
+  );
 
   const text = scene.add
     .text(0, 0, t("watchAd", getCurrentLanguage()), {
@@ -101,18 +170,6 @@ const addWatchButton = (scene: Phaser.Scene, x: number, y: number, onPress: () =
       strokeThickness: 4,
     })
     .setOrigin(0.5);
-  const hit = scene.add.rectangle(0, 0, width, height, 0xffffff, 0.001).setInteractive({useHandCursor: true});
-  const plate = scene.add.container(x, y, [face, text, hit]);
 
-  hit.on("pointerdown", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
-    event.stopPropagation();
-    playClick();
-    plate.setScale(0.95);
-    scene.time.delayedCall(160, () => {
-      plate.setScale(1);
-      onPress();
-    });
-  });
-
-  return plate;
+  return scene.add.container(x, y, [face, text]);
 };

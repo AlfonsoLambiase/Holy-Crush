@@ -2,6 +2,7 @@
 /* eslint-disable no-console */
 import * as Phaser from "phaser";
 
+import {isEffectsEnabled} from "@/settings/effects";
 import {getStageIndex, registerWin} from "@/settings/progress";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {AssetPaths} from "../shared/config/asset-paths.const";
@@ -9,7 +10,7 @@ import {addFillPair} from "../shared/fill-pair";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
-const WIN_FILL_MS = 1600;
+const WIN_FILL_MS = 1150;
 const RAINBOW_WIDTH = 0.78; // quota della larghezza schermo
 const RAINBOW_Y = 0.3; // centro pagina, sopra Gesù
 
@@ -33,6 +34,12 @@ export class Outro extends Phaser.Scene {
 
   #leave(stageCleared: boolean) {
     if (!stageCleared) {
+      const played = Number(this.registry.get("level"));
+
+      if (Number.isFinite(played) && played >= 1) {
+        this.registry.set("stageMapFocusLevel", played);
+      }
+
       this.scene.start(assetConf.scene.stageMap);
 
       return;
@@ -50,6 +57,7 @@ export class Outro extends Phaser.Scene {
       assetConf.image.backgroundGame,
       assetConf.image.endBackground,
       assetConf.image.block,
+      assetConf.image.stageMascot,
     ]) {
       if (this.textures.exists(key)) this.textures.remove(key);
       this.load.image(key, AssetPaths.image(key, stage));
@@ -74,6 +82,8 @@ export class Outro extends Phaser.Scene {
       .setDisplaySize(width, height)
       .setDepth(0);
 
+    this.#playResultSound();
+
     if (this.imageKey === assetConf.image.endWin) this.#addWinRainbow(width, height);
 
     // Immagine principale con origine in basso al centro
@@ -85,6 +95,15 @@ export class Outro extends Phaser.Scene {
     foreground.setScale(scale);
 
     //console.log("registry.score: ", this.registry.get(assetConf.registry.score));
+  }
+
+  #playResultSound() {
+    if (!isEffectsEnabled()) return;
+
+    const key =
+      this.imageKey === assetConf.image.endWin ? assetConf.audio.winSound : assetConf.audio.loseSound;
+
+    if (this.cache.audio.exists(key)) this.sound.play(key);
   }
 
   #addWinRainbow(width: number, height: number) {

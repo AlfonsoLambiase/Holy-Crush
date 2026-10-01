@@ -19,3 +19,5 @@ const playSfx = (src: string) => {
 export const playClick = () => playSfx("/sounds/click.mp3");
 
 export const playNoTouch = () => playSfx("/sounds/noTouch.mp3");
+
+export const playRecharge = () => playSfx("/sounds/recharge.mp3");

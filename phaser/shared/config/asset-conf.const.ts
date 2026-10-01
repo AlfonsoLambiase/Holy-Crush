@@ -16,6 +16,8 @@ export const CandyCrushAssetConf = {
     help: "help",
     endWin: "endWin",
     endFailed: "endFailed",
+    winSound: "winSound",
+    loseSound: "loseSound",
     missile: "missile",
     explosion: "explosion",
     fill: "fill",
@@ -71,6 +73,7 @@ export const CandyCrushAssetConf = {
     line: "line",
     backgroundStage: "backgroundStage",
     road: "road",
+    stageMascot: "stageMascot",
   },
   spritesheet: {
     // for confetti - fine partita

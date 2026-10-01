@@ -1,4 +1,4 @@
-import {getStageMap} from "./stage-map";
+import {getStageMap, normalizeStageIndex, STAGE_COUNT} from "./stage-map";
 
 const STORAGE_KEY = "holy-crush-cleared";
 
@@ -20,7 +20,9 @@ const readProgress = (): Progress => {
     try {
       const parsed = JSON.parse(raw) as Partial<Progress>;
       const stageValue = Number(parsed.stage);
-      const stage = Number.isFinite(stageValue) ? Math.max(0, Math.floor(stageValue)) : 0;
+      const stage = Number.isFinite(stageValue)
+        ? normalizeStageIndex(Math.max(0, Math.floor(stageValue)))
+        : 0;
       const cleared = Number(parsed.cleared);
 
       return {
@@ -68,7 +70,12 @@ export const registerWin = (level?: number): boolean => {
   if (played !== frontier) return false;
 
   if (frontier >= getStageMap(progress.stage).levels) {
-    writeProgress({stage: progress.stage + 1, cleared: 0});
+    const nextStage = progress.stage + 1;
+
+    writeProgress({
+      stage: nextStage >= STAGE_COUNT ? 0 : nextStage,
+      cleared: 0,
+    });
 
     return true;
   }

@@ -1,3 +1,5 @@
+import {STAGE_COUNT} from "@/settings/stage-map";
+
 //* Mappa i nomi logici degli asset sulle cartelle reali dentro /public
 export const DEFAULT_STAGE = 1;
 
@@ -66,8 +68,13 @@ const folderFor = (key: string): string => {
 };
 
 //* I png degli stage partono da 0, lo stage di gioco da 1
-export const stageFileIndex = (stage: number = DEFAULT_STAGE): number =>
-  Math.max(0, stage - 1);
+export const stageFileIndex = (stage: number = DEFAULT_STAGE): number => {
+  const index = Math.max(0, Math.floor(stage) - 1);
+
+  if (STAGE_COUNT <= 0) return 0;
+
+  return Math.min(index, STAGE_COUNT - 1);
+};
 
 //* Le road sono meno degli stage: ogni road copre lo stesso numero di stage di fila
 const ROAD_COUNT = 6;
@@ -86,6 +93,7 @@ const STAGE_FILE: Record<string, (index: number) => string> = {
   endBackground: stageBackground,
   block: (index) => `/mode_0/stage_block/block_${index}.png`,
   road: (index) => `/mode_0/stage_road/road_${roadFileIndex(index)}.png`,
+  stageMascot: (index) => `/mode_0/stage_thumbnail/thumbnail_${index}.png`,
 };
 
 export const AssetPaths = {

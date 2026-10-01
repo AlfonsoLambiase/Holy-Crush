@@ -40,9 +40,15 @@ export const addFillPair = (
 
     fill.setVisible(true);
 
-    if (amount >= 1) return;
+    if (amount >= 1) {
+      fill.clearMask(true);
 
-    maskGraphics = scene.make.graphics({}, false);
+      return;
+    }
+
+    maskGraphics = scene.add.graphics();
+    maskGraphics.setScrollFactor(0);
+    maskGraphics.setVisible(false);
     maskGraphics.fillStyle(0xffffff);
 
     if (shape === "radial") {
