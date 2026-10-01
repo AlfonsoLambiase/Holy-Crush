@@ -1,17 +1,20 @@
 import * as Phaser from "phaser";
 
-import {getStageIndex} from "@/settings/progress";
+import {getStageIndex, shouldPlayStageOpening} from "@/settings/progress";
 import {loadAudios, loadFonts, loadImages, loadSpritesheets} from "../shared/utils/load-assets";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
+export type BootStartScene = "default" | "opening" | "stageMap";
+
 export class Boot extends Phaser.Scene {
   sponsorLogo?: string;
   isTesting: boolean = false;
   safeTop: number = 0; //! notch Area
   stage: number = DEFAULT_STAGE;
+  bootStart: BootStartScene = "default";
 
   isInit: boolean = false;
 
@@ -24,11 +27,13 @@ export class Boot extends Phaser.Scene {
     isTesting: boolean;
     safeTop?: number; //! notch Area
     stage?: number;
+    bootStart?: BootStartScene;
   }) {
     if (!this.isInit) {
       this.sponsorLogo = data.sponsorLogo;
       this.isTesting = data.isTesting;
       this.safeTop = data.safeTop || 0; //! notch Area
+      this.bootStart = data.bootStart ?? "default";
       this.stage = getStageIndex() + 1;
 
       this.registry.set("safeTop", this.safeTop); //! notch Area
@@ -57,7 +62,25 @@ export class Boot extends Phaser.Scene {
   }
 
   startGame() {
-    this.scene.start(assetConf.scene.opening);
+    if (this.bootStart === "opening") {
+      this.scene.start(assetConf.scene.opening);
+
+      return;
+    }
+
+    if (this.bootStart === "stageMap") {
+      this.scene.start(assetConf.scene.stageMap, {emitShellReady: true});
+
+      return;
+    }
+
+    if (shouldPlayStageOpening()) {
+      this.scene.start(assetConf.scene.opening);
+
+      return;
+    }
+
+    this.scene.start(assetConf.scene.stageMap, {emitShellReady: true});
   }
 
   #loadAssets(): void {

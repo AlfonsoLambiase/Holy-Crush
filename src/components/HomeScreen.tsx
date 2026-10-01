@@ -10,11 +10,14 @@ import {addBooster, getBoosterCount, isBoosterFull, type BoosterId} from "@/sett
 import {refillHeart} from "@/settings/heart";
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
-import {getStageIndex} from "@/settings/progress";
+import {getStageIndex, prepareEnterWorld} from "@/settings/progress";
 import {getMusicTrack, playStageTrack, playTrack, stopTrack} from "@/settings/soundtrack";
 
 import {HomeLightFall} from "./HomeLightFall";
+import type {BootStartScene} from "@game/scenes/boot";
+
 import {PhaserGame} from "./PhaserGame";
+import {WorldScreen} from "./WorldScreen";
 
 const INTRO_HOLD_MS = 900; // quanto resta grande al centro prima di salire
 const INTRO_MOVE_MS = 1100; // durata della risalita
@@ -355,6 +358,8 @@ export function HomeScreen() {
   const [isStartPressed, setIsStartPressed] = useState(false);
   const [isTestamentOpen, setIsTestamentOpen] = useState(false);
   const [isNewTestamentPressed, setIsNewTestamentPressed] = useState(false);
+  const [showWorld, setShowWorld] = useState(false);
+  const [phaserBootStart, setPhaserBootStart] = useState<BootStartScene>("default");
   const [pressedPanel, setPressedPanel] = useState<MenuPanel | null>(null);
   const [openPanel, setOpenPanel] = useState<MenuPanel | null>(null);
   const [isMusicOn, setIsMusicOn] = useState(isMusicEnabled);
@@ -392,7 +397,8 @@ export function HomeScreen() {
 
     const timer = setTimeout(() => {
       playStageTrack(getStageIndex());
-      setIsPlaying(true);
+      setIsTestamentOpen(false);
+      setShowWorld(true);
     }, PRESS_MS);
 
     return () => clearTimeout(timer);
@@ -409,13 +415,38 @@ export function HomeScreen() {
     return () => clearTimeout(timer);
   }, [pressedPanel]);
 
+  if (showWorld) {
+    return (
+      <WorldScreen
+        onBack={() => {
+          setShowWorld(false);
+          setIsNewTestamentPressed(false);
+        }}
+        onEnter={(worldIndex) => {
+          prepareEnterWorld(worldIndex);
+          playStageTrack(getStageIndex());
+          setPhaserBootStart("default");
+          setShowWorld(false);
+          setIsPlaying(true);
+        }}
+      />
+    );
+  }
+
   if (isPlaying) {
-    return <PhaserGame onExit={() => {
-      setIsPlaying(false);
-      setIsStartPressed(false);
-      setIsTestamentOpen(false);
-      setIsNewTestamentPressed(false);
-    }} />;
+    return (
+      <PhaserGame
+        bootStart={phaserBootStart}
+        onExit={() => {
+          setIsPlaying(false);
+          setIsStartPressed(false);
+          setIsTestamentOpen(false);
+          setIsNewTestamentPressed(false);
+          setShowWorld(false);
+          setPhaserBootStart("default");
+        }}
+      />
+    );
   }
 
   return (

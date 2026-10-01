@@ -1,4 +1,5 @@
 import {getStageMap, normalizeStageIndex, STAGE_COUNT} from "./stage-map";
+import {getWorldStageRange, WORLD_COUNT} from "./world-map";
 
 const STORAGE_KEY = "holy-crush-cleared";
 
@@ -59,6 +60,35 @@ export const getUnlockedCount = (): number => {
 };
 
 export const getClearedCount = (): number => readProgress().cleared;
+
+/** Opening narrativo solo finché non hai ancora completato il livello 1 dello stage. */
+export const shouldPlayStageOpening = (): boolean => getClearedCount() === 0;
+
+export const isWorldComplete = (worldIndex: number): boolean => {
+  if (worldIndex < 0 || worldIndex >= WORLD_COUNT) return false;
+
+  const {last} = getWorldStageRange(worldIndex);
+
+  return getStageIndex() > last;
+};
+
+export const isWorldUnlocked = (worldIndex: number): boolean => {
+  if (worldIndex <= 0) return true;
+
+  return isWorldComplete(worldIndex - 1);
+};
+
+/** Allinea lo stage salvato al mondo scelto (progresso in corso o replay dal primo stage del mondo). */
+export const prepareEnterWorld = (worldIndex: number): void => {
+  if (!isWorldUnlocked(worldIndex)) return;
+
+  const {first, last} = getWorldStageRange(worldIndex);
+  const current = getStageIndex();
+
+  if (current >= first && current <= last) return;
+
+  writeProgress({stage: first, cleared: 0});
+};
 
 //* true quando questa vittoria chiude lo stage e si passa al successivo.
 //* Si avanza solo battendo il livello più avanti già aperto, non ripetendone uno vecchio.

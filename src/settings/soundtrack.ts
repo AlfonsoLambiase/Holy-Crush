@@ -1,15 +1,19 @@
 import {isMusicEnabled} from "./music";
+import {getWorldIndexForStage, WORLD_COUNT} from "./world-map";
 
 const TRACKS = {
   home: {src: "/sounds/ost_0.mp3", volume: 0.65},
-  /** Stage con numero pari (2, 4, 6 …). */
-  stageEven: {src: "/sounds/ost_3.mp3", volume: 0.65},
-  /** Stage con numero dispari (1, 3, 5 …). */
-  stageOdd: {src: "/sounds/ost_1.mp3", volume: 0.65},
   game: {src: "/sounds/ost_2.mp3", volume: 0.32},
+  world0: {src: "/sounds/ost_1.mp3", volume: 0.65},
+  world1: {src: "/sounds/ost_4.wav", volume: 0.65},
+  world2: {src: "/sounds/ost_5.mp3", volume: 0.65},
+  world3: {src: "/sounds/ost_6.mp3", volume: 0.65},
+  world4: {src: "/sounds/ost_2.mp3", volume: 0.65},
 } as const;
 
 export type MusicTrack = keyof typeof TRACKS;
+
+const WORLD_TRACKS: MusicTrack[] = ["world0", "world1", "world2", "world3", "world4"];
 
 let audio: HTMLAudioElement | null = null;
 let current: MusicTrack | null = null;
@@ -60,15 +64,20 @@ const applyResumePosition = (el: HTMLAudioElement, track: MusicTrack): void => {
 
 export const getMusicTrack = (): MusicTrack | null => current;
 
-/** `stageIndex` 0-based (0 = stage 1). Pari → ost_1, dispari → ost_3. */
-export const stageMusicTrack = (stageIndex: number): MusicTrack => {
-  const stageNumber = Math.max(0, Math.floor(stageIndex)) + 1;
+/** OST del mondo (world_0 → ost_1 … world_4 → ost_2). */
+export const worldMusicTrack = (worldIndex: number): MusicTrack => {
+  const safe = Math.min(Math.max(Math.floor(worldIndex), 0), WORLD_COUNT - 1);
 
-  return stageNumber % 2 === 0 ? "stageEven" : "stageOdd";
+  return WORLD_TRACKS[safe] ?? "world0";
 };
 
+export const playWorldTrack = (worldIndex: number): void => {
+  playTrack(worldMusicTrack(worldIndex));
+};
+
+/** `stageIndex` 0-based: usa l’OST del mondo che contiene quello stage. */
 export const playStageTrack = (stageIndex: number): void => {
-  playTrack(stageMusicTrack(stageIndex));
+  playWorldTrack(getWorldIndexForStage(stageIndex));
 };
 
 const armGesture = () => {

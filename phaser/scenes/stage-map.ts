@@ -45,9 +45,14 @@ export class StageMapScene extends Phaser.Scene {
   #onScrollMove: ((pointer: Phaser.Input.Pointer) => void) | null = null;
   #onScrollUp: (() => void) | null = null;
   #onScrollWheel: ((pointer: Phaser.Input.Pointer, over: unknown, dx: number, dy: number) => void) | null = null;
+  #emitShellReady = false;
 
   constructor() {
     super({key: assetConf.scene.stageMap});
+  }
+
+  init(data?: {emitShellReady?: boolean}) {
+    this.#emitShellReady = data?.emitShellReady ?? false;
   }
 
   shutdown() {
@@ -105,6 +110,11 @@ export class StageMapScene extends Phaser.Scene {
 
     this.#addHeader();
     this.#bindScroll(width, height, worldH, map, pathBottom, unlocked);
+
+    if (this.#emitShellReady) {
+      EventBus.emit(PhaserEvents.OPENING_READY);
+      this.#emitShellReady = false;
+    }
   }
 
   #worldHeight(screenH: number, levels: number): number {

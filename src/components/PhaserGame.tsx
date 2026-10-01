@@ -6,7 +6,10 @@ import type * as PhaserType from "phaser";
 import {useLanguage} from "@/language/LanguageProvider";
 import {stopTrack} from "@/settings/soundtrack";
 
+import type {BootStartScene} from "@game/scenes/boot";
+
 type PhaserGameProps = {
+  bootStart?: BootStartScene;
   onExit: () => void;
 };
 
@@ -17,7 +20,7 @@ const readSafeTop = (): number => {
   return (parseFloat(raw) || 0) * window.devicePixelRatio;
 };
 
-export function PhaserGame({onExit}: PhaserGameProps) {
+export function PhaserGame({bootStart = "default", onExit}: PhaserGameProps) {
   const {t} = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const onExitRef = useRef(onExit);
@@ -65,6 +68,7 @@ export function PhaserGame({onExit}: PhaserGameProps) {
       game = createGame({
         parent: containerRef.current,
         safeTop: readSafeTop(),
+        bootStart,
       });
     };
 
@@ -77,7 +81,7 @@ export function PhaserGame({onExit}: PhaserGameProps) {
       game?.loop.stop();
       game?.destroy(true);
     };
-  }, []);
+  }, [bootStart]);
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-[#140d2d]">

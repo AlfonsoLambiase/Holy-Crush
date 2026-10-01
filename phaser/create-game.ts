@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 
 import {createCandyCrushConfig} from "./config/candy-crush-config";
-import {Boot} from "./scenes/boot";
+import {Boot, type BootStartScene} from "./scenes/boot";
 import {ExitManager} from "./scenes/exit-manager";
 import {Game} from "./scenes/game";
 import {GameManager} from "./scenes/game-manager";
@@ -33,6 +33,7 @@ export type CreateGameOptions = {
   isTesting?: boolean;
   safeTop?: number; //! notch Area
   stage?: number;
+  bootStart?: BootStartScene;
 };
 
 export const createGame = ({
@@ -41,6 +42,7 @@ export const createGame = ({
   isTesting = false,
   safeTop = 0,
   stage = DEFAULT_STAGE,
+  bootStart = "default",
 }: CreateGameOptions): Phaser.Game => {
   const game = new Phaser.Game(createCandyCrushConfig(parent));
 
@@ -53,6 +55,7 @@ export const createGame = ({
     isTesting,
     safeTop,
     stage,
+    bootStart,
   });
 
   return game;
