@@ -1,6 +1,7 @@
-//* . cella vuota
-//* 0 cella piena normale
-//* I caratteri dopo si aggiungono qui. Esempio: B = blocco ostacolo.
+//* . buco   0 pezzo
+//* G terreno 1   H terreno 2, al colpo diventa G
+//* I ghiaccio 1   J ghiaccio 2, al colpo diventa I
+//* L catena   R roccia   V rovo   X muro
 export const GRID_0003 = [
   "0000",
   "0000",

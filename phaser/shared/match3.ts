@@ -56,18 +56,28 @@ export function swapCells(board: number[][], a: Cell, b: Cell): void {
   board[b.r][b.c] = tmp;
 }
 
-function isPiece(type: number): boolean {
+export function isPiece(type: number): boolean {
   return isRegular(type) || isSpecial(type);
 }
 
-function sameRegular(board: number[][], a: Cell, b: Cell): boolean {
+function sameRegular(
+  board: number[][],
+  a: Cell,
+  b: Cell,
+  canMatch: (r: number, c: number) => boolean,
+): boolean {
+  if (!canMatch(a.r, a.c) || !canMatch(b.r, b.c)) return false;
+
   const typeA = board[a.r][a.c];
   const typeB = board[b.r][b.c];
 
   return isRegular(typeA) && typeA === typeB;
 }
 
-export function findMatchRuns(board: number[][]): MatchRun[] {
+export function findMatchRuns(
+  board: number[][],
+  canMatch: (r: number, c: number) => boolean = () => true,
+): MatchRun[] {
   const rows = board.length;
   const cols = board[0].length;
   const runs: MatchRun[] = [];
@@ -76,7 +86,7 @@ export function findMatchRuns(board: number[][]): MatchRun[] {
     let run = 1;
 
     for (let c = 1; c <= cols; c++) {
-      const same = c < cols && sameRegular(board, {r, c}, {r, c: c - 1});
+      const same = c < cols && sameRegular(board, {r, c}, {r, c: c - 1}, canMatch);
 
       if (same) {
         run++;
@@ -98,7 +108,7 @@ export function findMatchRuns(board: number[][]): MatchRun[] {
     let run = 1;
 
     for (let r = 1; r <= rows; r++) {
-      const same = r < rows && sameRegular(board, {r, c}, {r: r - 1, c});
+      const same = r < rows && sameRegular(board, {r, c}, {r: r - 1, c}, canMatch);
 
       if (same) {
         run++;
@@ -119,18 +129,24 @@ export function findMatchRuns(board: number[][]): MatchRun[] {
   return runs;
 }
 
-export function findMatches(board: number[][]): Cell[] {
+export function findMatches(
+  board: number[][],
+  canMatch: (r: number, c: number) => boolean = () => true,
+): Cell[] {
   const matched = new Set<string>();
 
-  for (const run of findMatchRuns(board)) {
+  for (const run of findMatchRuns(board, canMatch)) {
     for (const cell of run.cells) matched.add(cellKey(cell));
   }
 
   return [...matched].map(parseKey);
 }
 
-export function hasMatches(board: number[][]): boolean {
-  return findMatches(board).length > 0;
+export function hasMatches(
+  board: number[][],
+  canMatch: (r: number, c: number) => boolean = () => true,
+): boolean {
+  return findMatches(board, canMatch).length > 0;
 }
 
 function pickRun(runs: MatchRun[], preferred?: Cell): MatchRun {
@@ -285,6 +301,43 @@ export function blastCells(board: number[][], cell: Cell, type: number): Cell[] 
   return cells;
 }
 
+//* Ogni potenziamento è un colpo a parte. Il muro resta nella linea: non ferma il razzo.
+export function collectBlasts(board: number[][], origins: Cell[]): Cell[][] {
+  const seen = new Set<string>();
+  const queue: Cell[] = [];
+
+  for (const origin of origins) {
+    const key = cellKey(origin);
+
+    if (seen.has(key)) continue;
+    if (!inBounds(board, origin.r, origin.c) || !isSpecial(board[origin.r][origin.c])) continue;
+
+    seen.add(key);
+    queue.push(origin);
+  }
+
+  const blasts: Cell[][] = [];
+
+  while (queue.length) {
+    const cell = queue.shift()!;
+    const blast = blastCells(board, cell, board[cell.r][cell.c]);
+
+    blasts.push(blast);
+
+    for (const hit of blast) {
+      const key = cellKey(hit);
+
+      if (seen.has(key)) continue;
+      if (!inBounds(board, hit.r, hit.c) || !isSpecial(board[hit.r][hit.c])) continue;
+
+      seen.add(key);
+      queue.push(hit);
+    }
+  }
+
+  return blasts;
+}
+
 export function expandDestroyed(board: number[][], seedCells: Cell[], activated: Cell[]): Cell[] {
   const destroy = new Set<string>();
   const queuedSpecials = new Set<string>();
@@ -320,13 +373,19 @@ export function expandDestroyed(board: number[][], seedCells: Cell[], activated:
   return [...destroy].map(parseKey);
 }
 
-export function findHintMove(board: number[][]): {a: Cell; b: Cell} | null {
+export function findHintMove(
+  board: number[][],
+  allowsSwap: (r: number, c: number) => boolean = () => true,
+  canMatch: (r: number, c: number) => boolean = () => true,
+): {a: Cell; b: Cell} | null {
   const rows = board.length;
   const cols = board[0].length;
+  const movable = (cell: Cell) =>
+    inBounds(board, cell.r, cell.c) && allowsSwap(cell.r, cell.c) && isPiece(board[cell.r][cell.c]);
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (!isPiece(board[r][c])) continue;
+      if (!movable({r, c})) continue;
 
       const neighbors: Cell[] = [
         {r, c: c + 1},
@@ -336,24 +395,22 @@ export function findHintMove(board: number[][]): {a: Cell; b: Cell} | null {
       ];
 
       if (isSpecial(board[r][c])) {
-        const neighbor = neighbors.find(
-          (cell) => inBounds(board, cell.r, cell.c) && isPiece(board[cell.r][cell.c]),
-        );
+        const neighbor = neighbors.find((cell) => movable(cell));
 
         if (neighbor) return {a: {r, c}, b: neighbor};
       }
 
-      if (c + 1 < cols && isPiece(board[r][c + 1])) {
+      if (movable({r, c: c + 1})) {
         swapCells(board, {r, c}, {r, c: c + 1});
-        const hit = hasMatches(board);
+        const hit = hasMatches(board, canMatch);
 
         swapCells(board, {r, c}, {r, c: c + 1});
         if (hit) return {a: {r, c}, b: {r, c: c + 1}};
       }
 
-      if (r + 1 < rows && isPiece(board[r + 1][c])) {
+      if (movable({r: r + 1, c})) {
         swapCells(board, {r, c}, {r: r + 1, c});
-        const hit = hasMatches(board);
+        const hit = hasMatches(board, canMatch);
 
         swapCells(board, {r, c}, {r: r + 1, c});
         if (hit) return {a: {r, c}, b: {r: r + 1, c}};
@@ -364,8 +421,12 @@ export function findHintMove(board: number[][]): {a: Cell; b: Cell} | null {
   return null;
 }
 
-export function hasValidMove(board: number[][]): boolean {
-  return findHintMove(board) !== null;
+export function hasValidMove(
+  board: number[][],
+  allowsSwap: (r: number, c: number) => boolean = () => true,
+  canMatch: (r: number, c: number) => boolean = () => true,
+): boolean {
+  return findHintMove(board, allowsSwap, canMatch) !== null;
 }
 
 export function generatePlayableBoard(
@@ -373,6 +434,8 @@ export function generatePlayableBoard(
   cols: number,
   typeCount: number,
   isOpen: (row: number, col: number) => boolean = () => true,
+  allowsSwap: (row: number, col: number) => boolean = () => true,
+  canMatch: (row: number, col: number) => boolean = () => true,
 ): number[][] {
   let board = createEmptyBoard(rows, cols);
 
@@ -395,28 +458,40 @@ export function generatePlayableBoard(
       }
     }
 
-    if (!hasMatches(board) && hasValidMove(board)) return board;
+    if (!hasMatches(board, canMatch) && hasValidMove(board, allowsSwap, canMatch)) return board;
   }
 
   return board;
 }
 
-export function shuffleBoard(board: number[][], typeCount: number): void {
+export function shuffleBoard(
+  board: number[][],
+  _typeCount: number,
+  allowsSwap: (r: number, c: number) => boolean = () => true,
+  canMatch: (r: number, c: number) => boolean = () => true,
+): void {
   const rows = board.length;
   const cols = board[0].length;
-
-  const open: Cell[] = [];
+  const mobile: Cell[] = [];
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (board[r][c] !== EMPTY) open.push({r, c});
+      if (allowsSwap(r, c) && isPiece(board[r][c])) mobile.push({r, c});
     }
   }
 
-  const isOpen = (r: number, c: number) => board[r][c] !== EMPTY;
+  if (mobile.length < 2) return;
+
+  const original = mobile.map((cell) => board[cell.r][cell.c]);
+
+  const apply = (types: number[]) => {
+    mobile.forEach((cell, index) => {
+      board[cell.r][cell.c] = types[index];
+    });
+  };
 
   for (let attempt = 0; attempt < 80; attempt++) {
-    const types = open.map((cell) => board[cell.r][cell.c]);
+    const types = [...original];
 
     for (let i = types.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -426,16 +501,10 @@ export function shuffleBoard(board: number[][], typeCount: number): void {
       types[j] = tmp;
     }
 
-    open.forEach((cell, index) => {
-      board[cell.r][cell.c] = types[index];
-    });
+    apply(types);
 
-    if (!hasMatches(board) && hasValidMove(board)) return;
+    if (!hasMatches(board, canMatch) && hasValidMove(board, allowsSwap, canMatch)) return;
   }
 
-  const fresh = generatePlayableBoard(rows, cols, typeCount, isOpen);
-
-  for (const cell of open) {
-    board[cell.r][cell.c] = fresh[cell.r][cell.c];
-  }
+  apply(original);
 }

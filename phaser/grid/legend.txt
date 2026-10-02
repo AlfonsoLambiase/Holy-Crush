@@ -1,0 +1,307 @@
+// HOLY CRUSH — LEGENDA E PROPOSTA DI MECCANICHE
+// Versione di progetto: 1.0 — 30/09/2026
+// Questo documento descrive regole proposte, non funzionalità già implementate.
+// I numeri degli esempi devono essere bilanciati con partite e test.
+// Il parser attuale supporta soltanto 0 e .: va ampliato per gli altri simboli.
+//
+// ============================================================================
+// 1. LEGENDA DEL TABELLONE
+// ============================================================================
+//
+// TERRENO
+// . = Buco: nessuna cella, nessun pezzo.
+// 0 = Cella normale: contiene un pezzo mobile.
+//
+// OSTACOLI CHE BLOCCANO IL PEZZO
+// I = Ghiaccio semplice: 1 colpo per liberare il pezzo.
+// J = Ghiaccio doppio: 2 colpi per liberare il pezzo.
+// L = Catena: 1 combinazione con il pezzo o 1 potenziamento per liberarlo.
+//
+// OSTACOLI CHE OCCUPANO LA CELLA
+// B = Cassa semplice: 1 colpo adiacente o da potenziamento.                       //* No
+// C = Cassa con doppio sigillo: 2 colpi.                                          //* No
+// D = Cassa rinforzata: 3 colpi.                                                  //* No
+// R = Roccia: si distrugge soltanto con i potenziamenti, 1 colpo.
+// X = Muro permanente: non si distrugge.
+//
+// STRATI SOTTO I PEZZI
+// G = Terreno da purificare: 1 eliminazione sopra la cella.
+// H = Terreno resistente: 2 eliminazioni sopra la cella.
+//
+// OSTACOLI SPECIALI — DA INTRODURRE SUCCESSIVAMENTE
+// V = Rovo: si espande se nessun rovo viene danneggiato durante la mossa.
+// N = Nebbia: nasconde e blocca il pezzo finché non viene rimossa.                //* No
+// S = Generatore di ostacoli: produce ostacoli secondo le regole del livello.     //* No
+//
+// CELLE SPECIALI — RICHIEDONO CONFIGURAZIONE AGGIUNTIVA
+// E = Uscita per gli oggetti da accompagnare in fondo.                            //* No
+// P = Portale: collegato a un altro portale tramite un identificativo.            //* No
+//
+// Ogni simbolo descrive la configurazione iniziale della cella.
+// Tipi di pezzi, obiettivi, mosse e collegamenti dei portali sono configurati
+// separatamente nel livello. La legenda non assegna simboli ai colori dei pezzi.
+// Un carattere non può descrivere tutte le sovrapposizioni: per ghiaccio sopra
+// terreno, o catena sopra terreno, usare livelli di dati separati.
+//
+// ============================================================================
+// 2. REGOLE BASE DELLA PARTITA
+// ============================================================================
+//
+// - Combinazione normale: almeno 3 pezzi dello stesso tipo in linea orizzontale
+//   o verticale. Le diagonali non formano combinazioni.
+// - Scambio: due pezzi mobili adiacenti, senza diagonali.
+// - Scambio senza combinazione: ritorna indietro e non consuma mosse.
+// - Scambio valido: consuma 1 mossa. Le cascate successive sono gratuite.
+// - Eccezione: lo scambio che attiva un potenziamento è valido anche senza match.
+// - Durante animazioni, cadute e cascate, bloccare gli input sul tabellone.
+// - Il giocatore vince quando completa tutti gli obiettivi del livello.
+// - Valutare la sconfitta soltanto dopo aver risolto l'ultima mossa e le cascate:
+//   una vittoria ottenuta con l'ultima mossa ha precedenza sulla sconfitta.
+// - All'avvio evitare combinazioni automatiche, salvo tutorial configurati.
+// - All'avvio garantire almeno una mossa valida.
+// - Quando non ci sono mosse valide, rimescolare gratuitamente i pezzi mobili.
+//   Conservare ostacoli, terreno, uscite e pezzi bloccati nelle loro posizioni.
+// - Il rimescolamento deve produrre una mossa valida. Se non può farlo, segnalare
+//   il problema in sviluppo; non ripetere tentativi senza un limite.
+//
+// ============================================================================
+// 3. REGOLE COMUNI DEI COLPI
+// ============================================================================
+//
+// - Adiacente significa sopra, sotto, destra o sinistra; mai diagonale.
+// - Una combinazione infligge al massimo 1 colpo a ciascun ostacolo adiacente,
+//   anche se elimina più pezzi vicini allo stesso ostacolo.
+// - Una nuova combinazione, anche durante una cascata, può dare un nuovo colpo.
+// - Un singolo razzo o una singola bomba colpisce ogni cella al massimo 1 volta.
+// - Due potenziamenti distinti possono infliggere 2 colpi allo stesso ostacolo.
+// - Nessun danno residuo attraversa uno strato: liberare un pezzo da ghiaccio
+//   o catena non lo elimina con lo stesso colpo.
+// - Ogni ostacolo mostra chiaramente gli strati rimasti con la grafica.
+// - Il terreno perde uno strato per ogni eliminazione del pezzo sulla sua cella.
+//   Un effetto che libera soltanto il pezzo non danneggia il terreno sottostante.
+//
+// ============================================================================
+// 4. COMPORTAMENTO DETTAGLIATO DEGLI OSTACOLI
+// ============================================================================
+//
+// I / J — GHIACCIO
+// - Pezzo visibile, immobile e non utilizzabile nelle combinazioni.
+// - Una combinazione adiacente o un potenziamento rimuove 1 strato.
+// - Il ghiaccio semplice ha 1 strato; quello doppio ne ha 2.
+// - Dopo l'ultimo colpo il pezzo rimane nella cella e diventa mobile.
+// - Il pezzo liberato può formare un match nella successiva risoluzione.
+// - Il pezzo congelato non cade e interrompe la caduta nella sua colonna.
+//
+// L — CATENA
+// - Pezzo visibile e immobile, ma può partecipare a una combinazione.
+// - Un match che comprende il pezzo rompe la catena; il pezzo rimane.
+// - Un colpo diretto da potenziamento rompe la catena allo stesso modo.
+// - Un match soltanto adiacente non rompe la catena.
+// - Dopo lo sblocco verificare le combinazioni nella successiva risoluzione.
+//
+// B / C / D — CASSE
+// - Occupano la cella senza contenere un pezzo e bloccano la caduta.
+// - Match adiacenti e potenziamenti rimuovono 1 sigillo per colpo.
+// - B ha 1 sigillo, C ne ha 2, D ne ha 3.
+// - Dopo l'ultimo colpo la cella diventa normale e può ricevere un pezzo.
+// - Rimuovere un sigillo non equivale a distruggere una cassa per gli obiettivi.
+//
+// R — ROCCIA
+// - Occupa la cella e blocca la caduta.
+// - Ignora i match adiacenti; un colpo diretto da potenziamento la distrugge.
+// - Dopo la distruzione la cella diventa normale.
+//
+// X — MURO PERMANENTE
+// - Non contiene pezzi e non si distrugge.
+// - Blocca scambi e caduta. Non può essere un obiettivo di distruzione.
+// - Proposta: interrompe il percorso di un razzo; gli altri ostacoli ricevono
+//   danno senza fermare il razzo. Validare questa regola con il collaboratore.
+//
+// G / H — TERRENO DA PURIFICARE
+// - Strato fisso sotto un pezzo mobile; non segue il pezzo durante gli scambi.
+// - G ha 1 strato, H ne ha 2.
+// - Eliminare il pezzo sopra la cella rimuove 1 strato.
+// - Un semplice scambio, una caduta o lo sblocco del pezzo non rimuove strati.
+// - Dopo la purificazione la cella resta normale.
+//
+// V — ROVO
+// - Occupa una cella; 1 colpo adiacente o diretto lo elimina.
+// - Se almeno un rovo viene danneggiato nell'intera mossa, niente espansione.
+// - Altrimenti, dopo tutte le cascate, nasce al massimo 1 nuovo rovo.
+// - Scegliere con la sorgente casuale del livello una cella normale adiacente
+//   a un rovo. Il nuovo rovo sostituisce il pezzo normale presente.
+// - Escludere celle speciali, terreno-obiettivo, oggetti da accompagnare,
+//   potenziamenti e pezzi già bloccati. Senza celle idonee non si espande.
+// - Nessuna espansione durante avvio o rimescolamento.
+// - Se tutti gli obiettivi sono completati, dichiarare vittoria prima di espandere.
+//
+// N — NEBBIA
+// - Nasconde un pezzo e ne impedisce movimento e partecipazione ai match.
+// - 1 colpo adiacente o diretto rimuove la nebbia e rivela il pezzo.
+// - Il pezzo resta nella cella. Non si espande.
+// - Introduzione futura: riduce la pianificazione e deve essere usata con misura.
+//
+// S — GENERATORE
+// - Proposta iniziale: struttura fissa, indistruttibile, senza pezzo.
+// - Ogni N mosse valide produce al massimo 1 ostacolo su una cella idonea.
+// - Configurare tipo prodotto, intervallo, celle consentite e limite di ostacoli.
+// - Eseguire dopo le cascate, soltanto se la partita non è già vinta o persa.
+// - Se nessuna destinazione è disponibile, salta la produzione.
+// - Non generare durante avvio, scambi annullati o rimescolamenti.
+//
+// ============================================================================
+// 5. CELLE SPECIALI E CADUTA
+// ============================================================================
+//
+// E — USCITA
+// - È una cella utilizzabile che raccoglie gli oggetti speciali in arrivo.
+// - Quando un oggetto raggiunge E, viene rimosso e incrementa l'obiettivo.
+// - I pezzi normali sulla cella restano utilizzabili e non vengono raccolti.
+// - Gli oggetti speciali non formano match; proposta: possono essere scambiati
+//   con un pezzo mobile se lo scambio crea una combinazione valida.
+// - Configurare numero degli oggetti, posizione iniziale o ingressi e cadenza.
+//
+// P — PORTALE — FUNZIONALITÀ FUTURA
+// - Specificare coppia, ingresso, uscita e direzione del trasferimento.
+// - Trasferimento durante la caduta soltanto se l'uscita è disponibile.
+// - Validare assenza di cicli e percorsi che intrappolano gli oggetti.
+//
+// CADUTA E RIEMPIMENTO
+// - Proposta base: caduta verticale, senza scivolamento diagonale.
+// - I buchi interrompono la colonna: non vengono attraversati automaticamente.
+// - Ogni segmento giocabile deve avere un ingresso configurato o un percorso
+//   valido che lo rifornisca. Casse e pezzi bloccati possono fermare quel percorso.
+// - Evitare pezzi generati sotto un blocco senza un ingresso esplicito.
+// - Dopo la distruzione di una cassa, ricalcolare lo spazio disponibile.
+// - La regola dei buchi deve essere confermata prima di progettare nuove forme.
+//
+// ============================================================================
+// 6. OBIETTIVI DEL LIVELLO
+// ============================================================================
+//
+// Gli obiettivi sono dati separati dalla legenda. Un ostacolo può comparire
+// anche quando non è richiesto distruggerlo. Tutti gli obiettivi devono riuscire.
+//
+// - Raccogli pezzi: elimina una quantità di uno o più tipi specifici.
+//   Contano eliminazioni da match, cascate e potenziamenti, non semplici sblocchi.
+// - Rompi il ghiaccio: libera le celle bersaglio. Un doppio ghiaccio conta
+//   come 1 cella liberata soltanto dopo la rimozione di entrambi gli strati.
+// - Apri casse: distruggi completamente la quantità richiesta.
+// - Spezza catene: libera la quantità di pezzi incatenati richiesta.
+// - Distruggi rocce: elimina la quantità richiesta con i potenziamenti.
+// - Purifica terreno: porta a zero gli strati di tutte le celle bersaglio.
+// - Elimina rovi: porta a zero i rovi, compresi quelli generati nella partita.
+// - Dissipa nebbia: libera tutte le celle bersaglio nascoste.
+// - Accompagna oggetti: consegna la quantità richiesta alle uscite E.
+// - Attiva reliquie: colpisci celle bersaglio con match adiacenti o potenziamenti
+//   fino alla soglia richiesta. La reliquia richiede dati dedicati: non ha ancora
+//   un simbolo assegnato e non va confusa con un normale pezzo raccoglibile.
+// - Crea potenziamenti: conta quelli creati dalle combinazioni, esclusi quelli
+//   assegnati all'avvio o comprati. Specificare tipo e quantità.
+// - Raggiungi punteggio: raggiungi la soglia prima di terminare le mosse.
+//   La tabella dei punti resta da definire; non usare soglie prima di stabilirla.
+//
+// Per iniziare: 1 o 2 obiettivi per livello.
+// Esempio da bilanciare: apri 6 casse e purifica 12 celle in 24 mosse.
+//
+// ============================================================================
+// 7. POTENZIAMENTI
+// ============================================================================
+//
+// - 4 pezzi in linea: crea un razzo.
+//   Proposta: match orizzontale crea razzo orizzontale, verticale crea verticale.
+//   La direzione deve essere chiaramente visibile sul pezzo.
+// - 5 pezzi a L o T: crea una bomba, area 3x3 centrata sulla sua cella.
+// - 5 o più pezzi in linea: crea una sfera che elimina un tipo di pezzo.
+// - Priorità per una combinazione sovrapposta: sfera > bomba > razzo.
+// - Creare al massimo un potenziamento per gruppo connesso dello stesso tipo.
+// - Nello scambio, crearlo sulla destinazione del pezzo mosso che appartiene
+//   al gruppo; se entrambi appartengono, usare il pezzo trascinato dal giocatore.
+// - Nelle cascate usare un criterio deterministico, per esempio la cella più
+//   in basso e poi più a sinistra tra quelle valide del gruppo.
+// - Il potenziamento appena creato resta: non si attiva con il suo stesso match.
+// - Un razzo o una bomba si attiva con uno scambio valido che lo coinvolge,
+//   con un match che lo include oppure quando viene colpito da un potenziamento.
+// - La sfera si attiva scambiandola con un pezzo normale: seleziona quel tipo.
+// - La sfera elimina i pezzi liberi di quel tipo e dà 1 colpo a ghiaccio/catene
+//   che imprigionano lo stesso tipo. Non elimina il pezzo appena liberato.
+// - La sfera non danneggia direttamente casse o rocce; i pezzi eliminati possono
+//   danneggiare casse adiacenti, al massimo 1 volta per questa attivazione.
+// - La sfera non seleziona pezzi nascosti dalla nebbia.
+// - Se una sfera viene colpita, proposta: sceglie il tipo più numeroso tra i pezzi
+//   liberi visibili, con ordine stabile dei tipi per risolvere le parità.
+// - Razzo e bomba infliggono 1 colpo per ostacolo direttamente raggiunto.
+// - Proposta base: le esplosioni non infliggono un secondo danno adiacente oltre
+//   al danno diretto; evitare colpi doppi involontari alle casse.
+// - Per la prima versione annullare senza costo lo scambio tra due potenziamenti.
+//   Le fusioni razzo+bomba, bomba+bomba, sfera+razzo e sfera+sfera sono idee future
+//   e richiedono regole e prove dedicate prima di abilitarle.
+//
+// ============================================================================
+// 8. STRUTTURA DEI DATI E CONFIGURAZIONE LIVELLI
+// ============================================================================
+//
+// - gridId: forma del tabellone, riutilizzabile in più livelli.
+// - moves: mosse disponibili.
+// - pieceTypes: tipi di pezzi ammessi; eventuali pesi di generazione separati.
+// - objectives: elenco di obiettivi, tipi e quantità.
+// - obstacles: posizione, tipo, strati e parametri speciali.
+// - terrain: strati sotto i pezzi, separati dagli ostacoli.
+// - spawns: ingressi dei pezzi e degli oggetti speciali.
+// - portals: collegamenti e direzioni, se presenti.
+// - seed: riproduce un tentativo per debug; non implica che tutti i tentativi
+//   debbano partire dalla stessa disposizione. Conservare il seed effettivo.
+// - rulesVersion: versione delle regole, utile per riprodurre i problemi.
+//
+// Conservare separatamente terreno, occupante e blocco sopra il pezzo.
+// La stringa della griglia può essere una scorciatoia per inizializzare questi
+// dati, ma una sola maschera boolean[][] non può rappresentarli tutti.
+// Usare una sola sorgente casuale per generazione, rimescolamento ed espansione.
+// Un livello mancante deve produrre un errore esplicito in sviluppo invece
+// di essere sostituito silenziosamente dall'ultima griglia.
+//
+// ============================================================================
+// 9. PROGRESSIONE E PRIME FUNZIONALITÀ
+// ============================================================================
+//
+// Prima versione consigliata:
+// - Match, caduta, refill, rimescolamento e risoluzione delle cascate.
+// - Casse B/C, ghiaccio I/J e terreno G/H.
+// - Razzo, bomba e sfera.
+// - Obiettivi raccolta, casse, ghiaccio e terreno.
+//
+// Successivamente:
+// - Catene, casse rinforzate, rocce e oggetti da accompagnare.
+// - Rovi, reliquie e combinazioni fra potenziamenti.
+// - Nebbia, portali e generatori soltanto dopo prove del motore.
+//
+// Creare prima 15-20 livelli manuali; introdurre una novità alla volta.
+// Alternare tutorial, livelli semplici, livelli di pratica e livelli impegnativi.
+// Riutilizzare forme cambiando obiettivi, mosse e disposizione degli ostacoli.
+// Aumentare la dimensione non garantisce un aumento della difficoltà.
+// Nel 3x3 iniziale verificare soprattutto il numero di tipi di pezzi.
+// Nei corridoi larghi 2 celle non esistono match orizzontali di 3: usarli con cura.
+// Valutare la generazione automatica dopo aver misurato e bilanciato il motore.
+// Cercare una meccanica distintiva coerente con il tema di Holy Crush:
+// le reliquie sono una possibilità da approfondire, non una scelta definitiva.
+//
+// ============================================================================
+// 10. DIMENSIONAMENTO E VERIFICHE
+// ============================================================================
+//
+// - Celle quadrate e griglia centrata.
+// - L'attuale margine laterale è del 5% per lato.
+// - L'attuale cella è la larghezza utile divisa per 6, anche nelle griglie piccole.
+// - Con 9 righe, l'altezza è 1,35 volte gameWidth, prima di eventuali spaziature.
+// - Verificare spazio sotto obiettivi e mosse; adattare la cella anche all'altezza.
+// - Verificare righe uniformi, simboli ammessi, almeno 1 cella utilizzabile
+//   e limiti attuali: 1-6 colonne, 1-9 righe.
+// - Validare coordinate, sovrapposizioni consentite e numero di strati.
+// - Validare percorsi di refill, uscite raggiungibili e collegamenti dei portali.
+// - Verificare che il livello contenga o generi abbastanza bersagli per l'obiettivo.
+// - Provare danni multipli, casse a 2 colpi, ghiaccio liberato e match successivo.
+// - Provare vittoria nell'ultima mossa, cascate e rimescolamento con ostacoli.
+// - Verificare che il seed riproduca la stessa partita con le stesse azioni.
+// - Registrare per livello tentativi, vittorie, mosse residue e uso di aiuti.
+// - Una mossa valida non garantisce che il livello sia completabile: occorrono
+//   partite reali e, quando disponibile, simulazione con più seed.
