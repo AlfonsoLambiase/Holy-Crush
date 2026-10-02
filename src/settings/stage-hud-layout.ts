@@ -1,40 +1,73 @@
-import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../../phaser/shared/config/layout.const";
+import {BTN_READ_NATIVE_HEIGHT, LOGO_HEART} from "./app-header-tokens";
+import {
+  devicePixelRatio,
+  layoutScaleForViewport,
+  phaserImageScale,
+  readSafeTopCss,
+  resolveHeaderMetrics,
+  viewportGlobalScale,
+  type HeaderSurface,
+  type ResolvedHeaderMetrics,
+} from "./app-header-layout";
 
-import {STAGE_HEART_UI_SCALE} from "./stage-ui-paths";
-
-const GAME_WIDTH = 1920;
-const GAME_HEIGHT = 1080;
-const BTN_READ_SOURCE_HEIGHT = 156;
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-/** Stessa curva di `StageMapScene.#gameButtonScale`. */
-export const gameButtonScale = (minValue: number, maxValue: number): number => {
-  const cssWidth = typeof window !== "undefined" ? window.innerWidth : GAME_WIDTH;
-  const cssHeight = typeof window !== "undefined" ? window.innerHeight : GAME_HEIGHT;
-  const pixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-  const configWidth = cssWidth * pixelRatio;
-  const configHeight = cssHeight * pixelRatio;
-  const calculated = Math.min(configWidth / 1080, configHeight / 1920);
-  let globalScale = Math.min(Math.max(calculated, 0.59), 1.2);
-  const isBigScreen = cssWidth * pixelRatio >= 2500 || cssHeight * pixelRatio >= 1400;
-
-  if (!isBigScreen && cssWidth < 750 && cssHeight < 450) globalScale *= 0.7;
-
-  if (globalScale >= 1) return maxValue;
-  if (globalScale <= 0.5) return minValue;
-
-  const t = (globalScale - 0.5) / 0.5;
-
-  return minValue + t * (maxValue - minValue);
+export {
+  layoutScaleForViewport,
+  phaserImageScale,
+  readSafeTopCss,
+  resolveHeaderMetrics,
+  viewportGlobalScale,
+  type HeaderSurface,
+  type ResolvedHeaderMetrics,
 };
 
-export const readSafeTopCss = (): number => {
-  if (typeof window === "undefined") return 0;
+export type StageHeaderProfile = "world" | "stageMap";
 
-  const raw = getComputedStyle(document.documentElement).getPropertyValue("--safe-top");
+/** Altezza sorgente `btnRead.png` (allineato a Phaser). */
+export const STAGE_BTN_READ_HEIGHT = BTN_READ_NATIVE_HEIGHT;
 
-  return parseFloat(raw) || 0;
+export type StageHeaderLayout = {
+  headerCenterY: number;
+  buttonScale: number;
+  buttonDisplayHeight: number;
+  heartSize: number;
+  insetX: number;
+  marginTop: number;
+};
+
+/** Legacy Phaser — preferire `resolveHeaderMetrics`. */
+export const computeStageHeaderLayout = (
+  physicalW: number,
+  physicalH: number,
+  safeTopPhysical: number,
+  btnReadHeight = STAGE_BTN_READ_HEIGHT,
+  profile: StageHeaderProfile = "stageMap",
+): StageHeaderLayout => {
+  const surface: HeaderSurface = profile === "world" ? "world" : "stageMap";
+  const metrics = resolveHeaderMetrics(
+    surface,
+    physicalW,
+    physicalH,
+    safeTopPhysical,
+    btnReadHeight,
+  );
+  const baseHeart =
+    btnReadHeight *
+    layoutScaleForViewport(
+      physicalW,
+      physicalH,
+      LOGO_HEART.viewportBtnScaleMin,
+      LOGO_HEART.viewportBtnScaleMax,
+    ) *
+    LOGO_HEART.textureBaseMul;
+
+  return {
+    headerCenterY: safeTopPhysical + metrics.marginTop + baseHeart / 2,
+    buttonScale: metrics.cornerButtonScale,
+    buttonDisplayHeight: metrics.cornerButtonPhysical,
+    heartSize: baseHeart,
+    insetX: metrics.insetX,
+    marginTop: metrics.marginTop,
+  };
 };
 
 export type StageHudMetrics = {
@@ -44,42 +77,114 @@ export type StageHudMetrics = {
   insetX: number;
 };
 
-/** Zoom ENVELOP con tetto: su desktop non ingrandisce oltre ~phone-tablet. */
-const cappedFitZoom = (viewportWidth: number, viewportHeight: number): number => {
-  const zoom = Math.max(viewportWidth / GAME_WIDTH, viewportHeight / GAME_HEIGHT);
-
-  return Math.min(zoom, 1.1);
+export type StageCornerButtonLayout = {
+  insetX: number;
+  buttonScale: number;
 };
 
-/**
- * HUD React (WorldScreen): clamp + `gameButtonScale`, come i bottoni home (`clamp` + vw).
- * Full viewport — niente letterbox Phaser.
- */
-export const computeStageHudMetrics = (
-  viewportWidth: number,
-  viewportHeight: number,
-): StageHudMetrics => {
-  const scale = gameButtonScale(0.35, 1);
-  const insetScaled = gameButtonScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
-  const fitZoom = cappedFitZoom(viewportWidth, viewportHeight);
+export type WorldScreenHeartLayout = {
+  heartSize: number;
+  headerCenterY: number;
+  marginTop: number;
+};
 
-  const buttonRaw = BTN_READ_SOURCE_HEIGHT * scale * fitZoom;
-  const buttonSize = clamp(buttonRaw, 42, 58);
-  const heartSize = clamp(buttonRaw * STAGE_HEART_UI_SCALE, 64, 90);
-  const insetX = clamp(insetScaled * fitZoom, 28, 88);
-
-  const margin = clamp(40 * gameButtonScale(0.4, 1), 12, 34);
-  const safeTop = readSafeTopCss();
+export const computeWorldScreenHeartLayout = (
+  physicalW: number,
+  physicalH: number,
+  safeTopPhysical: number,
+  btnReadHeight = STAGE_BTN_READ_HEIGHT,
+): WorldScreenHeartLayout => {
+  const metrics = resolveHeaderMetrics(
+    "world",
+    physicalW,
+    physicalH,
+    safeTopPhysical,
+    btnReadHeight,
+  );
 
   return {
-    headerCenterY: safeTop + margin + heartSize / 2,
-    heartSize,
-    buttonSize,
-    insetX,
+    heartSize: metrics.logoHeartPhysical,
+    headerCenterY: metrics.headerCenterY,
+    marginTop: metrics.marginTop,
   };
 };
 
-/** Inset destro bottone esci su World: scala con vw ma resta vicino al bordo. */
-export const computeWorldExitInset = (viewportWidth: number): number =>
-  clamp(viewportWidth * 0.018 + 8, 14, 28);
+export const computeStageMapHeartLayout = (
+  physicalW: number,
+  physicalH: number,
+  safeTopPhysical: number,
+  btnReadHeight = STAGE_BTN_READ_HEIGHT,
+): WorldScreenHeartLayout => {
+  const metrics = resolveHeaderMetrics(
+    "stageMap",
+    physicalW,
+    physicalH,
+    safeTopPhysical,
+    btnReadHeight,
+  );
 
+  return {
+    heartSize: metrics.logoHeartPhysical,
+    headerCenterY: metrics.headerCenterY,
+    marginTop: metrics.marginTop,
+  };
+};
+
+export const computeStageCornerButtons = (
+  physicalW: number,
+  physicalH: number,
+  safeTopPhysical: number,
+  btnReadHeight: number,
+  surface: HeaderSurface = "world",
+): StageCornerButtonLayout => {
+  const metrics = resolveHeaderMetrics(
+    surface,
+    physicalW,
+    physicalH,
+    safeTopPhysical,
+    btnReadHeight,
+  );
+
+  return {
+    insetX: metrics.insetX,
+    buttonScale: metrics.cornerButtonScale,
+  };
+};
+
+export const computeStageMapCornerButtons = (
+  physicalW: number,
+  physicalH: number,
+  safeTopPhysical: number,
+  btnReadHeight: number,
+): StageCornerButtonLayout =>
+  computeStageCornerButtons(
+    physicalW,
+    physicalH,
+    safeTopPhysical,
+    btnReadHeight,
+    "stageMap",
+  );
+
+export const computeStageHudMetrics = (
+  viewportCssWidth: number,
+  viewportCssHeight: number,
+): StageHudMetrics => {
+  const dpr = devicePixelRatio();
+  const physicalW = viewportCssWidth * dpr;
+  const physicalH = viewportCssHeight * dpr;
+  const safeTop = readSafeTopCss() * dpr;
+  const metrics = resolveHeaderMetrics(
+    "world",
+    physicalW,
+    physicalH,
+    safeTop,
+    STAGE_BTN_READ_HEIGHT,
+  );
+
+  return {
+    headerCenterY: metrics.headerCenterY / dpr,
+    heartSize: metrics.logoHeartPhysical / dpr,
+    buttonSize: metrics.cornerButtonCss,
+    insetX: metrics.insetX / dpr,
+  };
+};

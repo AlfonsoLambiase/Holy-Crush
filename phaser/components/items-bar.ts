@@ -13,13 +13,19 @@ import {getCellSize, GRID_PIECE_FIT} from "../shared/config/grid-generation.cons
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
 import {addCountBadge, type CountBadge} from "../shared/count-badge";
-import {addFillPair, tweenRemaining, type FillPair} from "../shared/fill-pair";
+import {addMaskedImageFill, tweenRemainingSync, type FillPair} from "../shared/fill-pair";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
 
 const assetConf = CandyCrushAssetConf;
 
 const FILL_MS = 1200;
 const DRAG_PX = 18;
+const DEPTH_FRAME = 8;
+const DEPTH_CONTAINER_FILL = 9;
+const DEPTH_ICON_DISABLED = 10;
+const DEPTH_ICON_FILL = 11;
+const DEPTH_BADGE = 12;
+const DEPTH_ZONE = 13;
 const SLOTS: {id: BoosterId; disabled: string; fill: string}[] = [
   {id: "super", disabled: "super_disabled", fill: "super"},
   {id: "mega", disabled: "mega_disabled", fill: "mega"},
@@ -28,9 +34,13 @@ const SLOTS: {id: BoosterId; disabled: string; fill: string}[] = [
 type Slot = {
   id: BoosterId;
   fillKey: string;
-  pair: FillPair;
+  disabledKey: string;
+  containerFill: FillPair;
+  iconFill: FillPair;
   badge: CountBadge;
+  iconDisabled: Phaser.GameObjects.Image;
   size: number;
+  frameW: number;
   x: number;
   y: number;
 };
@@ -70,50 +80,87 @@ export class ItemsBar {
 
   create(): number {
     const {width, height} = this.scene.scale;
+    const frameKey = assetConf.image.containerItems;
+    const fillKey = assetConf.image.containerItems_bg;
 
-    if (!this.scene.textures.exists(assetConf.image.containerItems)) return height;
+    if (!this.scene.textures.exists(frameKey) || !this.scene.textures.exists(fillKey)) return height;
 
-    const plaque = this.scene.add.image(0, 0, assetConf.image.containerItems).setScrollFactor(0);
     const iconSize = getCellSize(width) * GRID_PIECE_FIT;
-    const pad = iconSize * 0.16;
-
-    plaque.setDisplaySize(iconSize * 2 + pad * 4, iconSize + pad * 2).setDepth(8);
+    const frameSrc = this.scene.textures.get(frameKey).getSourceImage() as {width: number; height: number};
+    const frameScale = iconSize / frameSrc.height;
+    const frameW = frameSrc.width * frameScale;
+    const frameH = frameSrc.height * frameScale;
+    const gap = frameW * 0.14;
     const bottomMargin = this.scaleOf(16, 36);
     const sideInset = this.scaleOf(HEADER_INSET_MIN, HEADER_INSET_MAX);
     const rightNudge = this.scaleOf(28, 56);
+    const barRight = width - sideInset + rightNudge;
+    const y = height - bottomMargin - frameH / 2;
+    const megaX = barRight - frameW / 2;
+    const superX = megaX - frameW - gap;
 
-    this.#top = height - bottomMargin - plaque.displayHeight;
-    plaque
-      .setOrigin(0.5, 0.5)
-      .setX(width - sideInset - plaque.displayWidth / 2 + rightNudge)
-      .setY(this.#top + plaque.displayHeight / 2);
+    this.#top = y - frameH / 2;
 
-    const y = plaque.y;
+    const slotX = [superX, megaX];
 
     SLOTS.forEach((spec, index) => {
       if (!this.scene.textures.exists(spec.disabled) || !this.scene.textures.exists(spec.fill)) return;
 
-      const src = this.scene.textures.get(spec.disabled).getSourceImage() as {height: number};
-      const x = plaque.x + (index === 0 ? -1 : 1) * (plaque.displayWidth * 0.25);
+      const x = slotX[index];
       const count = getBoosterCount(spec.id);
-      const pair = addFillPair(
+      const iconSrc = this.scene.textures.get(spec.disabled).getSourceImage() as {height: number};
+      const iconScale = (iconSize * 0.72) / iconSrc.height;
+
+      this.scene.add
+        .image(x, y, frameKey)
+        .setScrollFactor(0)
+        .setDepth(DEPTH_FRAME)
+        .setScale(frameScale);
+
+      const containerFill = addMaskedImageFill(
         this.scene,
         x,
         y,
-        spec.disabled,
-        spec.fill,
-        iconSize / src.height,
-        9,
+        fillKey,
+        frameScale,
+        DEPTH_CONTAINER_FILL,
         count > 0 ? 1 : 0,
-        "wedge",
+        "rectUp",
       );
 
-      if (!pair) return;
+      if (!containerFill) return;
 
-      const badge = addCountBadge(this.scene, x + iconSize * 0.42, y - iconSize * 0.42, count, iconSize, 12);
+      const iconDisabled = this.scene.add
+        .image(x, y, spec.disabled)
+        .setScrollFactor(0)
+        .setDepth(DEPTH_ICON_DISABLED)
+        .setScale(iconScale);
+
+      const iconFill = addMaskedImageFill(
+        this.scene,
+        x,
+        y,
+        spec.fill,
+        iconScale,
+        DEPTH_ICON_FILL,
+        count > 0 ? 1 : 0,
+        "rectUp",
+      );
+
+      if (!iconFill) return;
+
+      const badge = addCountBadge(
+        this.scene,
+        x + frameW * 0.38,
+        y - frameH * 0.38,
+        count,
+        frameW,
+        DEPTH_BADGE,
+      );
+
       const zone = this.scene.add
-        .zone(x, y, iconSize, iconSize)
-        .setDepth(13)
+        .zone(x, y, frameW, frameH)
+        .setDepth(DEPTH_ZONE)
         .setScrollFactor(0)
         .setInteractive({useHandCursor: true});
 
@@ -123,7 +170,19 @@ export class ItemsBar {
         this.#press = {id: spec.id, x: pointer.x, y: pointer.y, dragged: false};
       });
 
-      this.#slots.push({id: spec.id, fillKey: spec.fill, pair, badge, size: iconSize, x, y});
+      this.#slots.push({
+        id: spec.id,
+        fillKey: spec.fill,
+        disabledKey: spec.disabled,
+        containerFill,
+        iconFill,
+        badge,
+        iconDisabled,
+        size: iconSize * 0.72,
+        frameW,
+        x,
+        y,
+      });
     });
 
     this.scene.input.on("pointermove", (pointer: Phaser.Input.Pointer) => this.#onMove(pointer));
@@ -223,7 +282,8 @@ export class ItemsBar {
 
     if (count === 1) {
       this.#busy = true;
-      tweenRemaining(this.scene, slot.pair, 0, 1, FILL_MS, () => {
+      slot.iconDisabled.setVisible(true);
+      tweenRemainingSync(this.scene, [slot.containerFill, slot.iconFill], 0, 1, FILL_MS, () => {
         slot.badge.setCount(count);
         this.#busy = false;
       });
@@ -231,7 +291,9 @@ export class ItemsBar {
       return;
     }
 
-    slot.pair.setRemaining(1);
+    slot.iconDisabled.setVisible(true);
+    slot.containerFill.setRemaining(1);
+    slot.iconFill.setRemaining(1);
     slot.badge.setCount(count);
   }
 
@@ -241,8 +303,11 @@ export class ItemsBar {
     if (!slot) return;
 
     const count = getBoosterCount(id);
+    const full = count > 0;
 
     slot.badge.setCount(count);
-    slot.pair.setRemaining(count > 0 ? 1 : 0);
+    slot.iconDisabled.setVisible(true);
+    slot.containerFill.setRemaining(full ? 1 : 0);
+    slot.iconFill.setRemaining(full ? 1 : 0);
   }
 }

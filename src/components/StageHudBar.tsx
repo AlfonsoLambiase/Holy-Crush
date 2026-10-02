@@ -10,17 +10,13 @@ import {STAGE_UI} from "@/settings/stage-ui-paths";
 
 type StageHudBarProps = {
   onExit: () => void;
-  /** Moltiplicatore dimensione bottone esci (default 1). */
-  exitSizeScale?: number;
-  /** Inset destro in px CSS; se assente usa quello stage. */
-  exitInsetRight?: number;
 };
 
 const defaultMetrics = (): StageHudMetrics => ({
-  headerCenterY: 72,
-  heartSize: 88,
-  buttonSize: 56,
-  insetX: 50,
+  headerCenterY: 58,
+  heartSize: 62,
+  buttonSize: 44,
+  insetX: 52,
 });
 
 function HudIconButton({
@@ -120,7 +116,7 @@ function StageHeartMeter({size}: {size: number}) {
   );
 }
 
-export function StageHudBar({exitInsetRight, exitSizeScale = 1, onExit}: StageHudBarProps) {
+export function StageHudBar({onExit}: StageHudBarProps) {
   const [metrics, setMetrics] = useState<StageHudMetrics>(defaultMetrics);
 
   useEffect(() => {
@@ -148,8 +144,8 @@ export function StageHudBar({exitInsetRight, exitSizeScale = 1, onExit}: StageHu
         <HudIconButton
           alt="Esci"
           edge="right"
-          inset={exitInsetRight ?? metrics.insetX}
-          size={metrics.buttonSize * exitSizeScale}
+          inset={metrics.insetX}
+          size={metrics.buttonSize}
           src={STAGE_UI.btnExitGame}
           onClick={onExit}
         />

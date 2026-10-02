@@ -6,23 +6,37 @@ import {getHeartRemaining, isHeartEmpty, refillHeart, spendHeart} from "@/settin
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 import {darkenHex, getStageLevelNumber, getStageMap, hexToInt, stagePoint, type StageMapConfig} from "@/settings/stage-map";
 import {playStageTrack} from "@/settings/soundtrack";
+import {
+  computeStageMapCornerButtons,
+  computeStageHeaderLayout,
+  computeStageMapHeartLayout,
+  STAGE_BTN_READ_HEIGHT,
+} from "@/settings/stage-hud-layout";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
-import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
-import {addStageHeart, STAGE_HEART_SCALE, type StageHeart} from "../shared/stage-heart";
+import {addStageHeart, type StageHeart} from "../shared/stage-heart";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
+import {dynamicValueForViewport} from "../shared/viewport-scale";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
 
 const assetConf = CandyCrushAssetConf;
 
 const LEVEL_SCALE = 0.11;
 const LEVEL_GAP = 0.18; // quota di schermo tra un livello e il successivo
+const LEVEL_PULSE_SCALE_MUL = 1.24;
+const LEVEL_PULSE_MS = 750;
 const RECHARGE_MS = 1200;
 const PATH_FADE_ALPHA = 0.1;
 const PATH_FADE_PX = 56;
 const PATH_FADE_TOP_EXTRA = 58;
 const PATH_STUB_LOW = 0.35;
 const PATH_CURVE_DIVISIONS = 512;
+const PAN_DRAG_THRESHOLD = 12;
+const SCROLL_WHEEL_FACTOR = 0.85;
+const SCROLL_INERTIA_MUL = 0.62;
+const SCROLL_INERTIA_MAX = 42;
+const SCROLL_FRICTION = 0.9;
+const SCROLL_VEL_STOP = 0.2;
 
 export class StageMapScene extends Phaser.Scene {
   #heart: StageHeart | null = null;
@@ -46,6 +60,10 @@ export class StageMapScene extends Phaser.Scene {
   #onScrollUp: (() => void) | null = null;
   #onScrollWheel: ((pointer: Phaser.Input.Pointer, over: unknown, dx: number, dy: number) => void) | null = null;
   #emitShellReady = false;
+  #maxScrollY = 0;
+  #scrollDirty = false;
+  #scrollVelocity = 0;
+  #lastPanDy = 0;
 
   constructor() {
     super({key: assetConf.scene.stageMap});
@@ -58,6 +76,23 @@ export class StageMapScene extends Phaser.Scene {
   shutdown() {
     this.#unbindScroll();
     this.#cancelRecharge();
+    this.#scrollVelocity = 0;
+  }
+
+  update(_time: number, delta: number) {
+    const frame = Math.max(1, delta);
+
+    if (this.#panFrom === null && Math.abs(this.#scrollVelocity) > SCROLL_VEL_STOP) {
+      this.cameras.main.scrollY += this.#scrollVelocity * (frame / 16.667);
+      this.#scrollVelocity *= Math.pow(SCROLL_FRICTION, frame / 16.667);
+      this.#markScrollDirty();
+    }
+
+    if (this.#scrollDirty) {
+      this.#clampScrollY();
+      this.#syncMapFade();
+      this.#scrollDirty = false;
+    }
   }
 
   create() {
@@ -71,7 +106,6 @@ export class StageMapScene extends Phaser.Scene {
     const stage = getStageIndex();
     const unlocked = getUnlockedCount();
     const map = getStageMap(stage);
-    const tint = hexToInt(map.pathColor);
     const worldH = this.#worldHeight(height, map.levels);
     const mascotH = this.#mascotDisplayHeight(width, height);
     const pathBottom = 1 - mascotH / worldH;
@@ -104,7 +138,6 @@ export class StageMapScene extends Phaser.Scene {
         isOpen,
         isOpen && index === unlocked - 1,
         map,
-        tint,
       );
     });
 
@@ -168,6 +201,18 @@ export class StageMapScene extends Phaser.Scene {
     return 1;
   }
 
+  #clampScrollY() {
+    this.cameras.main.scrollY = Phaser.Math.Clamp(
+      this.cameras.main.scrollY,
+      0,
+      this.#maxScrollY,
+    );
+  }
+
+  #markScrollDirty() {
+    this.#scrollDirty = true;
+  }
+
   #syncMapFade() {
     this.#paintPath();
     this.#syncLevelFade();
@@ -189,13 +234,19 @@ export class StageMapScene extends Phaser.Scene {
     if (!road || !style || points.length < 2) return;
 
     const scrollY = this.cameras.main.scrollY;
+    const cullTop = scrollY - PATH_FADE_PX * 2;
+    const cullBottom = scrollY + this.scale.height + PATH_FADE_PX * 2;
 
     road.clear();
 
     for (let index = 0; index < points.length - 1; index += 1) {
       const from = points[index];
       const to = points[index + 1];
-      const screenY = (from.y + to.y) * 0.5 - scrollY;
+      const midWorldY = (from.y + to.y) * 0.5;
+
+      if (midWorldY < cullTop || midWorldY > cullBottom) continue;
+
+      const screenY = midWorldY - scrollY;
       const alpha = this.#fadeAlpha(screenY);
 
       road.lineStyle(style.thick, style.edge, alpha);
@@ -205,16 +256,40 @@ export class StageMapScene extends Phaser.Scene {
     }
   }
 
-  #uiFadeBands(width: number, screenH: number, mascotH: number): {top: number; bottom: number} {
+  #readBtnHeight(): number {
+    if (!this.textures.exists(assetConf.image.btnRead)) return STAGE_BTN_READ_HEIGHT;
+
+    return (this.textures.get(assetConf.image.btnRead).getSourceImage() as {height: number}).height;
+  }
+
+  #headerLayout() {
     const safeTop = Number(this.registry.get("safeTop")) || 0;
-    const scale = this.#gameButtonScale(0.35, 1);
-    const readImage = this.textures.exists(assetConf.image.btnRead)
-      ? (this.textures.get(assetConf.image.btnRead).getSourceImage() as {height: number})
-      : null;
-    const heartSize = (readImage?.height ?? 0) * scale * STAGE_HEART_SCALE;
-    const margin = 40 * this.#gameButtonScale(0.4, 1);
-    const headerY = safeTop + margin + heartSize / 2;
-    const headerBottom = headerY + heartSize / 2 + margin * 0.35;
+    const base = computeStageHeaderLayout(
+      this.scale.width,
+      this.scale.height,
+      safeTop,
+      this.#readBtnHeight(),
+      "stageMap",
+    );
+    const heart = computeStageMapHeartLayout(
+      this.scale.width,
+      this.scale.height,
+      safeTop,
+      this.#readBtnHeight(),
+    );
+
+    return {
+      ...base,
+      heartSize: heart.heartSize,
+      headerCenterY: heart.headerCenterY,
+      marginTop: heart.marginTop,
+    };
+  }
+
+  #uiFadeBands(width: number, screenH: number, mascotH: number): {top: number; bottom: number} {
+    const layout = this.#headerLayout();
+    const headerY = layout.headerCenterY;
+    const headerBottom = headerY + layout.heartSize / 2 + layout.marginTop * 0.35;
     const top = headerBottom + PATH_FADE_TOP_EXTRA;
     const bottom = screenH - mascotH;
 
@@ -243,12 +318,12 @@ export class StageMapScene extends Phaser.Scene {
     isOpen: boolean,
     pulse: boolean,
     map: StageMapConfig,
-    tint: number,
   ) {
     const {width, height} = this.scale;
     const button = this.add.image(0, 0, assetConf.image.btnPlay);
+    const buttonScale = (Math.min(width, height) * size) / button.width;
 
-    button.setScale((Math.min(width, height) * size) / button.width);
+    button.setScale(buttonScale);
 
     const label = this.add
       .text(0, 0, `${displayLevel}`, {
@@ -265,28 +340,21 @@ export class StageMapScene extends Phaser.Scene {
 
     lock?.setScale(button.displayWidth / lock.width);
 
-    const stack: Phaser.GameObjects.GameObject[] = [];
+    const levelContent = this.add.container(0, 0, [button, label]);
 
-    if (isOpen) {
-      const glow = this.add
-        .circle(0, 0, button.displayWidth * 0.55, tint, 0.7)
-        .setBlendMode(Phaser.BlendModes.ADD);
-
-      stack.push(glow);
-
-      if (pulse) {
-        this.tweens.add({
-          targets: glow,
-          scale: 1.2,
-          duration: 900,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.easeInOut",
-        });
-      }
+    if (pulse && isOpen) {
+      this.tweens.add({
+        targets: levelContent,
+        scale: LEVEL_PULSE_SCALE_MUL,
+        duration: LEVEL_PULSE_MS,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
     }
 
-    stack.push(button, label);
+    const stack: Phaser.GameObjects.GameObject[] = [levelContent];
+
     if (lock) stack.push(lock);
 
     const plate = this.add.container(x, y, stack).setDepth(3);
@@ -337,24 +405,29 @@ export class StageMapScene extends Phaser.Scene {
 
   #addHeader() {
     const {width} = this.scale;
+    const layout = this.#headerLayout();
     const safeTop = Number(this.registry.get("safeTop")) || 0;
-    const inset = this.#gameButtonScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
-    const scale = this.#gameButtonScale(0.35, 1);
-    const readImage = this.textures.exists(assetConf.image.btnRead)
-      ? (this.textures.get(assetConf.image.btnRead).getSourceImage() as {height: number})
-      : null;
-    const heartSize = (readImage?.height ?? 0) * scale * STAGE_HEART_SCALE;
-    const margin = 40 * this.#gameButtonScale(0.4, 1);
-    const headerY = safeTop + margin + heartSize / 2;
+    const corners = computeStageMapCornerButtons(
+      width,
+      this.scale.height,
+      safeTop,
+      this.#readBtnHeight(),
+    );
 
-    const read = this.#headerButton(inset, headerY, assetConf.image.btnRead, scale, () => {
-      this.scene.start(assetConf.scene.opening);
-    });
+    const read = this.#headerButton(
+      corners.insetX,
+      layout.headerCenterY,
+      assetConf.image.btnRead,
+      corners.buttonScale,
+      () => {
+        this.scene.start(assetConf.scene.opening);
+      },
+    );
     const exit = this.#headerButton(
-      width - inset,
-      headerY,
+      width - corners.insetX,
+      layout.headerCenterY,
       assetConf.image.btnExitGame,
-      scale,
+      corners.buttonScale,
       () => {
         EventBus.emit(PhaserEvents.EXIT_GAME);
       },
@@ -362,8 +435,8 @@ export class StageMapScene extends Phaser.Scene {
 
     read.setDepth(11).setScrollFactor(0);
     exit.setDepth(11).setScrollFactor(0);
-    this.#headerHeartY = headerY;
-    this.#headerHeartSize = heartSize;
+    this.#headerHeartY = layout.headerCenterY;
+    this.#headerHeartSize = layout.heartSize;
     this.#mountHeart();
   }
 
@@ -410,6 +483,10 @@ export class StageMapScene extends Phaser.Scene {
     this.#unbindScroll();
 
     const maxScroll = Math.max(0, worldH - screenH);
+
+    this.#maxScrollY = maxScroll;
+    this.#scrollVelocity = 0;
+    this.#lastPanDy = 0;
     const registryFocus = Number(this.registry.get("stageMapFocusLevel"));
     const focusLevel =
       Number.isFinite(registryFocus) && registryFocus >= 1
@@ -426,27 +503,40 @@ export class StageMapScene extends Phaser.Scene {
 
     this.cameras.main.setBounds(0, 0, width, worldH);
     this.cameras.main.setScroll(0, scrollY);
-    this.#syncMapFade();
+    this.#clampScrollY();
+    this.#markScrollDirty();
 
     this.#onScrollDown = (pointer: Phaser.Input.Pointer) => {
       if (this.#energyPopup) return;
 
+      this.#scrollVelocity = 0;
       this.#panFrom = pointer.y;
       this.#panning = false;
+      this.#lastPanDy = 0;
     };
     this.#onScrollMove = (pointer: Phaser.Input.Pointer) => {
       if (this.#panFrom === null || !pointer.isDown || this.#energyPopup) return;
 
       const dy = pointer.y - this.#panFrom;
 
-      if (!this.#panning && Math.abs(dy) < 12) return;
+      if (!this.#panning && Math.abs(dy) < PAN_DRAG_THRESHOLD) return;
 
       this.#panning = true;
+      this.#scrollVelocity = 0;
       this.cameras.main.scrollY -= dy;
+      this.#lastPanDy = dy;
       this.#panFrom = pointer.y;
-      this.#syncMapFade();
+      this.#markScrollDirty();
     };
     this.#onScrollUp = () => {
+      if (this.#panning) {
+        this.#scrollVelocity = Phaser.Math.Clamp(
+          -this.#lastPanDy * SCROLL_INERTIA_MUL,
+          -SCROLL_INERTIA_MAX,
+          SCROLL_INERTIA_MAX,
+        );
+      }
+
       this.#panFrom = null;
       this.time.delayedCall(30, () => {
         this.#panning = false;
@@ -455,8 +545,9 @@ export class StageMapScene extends Phaser.Scene {
     this.#onScrollWheel = (_pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number) => {
       if (this.#energyPopup) return;
 
-      this.cameras.main.scrollY += dy * 0.6;
-      this.#syncMapFade();
+      this.#scrollVelocity = 0;
+      this.cameras.main.scrollY += dy * SCROLL_WHEEL_FACTOR;
+      this.#markScrollDirty();
     };
 
     this.input.on("pointerdown", this.#onScrollDown);
@@ -473,7 +564,7 @@ export class StageMapScene extends Phaser.Scene {
     this.#energyPopup = showWatchAdPopup(this, {
       title: t("energyEmptyTitle", language),
       body: t("energyEmptyBody", language),
-      scale: this.#gameButtonScale(0.42, 0.9),
+      scale: dynamicValueForViewport(this, 0.42, 0.9),
       onClose: () => {
         this.#energyPopup = null;
       },
@@ -525,25 +616,6 @@ export class StageMapScene extends Phaser.Scene {
       onComplete: () => this.#finishRechargeVisual(),
     });
     this.#rechargeSafety = this.time.delayedCall(RECHARGE_MS + 100, () => this.#finishRechargeVisual());
-  }
-
-  //* Stessa scala del bottone esci dentro la partita
-  #gameButtonScale(minValue: number, maxValue: number): number {
-    const cssWidth = window.innerWidth;
-    const cssHeight = window.innerHeight;
-    const pixelRatio = window.devicePixelRatio || 1;
-    const config = this.sys.game.config as {width: number; height: number};
-    const calculated = Math.min(config.width / 1080, config.height / 1920);
-    let globalScale = Phaser.Math.Clamp(calculated, 0.59, 1.2);
-    const isBigScreen = cssWidth * pixelRatio >= 2500 || cssHeight * pixelRatio >= 1400;
-
-    if (!isBigScreen && cssWidth < 750 && cssHeight < 450) globalScale *= 0.7;
-    if (globalScale >= 1) return maxValue;
-    if (globalScale <= 0.5) return minValue;
-
-    const t = (globalScale - 0.5) / 0.5;
-
-    return minValue + t * (maxValue - minValue);
   }
 
   #headerButton(

@@ -16,6 +16,7 @@ const UI_GAME_KEYS = new Set([
   "popupExitGame",
   "containerScore",
   "containerItems",
+  "containerItems_bg",
 ]);
 
 const STAGE_UI_KEYS = new Set([

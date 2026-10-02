@@ -1,9 +1,19 @@
-export const STAGE_UI = {
-  btnRead: "/ui_game/btnRead.png",
-  btnExitGame: "/ui_game/btnExitGame.png",
-  heartBg: "/mode_0/stage_ui/logo_stage_bg.png",
-  heartFill: "/mode_0/stage_ui/logo_stage_fill.png",
-} as const;
+export {STAGE_UI} from "./stage-ui-assets";
 
-/** Come in Phaser `STAGE_HEART_SCALE`: cuore più grande dei bottoni laterali. */
-export const STAGE_HEART_UI_SCALE = 1.55;
+export {
+  BTN_READ_NATIVE_HEIGHT,
+  CORNER_BUTTON,
+  CORNER_INSET_MUL,
+  GAME_HEART_SCALE,
+  HEADER_INSET_BASE_MUL,
+  LOGO_HEART,
+  STAGE_HEADER_BTN_MAX,
+  STAGE_HEADER_BTN_MIN,
+  STAGE_HEART_SCALE,
+  STAGE_MAP_CORNER_BTN_INSET_MUL,
+  STAGE_MAP_HEADER_SIZE_MUL,
+  VIEWPORT_LERP,
+  WORLD_EXIT_BTN_INSET_MUL,
+  WORLD_HEADER_SIZE_MUL,
+  WORLD_HEART_SCALE,
+} from "./app-header-tokens";

@@ -870,15 +870,23 @@ export class GameManager extends Phaser.Scene {
 
     overlay.setAlpha(0);
     label.setAlpha(0);
+    label.setScale(0.76);
     this.mainContainer.add([overlay, label]);
 
-    await this.tweenPromise({targets: [overlay, label], alpha: 1, duration: 220});
+    await this.tweenPromise({
+      targets: [overlay, label],
+      alpha: 1,
+      duration: 320,
+      ease: "Sine.easeOut",
+    });
+    await this.tweenPromise({targets: label, scale: 1, duration: 320, ease: "Back.easeOut"});
     await this.delay(900);
 
     shuffleBoard(this.board, this.#pieceKeys.length);
     this.applyBoardTextures();
 
-    await this.tweenPromise({targets: [overlay, label], alpha: 0, duration: 220});
+    await this.tweenPromise({targets: label, scale: 0.76, duration: 260, ease: "Sine.easeIn"});
+    await this.tweenPromise({targets: [overlay, label], alpha: 0, duration: 260, ease: "Sine.easeIn"});
     overlay.destroy();
     label.destroy();
 

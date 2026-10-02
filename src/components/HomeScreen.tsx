@@ -3,6 +3,12 @@
 import Image from "next/image";
 import {useEffect, useState} from "react";
 
+import {
+  CLOUD_CURTAIN_HOLD_MS,
+  CloudCurtainTransition,
+  type CloudCurtainPhase,
+} from "./CloudCurtainTransition";
+
 import {LANGUAGE_LABELS, LANGUAGES} from "@/language";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick, playNoTouch} from "@/settings/click";
@@ -13,6 +19,7 @@ import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
 import {getStageIndex, prepareEnterWorld} from "@/settings/progress";
 import {getMusicTrack, playStageTrack, playTrack, stopTrack} from "@/settings/soundtrack";
 
+import {HomeDriftingClouds} from "./HomeDriftingClouds";
 import {HomeLightFall} from "./HomeLightFall";
 import type {BootStartScene} from "@game/scenes/boot";
 
@@ -53,14 +60,27 @@ type WoodPanelProps = {
   onClose: () => void;
 };
 
+const POPUP_CLOSE_MS = 260;
+
 function WoodPanel({alt, src = "/ui_home/settingContainer.png", children, onClose}: WoodPanelProps) {
+  const [leaving, setLeaving] = useState(false);
+
+  const requestClose = () => {
+    if (leaving) return;
+
+    setLeaving(true);
+    window.setTimeout(onClose, POPUP_CLOSE_MS);
+  };
+
   return (
     <div
-      className="absolute inset-0 z-20 flex items-center justify-center bg-black/55 px-3"
-      onClick={onClose}
+      className={`absolute inset-0 z-20 flex items-center justify-center bg-black/55 px-3 ${
+        leaving ? "popup-backdrop-out" : "popup-backdrop-in"
+      }`}
+      onClick={requestClose}
     >
       <div
-        className="relative w-[min(88vw,28rem)]"
+        className={`relative w-[min(88vw,28rem)] ${leaving ? "popup-panel-out" : "popup-panel-in"}`}
         onClick={(event) => event.stopPropagation()}
       >
         <Image
@@ -82,18 +102,38 @@ type TestamentCardProps = {
   label: string;
   src: string;
   className?: string;
+  disabled?: boolean;
   isPressed?: boolean;
   onClick: () => void;
 };
 
-function TestamentCard({label, src, className = "", isPressed = false, onClick}: TestamentCardProps) {
+function TestamentCard({
+  label,
+  src,
+  className = "",
+  disabled = false,
+  isPressed = false,
+  onClick,
+}: TestamentCardProps) {
   return (
     <button
       className={`flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-[#e7c27a] bg-[#2a160c] shadow-[0_0_12px_rgba(255,214,120,0.45)] transition-transform duration-100 ${
-        isPressed ? "translate-y-1 scale-[0.97]" : "active:translate-y-1 active:scale-[0.97]"
+        disabled
+          ? "cursor-not-allowed opacity-45 brightness-[0.55] saturate-50"
+          : isPressed
+            ? "translate-y-1 scale-[0.97]"
+            : "active:translate-y-1 active:scale-[0.97]"
       } ${className}`}
+      aria-disabled={disabled}
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        if (disabled) {
+          playNoTouch();
+          return;
+        }
+
+        onClick();
+      }}
     >
       <span
         className="shrink-0 px-2 py-1.5 font-display text-[clamp(0.72rem,2.4vw,0.95rem)] font-bold leading-tight text-[#fff8dc]"
@@ -358,13 +398,13 @@ export function HomeScreen() {
   const [isStartPressed, setIsStartPressed] = useState(false);
   const [isTestamentOpen, setIsTestamentOpen] = useState(false);
   const [isNewTestamentPressed, setIsNewTestamentPressed] = useState(false);
+  const [curtainPhase, setCurtainPhase] = useState<CloudCurtainPhase>("idle");
   const [showWorld, setShowWorld] = useState(false);
   const [phaserBootStart, setPhaserBootStart] = useState<BootStartScene>("default");
   const [pressedPanel, setPressedPanel] = useState<MenuPanel | null>(null);
   const [openPanel, setOpenPanel] = useState<MenuPanel | null>(null);
   const [isMusicOn, setIsMusicOn] = useState(isMusicEnabled);
   const [isEffectsOn, setIsEffectsOn] = useState(isEffectsEnabled);
-
   useEffect(() => {
     const timer = setTimeout(() => setIsIntroDone(true), INTRO_HOLD_MS);
 
@@ -395,14 +435,24 @@ export function HomeScreen() {
   useEffect(() => {
     if (!isNewTestamentPressed) return;
 
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       playStageTrack(getStageIndex());
       setIsTestamentOpen(false);
-      setShowWorld(true);
+      setCurtainPhase("closing");
     }, PRESS_MS);
 
-    return () => clearTimeout(timer);
+    return () => window.clearTimeout(timer);
   }, [isNewTestamentPressed]);
+
+  useEffect(() => {
+    if (curtainPhase !== "open") return;
+
+    const timer = window.setTimeout(() => {
+      setCurtainPhase("opening");
+    }, CLOUD_CURTAIN_HOLD_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [curtainPhase]);
 
   useEffect(() => {
     if (!pressedPanel) return;
@@ -415,43 +465,18 @@ export function HomeScreen() {
     return () => clearTimeout(timer);
   }, [pressedPanel]);
 
-  if (showWorld) {
-    return (
-      <WorldScreen
-        onBack={() => {
-          setShowWorld(false);
-          setIsNewTestamentPressed(false);
-        }}
-        onEnter={(worldIndex) => {
-          prepareEnterWorld(worldIndex);
-          playStageTrack(getStageIndex());
-          setPhaserBootStart("default");
-          setShowWorld(false);
-          setIsPlaying(true);
-        }}
-      />
-    );
-  }
-
-  if (isPlaying) {
-    return (
-      <PhaserGame
-        bootStart={phaserBootStart}
-        onExit={() => {
-          setIsPlaying(false);
-          setIsStartPressed(false);
-          setIsTestamentOpen(false);
-          setIsNewTestamentPressed(false);
-          setShowWorld(false);
-          setPhaserBootStart("default");
-        }}
-      />
-    );
-  }
+  const homeSuspended = showWorld || isPlaying;
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-[url('/ui_home/background.png')] bg-cover bg-center bg-no-repeat">
+    <div className="relative h-dvh w-full overflow-hidden">
+      <div
+        aria-hidden={homeSuspended}
+        className={`absolute inset-0 overflow-hidden bg-[url('/ui_home/background.png')] bg-cover bg-center bg-no-repeat ${
+          homeSuspended ? "home-shell-suspended invisible pointer-events-none" : ""
+        }`}
+      >
       <HomeLightFall />
+      <HomeDriftingClouds paused={homeSuspended} visible={isIntroDone} />
       <div
         className="absolute left-1/2 top-0 z-10 w-[82%] max-w-sm ease-out"
         style={{
@@ -493,11 +518,11 @@ export function HomeScreen() {
         >
           <span
             className={`pointer-events-none absolute inset-0 flex items-center justify-center font-display font-bold tracking-wide transition-colors duration-100 ${
-              isStartPressed ? "text-[#e0e0e0]" : "text-[#f0ebe2] group-active:text-[#e0e0e0]"
+              isStartPressed ? "text-[#e8d090]" : "text-[#fde8a0] group-active:text-[#e8d090]"
             }`}
             style={{
               fontSize: "clamp(1.4rem, 6.5vw, 2.1rem)",
-              WebkitTextStroke: "2.5px #967018",
+              WebkitTextStroke: "3px #9a6318",
               paintOrder: "stroke fill",
             }}
           >
@@ -549,9 +574,10 @@ export function HomeScreen() {
             />
             <TestamentCard
               className="mt-1"
+              disabled
               label={t("oldTestament")}
               src="/ui_game/mode_1.png"
-              onClick={() => playClick()}
+              onClick={() => playNoTouch()}
             />
           </div>
         </WoodPanel>
@@ -651,6 +677,55 @@ export function HomeScreen() {
             <AccessPanel />
           )}
         </WoodPanel>
+      )}
+      </div>
+
+      <CloudCurtainTransition
+        hidden={isPlaying}
+        phase={curtainPhase}
+        onClosingComplete={() => {
+          setShowWorld(true);
+          setCurtainPhase("open");
+        }}
+        onOpeningComplete={() => {
+          setCurtainPhase("idle");
+          setIsNewTestamentPressed(false);
+        }}
+      />
+
+      {showWorld && (
+        <div className="absolute inset-0 z-20">
+          <WorldScreen
+            onBack={() => {
+              setShowWorld(false);
+              setIsNewTestamentPressed(false);
+              setCurtainPhase("idle");
+            }}
+            onEnter={(worldIndex) => {
+              prepareEnterWorld(worldIndex);
+              playStageTrack(getStageIndex());
+              setPhaserBootStart("default");
+              setShowWorld(false);
+              setIsPlaying(true);
+            }}
+          />
+        </div>
+      )}
+
+      {isPlaying && (
+        <div className="absolute inset-0 z-20">
+          <PhaserGame
+            bootStart={phaserBootStart}
+            onExit={() => {
+              setIsPlaying(false);
+              setIsStartPressed(false);
+              setIsTestamentOpen(false);
+              setIsNewTestamentPressed(false);
+              setShowWorld(false);
+              setPhaserBootStart("default");
+            }}
+          />
+        </div>
       )}
     </div>
   );

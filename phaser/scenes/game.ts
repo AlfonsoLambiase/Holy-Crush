@@ -7,6 +7,8 @@ import {UIManager} from "../components/UIManager";
 import {AudioManager} from "../components/audioManager";
 import {playTrack} from "@/settings/soundtrack";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {layoutScaleForViewport} from "@/settings/app-header-layout";
+import {getViewportGlobalScale} from "../shared/viewport-scale";
 import {StarsEffectManager} from "../components/starsEffectManager";
 
 import {TimerManager} from "./timer-manager";
@@ -103,55 +105,11 @@ export class Game extends Phaser.Scene {
   // Metodo per ridimensionare gli oggetti in scena dipendendo dal tipo di dispositivo e della sua dimensione schermo.
   //! Metodo nuovo piu robusto copiare questo in tutti gli altri
   setGlobalScale() {
-    // Otteniamo dimensioni reali del display
-    const cssWidth = window.innerWidth;
-    const cssHeight = window.innerHeight;
-    const pixelRatio = window.devicePixelRatio || 1;
-
-    const realWidth = cssWidth * pixelRatio;
-    const realHeight = cssHeight * pixelRatio;
-
-    // Recuperiamo le dimensioni configurate nel gioco (non influenzate da scale di Phaser)
-    const config = this.sys.game.config as {width: number; height: number};
-
-    // Definizione della risoluzione di riferimento
-    //! NB: Attualmente settato a verticale (1080x1920) per mobile
-    const refW = 1080;
-    const refH = 1920;
-
-    const scaleX = config.width / refW;
-    const scaleY = config.height / refH;
-
-    const calculatedScale = Math.min(scaleX, scaleY);
-
-    // Impostiamo limiti massimi e minimi
-    const minScale = 0.59;
-    const maxScale = 1.2;
-
-    // Clamp dello scale in range [minScale, maxScale]
-    let globalScale = Math.min(maxScale, Math.max(minScale, calculatedScale));
-
-    // Penalità extra se dimensioni CSS sono piccole (es. dispositivi vecchi o SE)
-    const isBigScreen = realWidth >= 2500 || realHeight >= 1400;
-
-    if (!isBigScreen && cssWidth < 750 && cssHeight < 450) {
-      globalScale *= 0.7;
-    }
-
-    this.globalScale = globalScale;
-
-    //console.log("Scala applicata tutorial:", this.globalScale);
-    //console.log("Dimensioni scena width height:", config.width, config.height);
+    this.globalScale = getViewportGlobalScale(this);
   }
 
   setDynamicValueBasedOnScale(minValue: number, maxValue: number): number {
-    if (this.globalScale >= 1) return maxValue;
-    if (this.globalScale <= 0.5) return minValue;
-    const minScale = 0.5,
-      maxScale = 1;
-    const t = (this.globalScale - minScale) / (maxScale - minScale);
-
-    return minValue + t * (maxValue - minValue);
+    return layoutScaleForViewport(this.scale.width, this.scale.height, minValue, maxValue);
   }
 
   //* Scopo: Scala uniforme per far stare un oggetto dentro un rettangolo

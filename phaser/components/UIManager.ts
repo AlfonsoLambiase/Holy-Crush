@@ -4,12 +4,15 @@ import * as Phaser from "phaser";
 import {Game} from "../scenes/game";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
-import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
-import {addStageHeart, STAGE_HEART_SCALE} from "../shared/stage-heart";
+import {
+  phaserImageScale,
+  resolveHeaderMetrics,
+} from "@/settings/app-header-layout";
+import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
+
+import {addStageHeart} from "../shared/stage-heart";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
-
-const LOGO_BAND_MARGIN = 40; // aria sopra e sotto il logo, al posto della vecchia fascia
 
 const SCORE_TEXT_SCALE = 1;
 const SCORE_FONT_RATIO = 0.42; // il numero riempie il papiro, che ha la stessa altezza di btnExit
@@ -71,36 +74,43 @@ export class UIManager {
       .setDisplaySize(this.scene.scale.width, this.scene.scale.height);
   }
 
-  #createLogo() {
+  #headerMetrics() {
     const safeTop = Number(this.scene.registry.get("safeTop")) || 0;
-    const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
 
-    this.logoBottom = safeTop;
-    this.headerCenterY = inset;
+    return resolveHeaderMetrics(
+      "inGame",
+      this.scene.scale.width,
+      this.scene.scale.height,
+      safeTop,
+      BTN_READ_NATIVE_HEIGHT,
+    );
+  }
 
-    if (!this.scene.textures.exists(assetConf.image.btnExitGame)) return;
+  #createLogo() {
+    const metrics = this.#headerMetrics();
 
-    const exitScale = this.gameScene.setDynamicValueBasedOnScale(0.35, 1);
-    const exitImage = this.scene.textures.get(assetConf.image.btnExitGame).getSourceImage() as {
-      height: number;
-    };
-    const heartSize = exitImage.height * exitScale * STAGE_HEART_SCALE;
-    const margin = LOGO_BAND_MARGIN * this.gameScene.setDynamicValueBasedOnScale(0.4, 1);
-    const heartY = safeTop + margin + heartSize / 2;
+    this.headerCenterY = metrics.headerCenterY;
+    this.logoBottom =
+      metrics.headerCenterY + metrics.logoHeartPhysical / 2 + metrics.marginTop;
 
-    this.headerCenterY = heartY;
-    this.logoBottom = heartY + heartSize / 2 + margin;
-    addStageHeart(this.scene, this.scene.scale.width / 2, heartY, heartSize, -2);
+    addStageHeart(
+      this.scene,
+      this.scene.scale.width / 2,
+      metrics.headerCenterY,
+      metrics.logoHeartPhysical,
+      -2,
+    );
   }
 
   #createContainerScore() {
-    const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
-    const exitScale = this.gameScene.setDynamicValueBasedOnScale(0.35, 1);
+    const metrics = this.#headerMetrics();
     const exitImage = this.scene.textures.get(assetConf.image.btnExitGame).getSourceImage() as {
       width: number;
       height: number;
     };
-    const exitSize = exitImage.height * exitScale;
+    const exitScale = phaserImageScale(exitImage.height, metrics.cornerButtonPhysical);
+    const exitSize = metrics.cornerButtonPhysical;
+    const inset = metrics.insetX;
 
     this.scoreContainer = this.scene.add.container(0, 0);
     this.scoreContainer.setScrollFactor(0).setDepth(10);

@@ -6,7 +6,6 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {StageHudBar} from "@/components/StageHudBar";
 import {playClick} from "@/settings/click";
 import {isWorldUnlocked} from "@/settings/progress";
-import {computeWorldExitInset} from "@/settings/stage-hud-layout";
 import {WORLD_COUNT, worldBackgroundPath, worldImagePath} from "@/settings/world-map";
 
 const CLICKABLE_SCROLL_MAX = 0.35;
@@ -340,11 +339,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
         });
       })}
 
-      <StageHudBar
-        exitInsetRight={computeWorldExitInset(viewportW)}
-        exitSizeScale={0.78}
-        onExit={onBack}
-      />
+      <StageHudBar onExit={onBack} />
     </div>
   );
 }

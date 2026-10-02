@@ -5,15 +5,23 @@ import {getCurrentLanguage, t} from "@/language";
 import {playClick} from "@/settings/click";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
+import {phaserImageScale, resolveHeaderMetrics} from "@/settings/app-header-layout";
+import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
+import {animatePopupClose, animatePopupOpen} from "../shared/popup-motion";
+import {dynamicValueForViewport} from "../shared/viewport-scale";
 
 import {Game} from "./game";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
-const BUTTON_GAP = 40; // spazio verticale fra conferma e annulla
-const BUTTONS_CENTER_Y = 70; // centro della coppia bottoni (positivo = più in basso)
+const BTN_SCALE_MIN = 0.35;
+const BTN_SCALE_MAX = 1;
+const BUTTON_GAP_MIN = 6;
+const BUTTON_GAP_MAX = 14;
+const BUTTONS_CENTER_Y_MIN = 52;
+const BUTTONS_CENTER_Y_MAX = 88;
 const TITLE_Y_RATIO = -0.22; // titolo nella parte alta del pannello
 const PRESS_MS = 220; // stessa attesa del premuto sugli altri bottoni
 const PRESS_SCALE = 0.92;
@@ -33,6 +41,12 @@ export class ExitManager extends Phaser.Scene {
   private choiceLocked = false;
   #dismissReady = false;
   #mode: PopupMode = "exit";
+  #popupBaseScale = 1;
+  #closing = false;
+  #btnConfirm!: Phaser.GameObjects.Image;
+  #btnCancel!: Phaser.GameObjects.Image;
+  #confirmPlate!: Phaser.GameObjects.Container;
+  #cancelPlate!: Phaser.GameObjects.Container;
 
   constructor(scene?: Phaser.Scene) {
     super({key: assetConf.scene.exitManager});
@@ -63,6 +77,41 @@ export class ExitManager extends Phaser.Scene {
     this.gameScene = scene;
   }
 
+  #scaleOf(minValue: number, maxValue: number): number {
+    if (this.gameScene?.setDynamicValueBasedOnScale) {
+      return this.gameScene.setDynamicValueBasedOnScale(minValue, maxValue);
+    }
+
+    return dynamicValueForViewport(this, minValue, maxValue);
+  }
+
+  #inGameHeaderMetrics(scene: Phaser.Scene) {
+    const config = scene.sys.game.config as {width: number; height: number};
+    const safeTop = Number(scene.registry.get("safeTop")) || 0;
+
+    return resolveHeaderMetrics(
+      "inGame",
+      config.width,
+      config.height,
+      safeTop,
+      BTN_READ_NATIVE_HEIGHT,
+    );
+  }
+
+  #layoutChoiceButtons() {
+    if (!this.#btnConfirm || !this.#confirmPlate || !this.#cancelPlate) return;
+
+    const btnScale = this.#scaleOf(BTN_SCALE_MIN, BTN_SCALE_MAX);
+    const gap = this.#scaleOf(BUTTON_GAP_MIN, BUTTON_GAP_MAX);
+    const centerY = this.#scaleOf(BUTTONS_CENTER_Y_MIN, BUTTONS_CENTER_Y_MAX);
+    const offsetY = (this.#btnConfirm.height * btnScale + gap) / 2;
+
+    this.#btnConfirm.setScale(btnScale);
+    this.#btnCancel.setScale(btnScale);
+    this.#confirmPlate.setPosition(0, centerY - offsetY);
+    this.#cancelPlate.setPosition(0, centerY + offsetY);
+  }
+
   #addBackgroundOverlay() {
     this.backgroundOverlay = this.add.graphics();
     this.backgroundOverlay.fillStyle(0x000000, 0.5);
@@ -86,11 +135,12 @@ export class ExitManager extends Phaser.Scene {
     const centerX = this.width / 2;
     const centerY = this.height / 2;
 
+    this.#popupBaseScale = this.#scaleOf(0.4, 0.95);
     this.popupContainer = this.add
       .container(centerX, centerY)
       .setDepth(101)
       .setScrollFactor(0)
-      .setScale(this.gameScene.setDynamicValueBasedOnScale(0.4, 0.95));
+      .setScale(this.#popupBaseScale);
 
     // Load popup background image
     const language = getCurrentLanguage();
@@ -105,46 +155,24 @@ export class ExitManager extends Phaser.Scene {
       wordWrapWidth: popupExitGame.width * 0.72,
     });
 
-    const btnCancel = this.add
+    this.#btnCancel = this.add
       .image(0, 0, assetConf.image.btnCancel)
       .setOrigin(0.5)
       .setInteractive({useHandCursor: true});
-    const btnConfirm = this.add
+    this.#btnConfirm = this.add
       .image(0, 0, assetConf.image.btnConfirm)
       .setOrigin(0.5)
       .setInteractive({useHandCursor: true});
 
-    //* Bottoni centrati e impilati: conferma sopra, annulla sotto. Testo nello stesso contenitore, così il premuto scala tutto insieme
-    const buttonOffsetY = (btnConfirm.height + BUTTON_GAP) / 2;
-    const confirmPlate = this.#choicePlate(
-      0,
-      BUTTONS_CENTER_Y - buttonOffsetY,
-      btnConfirm,
-      t("confirm", language),
-      () => this.#confirmChoice(),
-    );
-    const cancelPlate = this.#choicePlate(
-      0,
-      BUTTONS_CENTER_Y + buttonOffsetY,
-      btnCancel,
-      t("cancel", language),
-      () => this.#resumeGame(),
-    );
+    this.#confirmPlate = this.#choicePlate(this.#btnConfirm, () => this.#confirmChoice());
+    this.#cancelPlate = this.#choicePlate(this.#btnCancel, () => this.#resumeGame());
+    this.#layoutChoiceButtons();
 
-    this.popupContainer.add([popupExitGame, this.titleText, confirmPlate, cancelPlate]);
+    this.popupContainer.add([popupExitGame, this.titleText, this.#confirmPlate, this.#cancelPlate]);
   }
 
-  #choicePlate(
-    x: number,
-    y: number,
-    button: Phaser.GameObjects.Image,
-    label: string,
-    onPress: () => void,
-  ) {
-    const plate = this.add.container(x, y, [
-      button,
-      this.#addLabel(0, 0, label, {fontSize: 40, color: "#fff8dc"}),
-    ]);
+  #choicePlate(button: Phaser.GameObjects.Image, onPress: () => void) {
+    const plate = this.add.container(0, 0, [button]);
 
     button.on("pointerdown", () => {
       if (this.choiceLocked) return;
@@ -161,28 +189,47 @@ export class ExitManager extends Phaser.Scene {
     return plate;
   }
 
-  #resumeGame() {
-    this.choiceLocked = false;
-    this.#dismissReady = false;
+  #hidePopup() {
     this.backgroundOverlay.setVisible(false);
     this.popupContainer.setVisible(false);
     this.outsideDismiss.disableInteractive();
+  }
 
-    if (this.scene.isPaused(assetConf.scene.game)) {
-      this.scene.resume(assetConf.scene.game);
-    }
+  #closePopupAnimated(onDone: () => void) {
+    if (this.#closing) return;
 
-    this.sound.resumeAll();
+    this.#closing = true;
+    this.#dismissReady = false;
+    this.outsideDismiss.disableInteractive();
+    animatePopupClose(this, this.popupContainer, this.#popupBaseScale, this.backgroundOverlay, () => {
+      this.#closing = false;
+      this.#hidePopup();
+      onDone();
+    });
+  }
+
+  #resumeGame() {
+    this.#closePopupAnimated(() => {
+      this.choiceLocked = false;
+
+      if (this.scene.isPaused(assetConf.scene.game)) {
+        this.scene.resume(assetConf.scene.game);
+      }
+
+      this.sound.resumeAll();
+    });
   }
 
   #confirmChoice() {
-    if (this.#mode === "reload") {
-      this.#restartMatch();
+    this.#closePopupAnimated(() => {
+      if (this.#mode === "reload") {
+        this.#restartMatch();
 
-      return;
-    }
+        return;
+      }
 
-    this.#backToStage();
+      this.#backToStage();
+    });
   }
 
   #backToStage() {
@@ -227,17 +274,21 @@ export class ExitManager extends Phaser.Scene {
 
   showPopup(mode: PopupMode = "exit") {
     this.#mode = mode;
+    this.#popupBaseScale = this.#scaleOf(0.4, 0.95);
+    this.#layoutChoiceButtons();
     this.titleText?.setText(
       t(this.#mode === "reload" ? "reloadTitle" : "exitTitle", getCurrentLanguage()),
     );
     this.choiceLocked = false;
     this.#dismissReady = false;
+    this.#closing = false;
     this.backgroundOverlay?.setVisible(true);
     this.popupContainer?.setVisible(true);
     this.outsideDismiss.setInteractive({useHandCursor: false});
     this.popupContainer?.each((child: Phaser.GameObjects.GameObject) => {
       if (child instanceof Phaser.GameObjects.Container) child.setScale(1);
     });
+    animatePopupOpen(this, this.popupContainer, this.#popupBaseScale, this.backgroundOverlay, 0.5);
     this.time.delayedCall(120, () => {
       this.#dismissReady = true;
     });
@@ -264,12 +315,15 @@ export class ExitManager extends Phaser.Scene {
 
     const isTesting: boolean = scene.registry.get("test"); // prende variabile dall'esterno
 
-    const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
-    const headerY = this.gameScene.uiManager?.headerCenterY ?? inset;
-    const buttonScale = this.gameScene.setDynamicValueBasedOnScale(0.35, 1.0);
+    const header = this.#inGameHeaderMetrics(scene);
+    const exitImage = scene.textures.get(assetConf.image.btnExitGame).getSourceImage() as {
+      height: number;
+    };
+    const headerY = this.gameScene.uiManager?.headerCenterY ?? header.headerCenterY;
+    const buttonScale = phaserImageScale(exitImage.height, header.cornerButtonPhysical);
 
     const exitButton = scene.add
-      .image(width - inset, headerY, assetConf.image.btnExitGame)
+      .image(width - header.insetX, headerY, assetConf.image.btnExitGame)
       .setOrigin(0.5)
       .setInteractive({useHandCursor: true})
       .setScrollFactor(0)
@@ -293,10 +347,13 @@ export class ExitManager extends Phaser.Scene {
     const config = scene.sys.game.config as {width: number; height: number};
     const width = config.width;
     const isTesting: boolean = scene.registry.get("test");
-    const inset = this.gameScene.setDynamicValueBasedOnScale(HEADER_INSET_MIN, HEADER_INSET_MAX);
-    const headerY = this.gameScene.uiManager?.headerCenterY ?? inset;
-    const buttonScale = this.gameScene.setDynamicValueBasedOnScale(0.35, 1.0);
-    const exitX = width - inset;
+    const header = this.#inGameHeaderMetrics(scene);
+    const reloadImage = scene.textures.get(assetConf.image.btnReload).getSourceImage() as {
+      height: number;
+    };
+    const headerY = this.gameScene.uiManager?.headerCenterY ?? header.headerCenterY;
+    const buttonScale = phaserImageScale(reloadImage.height, header.cornerButtonPhysical);
+    const exitX = width - header.insetX;
     const reloadX = (width / 2 + exitX) / 2;
 
     if (!scene.textures.exists(assetConf.image.btnReload)) return null;
