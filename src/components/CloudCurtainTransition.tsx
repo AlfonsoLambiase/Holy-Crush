@@ -16,7 +16,7 @@ const STACK_OVERLAP_PX = 640;
 const HIDE_GAP_VW = 24;
 
 /** Chiusura: quanto entrano da ciascun lato (overlap centrale, niente buco). */
-const CLOSED_INSET_VW = 160;
+const CLOSED_INSET_VW = 170;
 const CLOSED_X_LEFT = `calc(${CLOSED_INSET_VW}vw - 100%)`;
 const CLOSED_X_RIGHT = `calc(-${CLOSED_INSET_VW}vw + 100%)`;
 
