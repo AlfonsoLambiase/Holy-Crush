@@ -135,9 +135,14 @@ function TestamentCard({
 
 const APP_CORNER_BTN_CLASS = "h-[min(16vw,4.75rem)] w-[min(16vw,4.75rem)]";
 
+const PANEL_ICON_BTN_CLASS =
+  "flex h-[min(14vw,4rem)] w-[min(14vw,4rem)] shrink-0 items-center justify-center rounded-full border-2 border-[#a67c22] bg-[#3d2614] text-[#fff8dc] shadow-[0_0_10px_rgba(255,214,120,0.35)] transition-transform duration-100 active:scale-95";
+
+const PANEL_HINT_TEXT_CLASS = "font-display text-sm font-bold text-[#fff8dc] sm:text-base";
+
 function GoogleMark() {
   return (
-    <svg aria-hidden className="h-6 w-6 shrink-0" viewBox="0 0 48 48">
+    <svg aria-hidden className="h-[52%] w-[52%]" viewBox="0 0 48 48">
       <path
         fill="#FFC107"
         d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"
@@ -158,6 +163,17 @@ function GoogleMark() {
   );
 }
 
+function FacebookMark() {
+  return (
+    <svg aria-hidden className="h-[52%] w-[52%]" viewBox="0 0 24 24">
+      <path
+        fill="#1877F2"
+        d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
+      />
+    </svg>
+  );
+}
+
 function AccessPanel() {
   const {t} = useLanguage();
 
@@ -166,15 +182,34 @@ function AccessPanel() {
       <p className={PANEL_SECTION_TITLE_CLASS} style={PANEL_TITLE_STYLE}>
         {t("access")}
       </p>
-      <button
-        className={`mt-8 flex w-full max-w-xs items-center justify-center gap-3 rounded-2xl border-2 border-[#a67c22] bg-[#3d2614] px-3 py-3.5 ${PANEL_BODY_TEXT_CLASS} transition-transform duration-100 active:translate-y-1 active:scale-95`}
-        style={{outline: "2px solid #2a160ccc"}}
-        type="button"
-        onClick={() => playClick()}
-      >
-        <GoogleMark />
-        {t("googleSignIn")}
-      </button>
+      <div className="mt-6 flex w-full max-w-sm flex-col items-stretch gap-4 sm:gap-5">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <button
+            aria-label={t("googleSignIn")}
+            className={PANEL_ICON_BTN_CLASS}
+            type="button"
+            onClick={() => playClick()}
+          >
+            <GoogleMark />
+          </button>
+          <p className={PANEL_HINT_TEXT_CLASS} style={PANEL_TITLE_STYLE}>
+            {t("googleSignIn")}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <button
+            aria-label={t("facebookSignIn")}
+            className={PANEL_ICON_BTN_CLASS}
+            type="button"
+            onClick={() => playClick()}
+          >
+            <FacebookMark />
+          </button>
+          <p className={PANEL_HINT_TEXT_CLASS} style={PANEL_TITLE_STYLE}>
+            {t("facebookSignIn")}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

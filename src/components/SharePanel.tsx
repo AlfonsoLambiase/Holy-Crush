@@ -193,7 +193,7 @@ export function SharePanel() {
 
       <p
         className={`mt-5 min-h-[1.25rem] font-display text-sm font-bold sm:text-base ${
-          copied ? "text-[#ffd76a]" : "text-[#fff8dc]/80"
+          copied ? "text-[#ffd76a]" : "text-[#fff8dc]"
         }`}
         style={PANEL_TITLE_STYLE}
       >

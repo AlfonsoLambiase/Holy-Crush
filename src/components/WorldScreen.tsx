@@ -7,7 +7,7 @@ import {ShopMarket} from "@/components/ShopMarket";
 import {StageHudBar} from "@/components/StageHudBar";
 import {WoodPanel} from "@/components/WoodPanel";
 import {useLanguage} from "@/language/LanguageProvider";
-import {playClick, playNoTouch} from "@/settings/click";
+import {playClick, playNoTouch, playSwitch} from "@/settings/click";
 import {computeStageHudMetrics, type StageHudMetrics} from "@/settings/stage-hud-layout";
 import {isWorldUnlocked} from "@/settings/progress";
 import {WORLD_COUNT, worldBackgroundPath, worldImagePath} from "@/settings/world-map";
@@ -138,7 +138,14 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const snapToWorld = useCallback(
     (worldIndex: number) => {
       const h = viewportH || 1;
-      const target = Math.min(WORLD_COUNT - 1, Math.max(0, worldIndex)) * h;
+      const nextWorld = Math.min(WORLD_COUNT - 1, Math.max(0, worldIndex));
+      const currentWorld = Math.round(scrollRef.current / h);
+
+      if (nextWorld !== currentWorld) {
+        playSwitch();
+      }
+
+      const target = nextWorld * h;
 
       if (snapFrame.current !== null) cancelAnimationFrame(snapFrame.current);
 
@@ -169,13 +176,23 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
 
   useEffect(() => {
     const onWheel = (event: WheelEvent) => {
+      if (shopOpen) {
+        if ((event.target as Element | null)?.closest("[data-shop-scroll]")) {
+          return;
+        }
+
+        event.preventDefault();
+
+        return;
+      }
+
       event.preventDefault();
       applyScrollDelta(-event.deltaY * 0.85);
     };
 
     window.addEventListener("wheel", onWheel, {passive: false});
     return () => window.removeEventListener("wheel", onWheel);
-  }, [applyScrollDelta]);
+  }, [applyScrollDelta, shopOpen]);
 
   const beginGesture = useCallback((y: number) => {
     if (snapFrame.current !== null) {
@@ -292,23 +309,27 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
 
   return (
     <div
-      className="relative h-dvh w-full touch-none select-none overflow-hidden bg-[#0d0d0f]"
+      className={`relative h-dvh w-full select-none overflow-hidden bg-[#0d0d0f] ${shopOpen ? "touch-auto" : "touch-none"}`}
       onPointerCancel={() => {
+        if (shopOpen) return;
+
         lastTouchY.current = null;
       }}
       onPointerDown={(event) => {
-        if (event.button !== 0) return;
+        if (shopOpen || event.button !== 0) return;
 
         beginGesture(event.clientY);
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
-        if (lastTouchY.current === null) return;
+        if (shopOpen || lastTouchY.current === null) return;
 
         applyScrollDelta(event.clientY - lastTouchY.current);
         lastTouchY.current = event.clientY;
       }}
       onPointerUp={(event) => {
+        if (shopOpen) return;
+
         if (lastTouchY.current !== null) finishGesture(event.clientY);
 
         lastTouchY.current = null;
@@ -397,7 +418,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
         <WoodPanel
           alt={t("shop")}
           className="fixed inset-0 z-50"
-          src="/ui_home/gameContainer.png"
+          contentAlign="start"
           onClose={() => setShopOpen(false)}
         >
           <ShopMarket />

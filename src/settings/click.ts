@@ -51,6 +51,8 @@ export const playClick = () => playSfx("/sounds/click.mp3");
 
 export const playNoTouch = () => playSfx("/sounds/noTouch.mp3");
 
+export const playSwitch = () => playSfx("/sounds/switch.mp3");
+
 export const playRecharge = () => playSfx("/sounds/recharge.mp3");
 
 export const playSuper = () => playSfx("/sounds/super.mp3");

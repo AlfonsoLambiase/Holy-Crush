@@ -11,6 +11,7 @@ type WoodPanelProps = {
   children: React.ReactNode;
   onClose: () => void;
   className?: string;
+  contentAlign?: "center" | "start";
 };
 
 export function WoodPanel({
@@ -19,6 +20,7 @@ export function WoodPanel({
   children,
   onClose,
   className = "absolute inset-0 z-50",
+  contentAlign = "center",
 }: WoodPanelProps) {
   const [leaving, setLeaving] = useState(false);
 
@@ -31,10 +33,13 @@ export function WoodPanel({
 
   return (
     <div
-      className={`${className} flex items-center justify-center bg-black/55 px-3 ${
+      className={`${className} flex touch-auto items-center justify-center bg-black/55 px-3 ${
         leaving ? "popup-backdrop-out" : "popup-backdrop-in"
       }`}
       onClick={requestClose}
+      onPointerDown={(event) => event.stopPropagation()}
+      onPointerMove={(event) => event.stopPropagation()}
+      onPointerUp={(event) => event.stopPropagation()}
     >
       <div
         className={`relative w-[min(88vw,28rem)] ${leaving ? "popup-panel-out" : "popup-panel-in"}`}
@@ -47,7 +52,11 @@ export function WoodPanel({
           src={src}
           width={863}
         />
-        <div className="absolute inset-[11%] flex flex-col items-center justify-center overflow-hidden px-[6%] text-center">
+        <div
+          className={`absolute inset-[11%] flex flex-col items-center overflow-hidden px-[6%] text-center ${
+            contentAlign === "start" ? "justify-start" : "justify-center"
+          }`}
+        >
           {children}
         </div>
       </div>

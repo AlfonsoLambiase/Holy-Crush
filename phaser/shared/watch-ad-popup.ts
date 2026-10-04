@@ -8,8 +8,8 @@ import {animatePopupClose, animatePopupOpen} from "./popup-motion";
 
 const assetConf = CandyCrushAssetConf;
 
-const WATCH_BTN_W = 520;
-const WATCH_BTN_H = 96;
+const WATCH_BTN_W = 600;
+const WATCH_BTN_H = 112;
 const TITLE_Y_RATIO = -0.1;
 const BODY_Y_RATIO = 0.06;
 const WATCH_Y_RATIO = 0.19;
@@ -49,23 +49,23 @@ export const showWatchAdPopup = (
   const title = scene.add
     .text(0, plate.height * TITLE_Y_RATIO, options.title, {
       fontFamily: APP_FONT,
-      fontSize: "42px",
+      fontSize: "52px",
       color: "#ffd76a",
       align: "center",
       wordWrap: {width: wrap},
       stroke: "#2a160c",
-      strokeThickness: 6,
+      strokeThickness: 7,
     })
     .setOrigin(0.5);
   const body = scene.add
     .text(0, plate.height * BODY_Y_RATIO, options.body, {
       fontFamily: APP_FONT,
-      fontSize: "32px",
+      fontSize: "40px",
       color: "#fff8dc",
       align: "center",
       wordWrap: {width: wrap},
       stroke: "#2a160c",
-      strokeThickness: 4,
+      strokeThickness: 5,
     })
     .setOrigin(0.5);
   const watchLocalY = plate.height * WATCH_Y_RATIO;
@@ -143,7 +143,7 @@ export const showWatchAdPopup = (
 };
 
 const addWatchVisual = (scene: Phaser.Scene, x: number, y: number) => {
-  const radius = 28;
+  const radius = 32;
   const face = scene.add.graphics();
 
   face.fillStyle(0x3d2614, 1);
@@ -162,11 +162,11 @@ const addWatchVisual = (scene: Phaser.Scene, x: number, y: number) => {
   const text = scene.add
     .text(0, 0, t("watchAd", getCurrentLanguage()), {
       fontFamily: APP_FONT,
-      fontSize: "28px",
+      fontSize: "34px",
       color: "#fff8dc",
       align: "center",
       stroke: "#2a160c",
-      strokeThickness: 4,
+      strokeThickness: 5,
     })
     .setOrigin(0.5);
 

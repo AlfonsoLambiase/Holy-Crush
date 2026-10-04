@@ -179,6 +179,13 @@ const UI_TEXTS: TextEntry[] = [
     fr: "Connexion avec Google",
   },
   {
+    key: "facebookSignIn",
+    it: "Accedi con Facebook",
+    en: "Sign in with Facebook",
+    es: "Accede con Facebook",
+    fr: "Connexion avec Facebook",
+  },
+  {
     key: "language",
     it: "Lingua",
     en: "Language",
