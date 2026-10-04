@@ -8,6 +8,8 @@ import {
   spendBooster,
   type BoosterId,
 } from "@/settings/boosters";
+import {phaserImageScale, resolveHeaderMetrics} from "@/settings/app-header-layout";
+import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
 import {playClick, playMega, playNoTouch, playSuper} from "@/settings/click";
 import {getCellSize, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
@@ -15,11 +17,17 @@ import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const"
 import {addCountBadge, type CountBadge} from "../shared/count-badge";
 import {addMaskedImageFill, tweenRemainingSync, type FillPair} from "../shared/fill-pair";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
+import {GameSettingsMenu} from "./game-settings-menu";
+import type {Game} from "../scenes/game";
 
 const assetConf = CandyCrushAssetConf;
 
 const FILL_MS = 1200;
 const DRAG_PX = 18;
+const ROW_RIGHT_EDGE_MIN = 4;
+const ROW_RIGHT_EDGE_MAX = 12;
+const ROW_RIGHT_EXTRA_PULL_MIN = 28;
+const ROW_RIGHT_EXTRA_PULL_MAX = 56;
 const DEPTH_FRAME = 8;
 const DEPTH_CONTAINER_FILL = 9;
 const DEPTH_ICON_DISABLED = 10;
@@ -59,11 +67,13 @@ export class ItemsBar {
   #press: Press | null = null;
   #ghost: Phaser.GameObjects.Image | null = null;
   #slots: Slot[] = [];
+  #settingsMenu: GameSettingsMenu | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly scaleOf: (min: number, max: number) => number,
     private readonly cellAtWorld: (x: number, y: number) => unknown,
+    private readonly gameScene: Game,
   ) {}
 
   get top(): number {
@@ -75,7 +85,12 @@ export class ItemsBar {
   }
 
   isBlocking(): boolean {
-    return this.#busy || Boolean(this.#popup) || Boolean(this.#press?.dragged);
+    return (
+      this.#busy ||
+      Boolean(this.#popup) ||
+      Boolean(this.#press?.dragged) ||
+      Boolean(this.#settingsMenu?.isBlocking())
+    );
   }
 
   create(): number {
@@ -93,11 +108,59 @@ export class ItemsBar {
     const gap = frameW * 0.14;
     const bottomMargin = this.scaleOf(16, 36);
     const sideInset = this.scaleOf(HEADER_INSET_MIN, HEADER_INSET_MAX);
-    const rightNudge = this.scaleOf(28, 56);
-    const barRight = width - sideInset + rightNudge;
     const y = height - bottomMargin - frameH / 2;
-    const megaX = barRight - frameW / 2;
-    const superX = megaX - frameW - gap;
+
+    const safeTop = Number(this.scene.registry.get("safeTop")) || 0;
+    const cornerBtnH = resolveHeaderMetrics(
+      "inGame",
+      width,
+      height,
+      safeTop,
+      BTN_READ_NATIVE_HEIGHT,
+    ).cornerButtonPhysical;
+
+    const settingsKey = assetConf.image.settingsHome;
+    const hasSettings = this.scene.textures.exists(settingsKey);
+    let settingsW = 0;
+    let buttonDisplayH = cornerBtnH;
+
+    let settingsSrc: {width: number; height: number} | null = null;
+
+    if (hasSettings) {
+      settingsSrc = this.scene.textures.get(settingsKey).getSourceImage() as {
+        width: number;
+        height: number;
+      };
+
+      settingsW =
+        settingsSrc.width * phaserImageScale(settingsSrc.height, buttonDisplayH);
+    }
+
+    const settingsGap = gap;
+    const availableW = width - sideInset * 2;
+    let rowW = frameW * 2 + gap + (hasSettings ? settingsGap + settingsW : 0);
+
+    if (hasSettings && settingsSrc && rowW > availableW) {
+      const maxSettingsW = Math.max(availableW - (frameW * 2 + gap + settingsGap), 0);
+
+      if (settingsW > maxSettingsW && settingsW > 0) {
+        buttonDisplayH = cornerBtnH * (maxSettingsW / settingsW);
+        settingsW = maxSettingsW;
+        rowW = frameW * 2 + gap + settingsGap + settingsW;
+      }
+    }
+
+    const rowRightEdge =
+      width -
+      Math.max(
+        this.scaleOf(ROW_RIGHT_EDGE_MIN, ROW_RIGHT_EDGE_MAX),
+        sideInset - this.scaleOf(ROW_RIGHT_EXTRA_PULL_MIN, ROW_RIGHT_EXTRA_PULL_MAX),
+      );
+    const rowLeft = Math.max(sideInset * 0.55, rowRightEdge - rowW);
+
+    const superX = rowLeft + frameW / 2;
+    const megaX = superX + frameW + gap;
+    const settingsX = hasSettings ? megaX + frameW / 2 + settingsGap + settingsW / 2 : 0;
 
     this.#top = y - frameH / 2;
 
@@ -165,7 +228,7 @@ export class ItemsBar {
         .setInteractive({useHandCursor: true});
 
       zone.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-        if (this.#busy || this.#popup) return;
+        if (this.#busy || this.#popup || this.#settingsMenu?.isOpen()) return;
 
         this.#press = {id: spec.id, x: pointer.x, y: pointer.y, dragged: false};
       });
@@ -184,6 +247,11 @@ export class ItemsBar {
         y,
       });
     });
+
+    if (hasSettings && buttonDisplayH > 0) {
+      this.#settingsMenu = new GameSettingsMenu(this.scene, this.scaleOf, this.gameScene);
+      this.#settingsMenu.create(settingsX, y, buttonDisplayH);
+    }
 
     this.scene.input.on("pointermove", (pointer: Phaser.Input.Pointer) => this.#onMove(pointer));
     this.scene.input.on("pointerup", (pointer: Phaser.Input.Pointer) => this.#onUp(pointer));

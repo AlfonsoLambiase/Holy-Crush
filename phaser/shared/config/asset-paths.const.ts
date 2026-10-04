@@ -12,6 +12,8 @@ const UI_GAME_KEYS = new Set([
   "btnPlayBlock",
   "btnRead",
   "btnReload",
+  "btnSound",
+  "btnNoSound",
   "btnTime",
   "popupExitGame",
   "containerScore",
@@ -38,6 +40,8 @@ const STAGE_UI_KEYS = new Set([
   "animBrokenHeart",
 ]);
 
+const HOME_UI_KEYS = new Set(["settingsHome"]);
+
 const STAGE_COMMON_KEYS = new Set([
   "bomb",
   "rocket",
@@ -54,10 +58,12 @@ const STAGE_COMMON_KEYS = new Set([
 const FILE_NAME: Record<string, string> = {
   endWin: "endWin_0",
   endFailed: "endFailed_0",
+  settingsHome: "settings",
 };
 
 const folderFor = (key: string): string => {
   if (key === "starsEffect" || key === "sparklingStars") return "/effects";
+  if (HOME_UI_KEYS.has(key)) return "/ui_home";
   if (UI_GAME_KEYS.has(key)) return "/ui_game";
   if (STAGE_COMMON_KEYS.has(key)) return "/mode_0/stage_common";
   if (key.startsWith("endWin") || key === "endFailed") return "/mode_0/stage_end";

@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 
 import {getCurrentLanguage, t} from "@/language";
-import {playClick, playNoTouch, playRecharge} from "@/settings/click";
+import {playBook, playClick, playNoTouch, playRecharge, playUnlocked} from "@/settings/click";
 import {getHeartRemaining, isHeartEmpty, refillHeart, spendHeart} from "@/settings/heart";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 import {darkenHex, getStageLevelNumber, getStageMap, hexToInt, stagePoint, type StageMapConfig} from "@/settings/stage-map";
@@ -37,6 +37,17 @@ const SCROLL_INERTIA_MUL = 0.62;
 const SCROLL_INERTIA_MAX = 42;
 const SCROLL_FRICTION = 0.9;
 const SCROLL_VEL_STOP = 0.2;
+const UNLOCK_SWAY_MS = 1300;
+const UNLOCK_SWAY_X = 4;
+const UNLOCK_FALL_Y = 140;
+const UNLOCK_FALL_MS = 520;
+
+type LevelLayer = {
+  plate: Phaser.GameObjects.Container;
+  worldY: number;
+  levelContent: Phaser.GameObjects.Container;
+  shouldPulse: boolean;
+};
 
 export class StageMapScene extends Phaser.Scene {
   #heart: StageHeart | null = null;
@@ -54,7 +65,8 @@ export class StageMapScene extends Phaser.Scene {
   #pathStyle: {thick: number; fill: number; edge: number} | null = null;
   #fadeTop = 0;
   #fadeBottom = 0;
-  #levelLayers: {plate: Phaser.GameObjects.Container; worldY: number}[] = [];
+  #levelLayers: LevelLayer[] = [];
+  #unlockRevealActive = false;
   #onScrollDown: ((pointer: Phaser.Input.Pointer) => void) | null = null;
   #onScrollMove: ((pointer: Phaser.Input.Pointer) => void) | null = null;
   #onScrollUp: (() => void) | null = null;
@@ -126,8 +138,16 @@ export class StageMapScene extends Phaser.Scene {
     this.#addMascot(width, height, worldH, map);
     this.#drawPath(width, worldH, map, pathBottom);
 
+    const unlockReveal = this.registry.get("stageMapUnlockReveal") === true;
+    const revealLevelIndex = unlockReveal ? unlocked - 1 : -1;
+
+    if (unlockReveal) {
+      this.registry.remove("stageMapUnlockReveal");
+    }
+
     stops.forEach((stop, index) => {
       const isOpen = index < unlocked;
+      const isCurrent = isOpen && index === unlocked - 1;
 
       this.#addLevelButton(
         width * stop.x,
@@ -136,13 +156,18 @@ export class StageMapScene extends Phaser.Scene {
         index + 1,
         getStageLevelNumber(stage, index),
         isOpen,
-        isOpen && index === unlocked - 1,
+        isCurrent && !unlockReveal,
         map,
+        index === revealLevelIndex,
       );
     });
 
     this.#addHeader();
     this.#bindScroll(width, height, worldH, map, pathBottom, unlocked);
+
+    if (unlockReveal && revealLevelIndex >= 0) {
+      this.#runUnlockReveal(revealLevelIndex);
+    }
 
     if (this.#emitShellReady) {
       EventBus.emit(PhaserEvents.OPENING_READY);
@@ -318,6 +343,7 @@ export class StageMapScene extends Phaser.Scene {
     isOpen: boolean,
     pulse: boolean,
     map: StageMapConfig,
+    revealPending = false,
   ) {
     const {width, height} = this.scale;
     const button = this.add.image(0, 0, assetConf.image.btnPlay);
@@ -342,15 +368,8 @@ export class StageMapScene extends Phaser.Scene {
 
     const levelContent = this.add.container(0, 0, [button, label]);
 
-    if (pulse && isOpen) {
-      this.tweens.add({
-        targets: levelContent,
-        scale: LEVEL_PULSE_SCALE_MUL,
-        duration: LEVEL_PULSE_MS,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
+    if (!revealPending && pulse && isOpen) {
+      this.#startLevelPulse(levelContent);
     }
 
     const stack: Phaser.GameObjects.GameObject[] = [levelContent];
@@ -359,7 +378,12 @@ export class StageMapScene extends Phaser.Scene {
 
     const plate = this.add.container(x, y, stack).setDepth(3);
 
-    this.#levelLayers.push({plate, worldY: y});
+    this.#levelLayers.push({
+      plate,
+      worldY: y,
+      levelContent,
+      shouldPulse: isOpen && (pulse || revealPending),
+    });
 
     const zone = this.add
       .zone(x, y, button.displayWidth, button.displayHeight)
@@ -370,7 +394,7 @@ export class StageMapScene extends Phaser.Scene {
     const press = (factor: number) => plate.setScale(factor);
 
     zone.on("pointerdown", () => {
-      if (this.#leaving) return;
+      if (this.#leaving || this.#unlockRevealActive) return;
 
       if (isOpen) playClick();
       else playNoTouch();
@@ -420,6 +444,7 @@ export class StageMapScene extends Phaser.Scene {
       assetConf.image.btnRead,
       corners.buttonScale,
       () => {
+        playBook();
         this.scene.start(assetConf.scene.opening);
       },
     );
@@ -445,6 +470,64 @@ export class StageMapScene extends Phaser.Scene {
 
     this.#heart = addStageHeart(this, this.scale.width / 2, this.#headerHeartY, this.#headerHeartSize);
     this.#heart?.setRemaining(getHeartRemaining());
+  }
+
+  #startLevelPulse(levelContent: Phaser.GameObjects.Container) {
+    levelContent.setVisible(true);
+    levelContent.setScale(1);
+    this.tweens.add({
+      targets: levelContent,
+      scale: LEVEL_PULSE_SCALE_MUL,
+      duration: LEVEL_PULSE_MS,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+  }
+
+  #runUnlockReveal(levelIndex: number) {
+    const layer = this.#levelLayers[levelIndex];
+
+    if (!layer?.shouldPulse || !this.textures.exists(assetConf.image.btnPlayBlock)) {
+      if (layer?.shouldPulse) this.#startLevelPulse(layer.levelContent);
+
+      return;
+    }
+
+    this.#unlockRevealActive = true;
+
+    const button = layer.levelContent.list[0] as Phaser.GameObjects.Image;
+    const swayIcon = this.add.image(0, 0, assetConf.image.btnPlayBlock);
+
+    swayIcon.setScale(button.displayWidth / swayIcon.width);
+    layer.plate.add(swayIcon);
+    layer.plate.bringToTop(swayIcon);
+
+    const stopUnlocked = playUnlocked();
+
+    this.tweens.add({
+      targets: swayIcon,
+      x: {from: -UNLOCK_SWAY_X, to: UNLOCK_SWAY_X},
+      duration: UNLOCK_SWAY_MS / 4,
+      yoyo: true,
+      repeat: 3,
+      ease: "Sine.easeInOut",
+      onComplete: () => {
+        stopUnlocked();
+        this.tweens.add({
+          targets: swayIcon,
+          y: UNLOCK_FALL_Y,
+          alpha: 0,
+          duration: UNLOCK_FALL_MS,
+          ease: "Quad.easeIn",
+          onComplete: () => {
+            swayIcon.destroy();
+            this.#unlockRevealActive = false;
+            this.#startLevelPulse(layer.levelContent);
+          },
+        });
+      },
+    });
   }
 
   #addMascot(width: number, screenH: number, worldH: number, map: StageMapConfig) {

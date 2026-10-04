@@ -3,6 +3,8 @@
 import Image from "next/image";
 import {useCallback, useEffect, useMemo, useRef} from "react";
 
+import {playCloudOff, playCloudOn} from "@/settings/click";
+
 export const CLOUD_CURTAIN_GROUP_SRC = "/ui_home/clouds_group.png";
 export const CLOUD_CURTAIN_GROUP_WIDTH = 1774;
 export const CLOUD_CURTAIN_GROUP_HEIGHT = 1920;
@@ -135,8 +137,25 @@ export function CloudCurtainTransition({
 }: CloudCurtainTransitionProps) {
   const wingsClosed = phase === "closing" || phase === "open";
   const phaseRef = useRef(phase);
+  const prevPhaseRef = useRef<CloudCurtainPhase>("idle");
 
   phaseRef.current = phase;
+
+  useEffect(() => {
+    if (hidden) return;
+
+    const prev = prevPhaseRef.current;
+
+    prevPhaseRef.current = phase;
+
+    if (phase === "closing" && prev !== "closing") {
+      playCloudOn();
+    }
+
+    if (phase === "opening" && prev !== "opening") {
+      playCloudOff();
+    }
+  }, [phase, hidden]);
 
   const stackHeight = useMemo(
     () => CLOUD_CURTAIN_GROUP_HEIGHT + (CLOUD_CURTAIN_STACK_COUNT - 1) * STACK_OVERLAP_PX,

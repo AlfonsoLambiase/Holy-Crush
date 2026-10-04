@@ -23,7 +23,6 @@ export class Game extends Phaser.Scene {
   timerManager!: TimerManager;
   uiManager!: UIManager;
 
-  exitButton!: Phaser.GameObjects.Image;
   theme!: Phaser.Sound.BaseSound;
 
   valueScale!: number;
@@ -63,8 +62,6 @@ export class Game extends Phaser.Scene {
     const exitManager = this.scene.get(assetConf.scene.exitManager) as ExitManager;
 
     exitManager.setGameScene(this);
-    this.exitButton = exitManager.createExitButton(this, this.theme);
-    exitManager.createReloadButton(this);
     this.scene.bringToTop(assetConf.scene.exitManager);
 
     // this.scene.launch(assetConf.scene.timerManager); //* è una estensione della classe Phaser.Scene. Si inizializza in questo modo.

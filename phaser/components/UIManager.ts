@@ -4,13 +4,8 @@ import * as Phaser from "phaser";
 import {Game} from "../scenes/game";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
-import {
-  phaserImageScale,
-  resolveHeaderMetrics,
-} from "@/settings/app-header-layout";
+import {resolveHeaderMetrics} from "@/settings/app-header-layout";
 import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
-
-import {addStageHeart} from "../shared/stage-heart";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
@@ -33,7 +28,7 @@ export class UIManager {
   ofssetX: number = 0;
   scoreContainer!: Phaser.GameObjects.Container;
   headerCenterY = 0;
-  private logoBottom = 0;
+  private headerBottom = 0;
 
   helpUsed: number = 0;
   differenceTryLimit: number = 1; // limite massimo tasto aiuto
@@ -50,7 +45,6 @@ export class UIManager {
 
   createUI(): void {
     this.#createBackgroundGame();
-    this.#createLogo();
     this.#createContainerScore();
     // this.#createIconHelp();
     // Vite disattivate: in questo gioco non si perdono vite
@@ -86,41 +80,21 @@ export class UIManager {
     );
   }
 
-  #createLogo() {
-    const metrics = this.#headerMetrics();
-
-    this.headerCenterY = metrics.headerCenterY;
-    this.logoBottom =
-      metrics.headerCenterY + metrics.logoHeartPhysical / 2 + metrics.marginTop;
-
-    addStageHeart(
-      this.scene,
-      this.scene.scale.width / 2,
-      metrics.headerCenterY,
-      metrics.logoHeartPhysical,
-      -2,
-    );
-  }
-
   #createContainerScore() {
     const metrics = this.#headerMetrics();
-    const exitImage = this.scene.textures.get(assetConf.image.btnExitGame).getSourceImage() as {
-      width: number;
-      height: number;
-    };
-    const exitScale = phaserImageScale(exitImage.height, metrics.cornerButtonPhysical);
-    const exitSize = metrics.cornerButtonPhysical;
-    const inset = metrics.insetX;
+    const scoreSlotH = metrics.logoHeartPhysical;
+
+    this.headerCenterY = metrics.headerCenterY;
+    this.headerBottom = metrics.headerCenterY + scoreSlotH / 2 + metrics.marginTop * 0.35;
 
     this.scoreContainer = this.scene.add.container(0, 0);
     this.scoreContainer.setScrollFactor(0).setDepth(10);
 
     const scoreBg = this.scene.add.image(0, 0, assetConf.image.containerScore).setOrigin(0.5);
 
-    //* Stessa altezza di btnExit: il papiro non deve essere più grande
-    scoreBg.setScale(exitSize / scoreBg.height);
+    scoreBg.setScale(scoreSlotH / scoreBg.height);
 
-    this.scoreFontSize = Math.round(exitSize * SCORE_FONT_RATIO);
+    this.scoreFontSize = Math.round(scoreSlotH * SCORE_FONT_RATIO);
 
     this.scoreText = this.scene.add
       .text(0, 0, `${this.score}`, {
@@ -134,17 +108,12 @@ export class UIManager {
       .setScale(SCORE_TEXT_SCALE);
 
     this.scoreContainer.add([scoreBg, this.scoreText]);
-
-    //* Stesso vuoto dal bordo del bottone esci, sul lato opposto
-    const exitHalf = (exitImage.width * exitScale) / 2;
-    const scoreHalf = scoreBg.displayWidth / 2;
-
-    this.scoreContainer.setPosition(inset - exitHalf + scoreHalf, this.headerCenterY);
+    this.scoreContainer.setPosition(this.scene.scale.width / 2, this.headerCenterY);
   }
 
   //* La griglia parte sotto l'elemento più basso della testata
   getHeaderBottom(): number {
-    return Math.max(this.logoBottom, this.scoreContainer.getBounds().bottom);
+    return Math.max(this.headerBottom, this.scoreContainer.getBounds().bottom);
   }
 
   #createIconHelp() {

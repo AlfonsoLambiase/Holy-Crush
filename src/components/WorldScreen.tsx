@@ -3,8 +3,12 @@
 import Image from "next/image";
 import {useCallback, useEffect, useRef, useState} from "react";
 
+import {ShopMarket} from "@/components/ShopMarket";
 import {StageHudBar} from "@/components/StageHudBar";
-import {playClick} from "@/settings/click";
+import {WoodPanel} from "@/components/WoodPanel";
+import {useLanguage} from "@/language/LanguageProvider";
+import {playClick, playNoTouch} from "@/settings/click";
+import {computeStageHudMetrics, type StageHudMetrics} from "@/settings/stage-hud-layout";
 import {isWorldUnlocked} from "@/settings/progress";
 import {WORLD_COUNT, worldBackgroundPath, worldImagePath} from "@/settings/world-map";
 
@@ -76,11 +80,21 @@ const LOCKED_FILTER = "brightness(0.38) saturate(0.55)";
 const SWIPE_DISTANCE_PX = 52;
 const SWIPE_VELOCITY = 0.28;
 const SNAP_MS = 340;
+const SHOP_PRESS_MS = 220;
+const defaultHudMetrics = (): StageHudMetrics => ({
+  headerCenterY: 58,
+  heartSize: 62,
+  buttonSize: 44,
+  insetX: 52,
+});
 
 export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
+  const {t} = useLanguage();
   const [scrollY, setScrollY] = useState(0);
   const [viewportH, setViewportH] = useState(800);
-  const [viewportW, setViewportW] = useState(1280);
+  const [shopOpen, setShopOpen] = useState(false);
+  const [shopPressed, setShopPressed] = useState(false);
+  const [hudMetrics, setHudMetrics] = useState<StageHudMetrics>(defaultHudMetrics);
   const scrollRef = useRef(0);
   const lastTouchY = useRef<number | null>(null);
   const gestureStartY = useRef(0);
@@ -90,7 +104,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   useEffect(() => {
     const sync = () => {
       setViewportH(window.innerHeight);
-      setViewportW(window.innerWidth);
+      setHudMetrics(computeStageHudMetrics(window.innerWidth, window.innerHeight));
     };
     sync();
     window.addEventListener("resize", sync);
@@ -202,10 +216,10 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const segment = viewportH || 1;
   const phase = Math.min(Math.max(scrollY / segment, 0), WORLD_COUNT - 1);
   const nearIndex = Math.floor(phase);
-  const t = phase - nearIndex;
+  const nearBlend = phase - nearIndex;
 
   const canEnterNear =
-    t < CLICKABLE_SCROLL_MAX && isWorldUnlocked(nearIndex);
+    nearBlend < CLICKABLE_SCROLL_MAX && isWorldUnlocked(nearIndex);
 
   const bgFrom = Math.floor(phase);
   const bgTo = Math.min(bgFrom + 1, WORLD_COUNT - 1);
@@ -217,7 +231,13 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const visibleWorldTo = Math.min(WORLD_COUNT - 1, nearIndex + 2);
 
   const handleNearWorldClick = () => {
+    if (!isWorldUnlocked(nearIndex)) {
+      playNoTouch();
+      return;
+    }
+
     if (!canEnterNear) return;
+
     playClick();
     onEnter(nearIndex);
   };
@@ -335,11 +355,54 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
         return worldLayer(worldIndex, {
           ...layerStyle,
           width: layerStyle.zIndex >= 2 ? NEAR_WIDTH : undefined,
-          clickable: isNear && canEnterNear,
+          clickable: isNear,
         });
       })}
 
       <StageHudBar onExit={onBack} />
+
+      <button
+        aria-label={t("shop")}
+        className="pointer-events-auto absolute z-40 block shrink-0 border-0 bg-transparent p-0 transition-transform duration-100"
+        style={{
+          left: hudMetrics.insetX,
+          top: hudMetrics.headerCenterY,
+          width: hudMetrics.buttonSize,
+          height: hudMetrics.buttonSize,
+          transform: `translateY(-50%) ${shopPressed ? "scale(0.92)" : "scale(1)"}`,
+        }}
+        type="button"
+        onClick={() => {
+          if (shopOpen) return;
+
+          playClick();
+          setShopPressed(true);
+          window.setTimeout(() => {
+            setShopPressed(false);
+            setShopOpen(true);
+          }, SHOP_PRESS_MS);
+        }}
+      >
+        <Image
+          alt=""
+          className="object-contain drop-shadow-lg"
+          draggable={false}
+          fill
+          sizes="4rem"
+          src="/ui_home/shop.png"
+        />
+      </button>
+
+      {shopOpen ? (
+        <WoodPanel
+          alt={t("shop")}
+          className="fixed inset-0 z-50"
+          src="/ui_home/gameContainer.png"
+          onClose={() => setShopOpen(false)}
+        >
+          <ShopMarket />
+        </WoodPanel>
+      ) : null}
     </div>
   );
 }

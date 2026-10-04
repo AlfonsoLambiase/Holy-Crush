@@ -121,6 +121,7 @@ export class GameManager extends Phaser.Scene {
       this,
       (min, max) => this.gameScene.setDynamicValueBasedOnScale(min, max),
       (x, y) => this.cellAtWorld(x, y),
+      this.gameScene,
     );
     this.#itemsBar.create();
     this.layoutGrid();

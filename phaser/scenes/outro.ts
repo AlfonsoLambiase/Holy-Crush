@@ -19,18 +19,19 @@ const RAINBOW_Y = 0.3; // centro pagina, sopra Gesù
 
 export class Outro extends Phaser.Scene {
   imageKey: string = "endFailed"; // di default è endFailed
+  #won = false;
 
   constructor() {
     super({key: assetConf.scene.outro});
   }
 
   init({resultStatus}: {resultStatus: "Failed" | "Win"}) {
-    const won = resultStatus === "Win";
+    this.#won = resultStatus === "Win";
 
-    this.imageKey = won ? "endWin" : "endFailed";
+    this.imageKey = this.#won ? "endWin" : "endFailed";
 
     const played = Number(this.registry.get("level"));
-    const stageCleared = won && registerWin(played);
+    const stageCleared = this.#won && registerWin(played);
 
     this.time.delayedCall(3000, () => this.#leave(stageCleared));
   }
@@ -41,6 +42,10 @@ export class Outro extends Phaser.Scene {
 
       if (Number.isFinite(played) && played >= 1) {
         this.registry.set("stageMapFocusLevel", played);
+      }
+
+      if (this.#won) {
+        this.registry.set("stageMapUnlockReveal", true);
       }
 
       this.scene.start(assetConf.scene.stageMap);

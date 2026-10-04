@@ -9,28 +9,58 @@ const CLOUD_ASSETS = [
   {src: "/ui_home/cloud_2.png", width: 680, height: 420, maxVw: 0.4, maxRem: 11},
 ] as const;
 
-const CLOUD_COUNT = 5;
-const SIZE_MIN_SCALE = 0.48;
-const SIZE_MAX_SCALE = 1;
-const SPEED_MIN = 6;
-const SPEED_MAX = 18;
-const SWAY_PX = 7;
-const OFFSCREEN_PAD = 48;
+const CLOUD_COUNT = 4;
 const CLOUD_BAND_SCREEN_FRACTION = 0.42;
-const BOUNCE_RESTITUTION = 0.88;
 
-const cloudBandHeight = (viewportH: number) => viewportH * CLOUD_BAND_SCREEN_FRACTION;
+/** Coordinate normalizzate [0–1]. Primo punto = spawn iniziale (sinistra o destra, fuori dal logo). */
+const CLOUD_PATHS: readonly (readonly [number, number])[] = [
+  [
+    [0.06, 0.34],
+    [0.1, 0.52],
+    [0.2, 0.6],
+    [0.16, 0.4],
+    [0.08, 0.22],
+    [0.04, 0.46],
+  ],
+  [
+    [0.94, 0.38],
+    [0.9, 0.56],
+    [0.8, 0.62],
+    [0.84, 0.36],
+    [0.92, 0.2],
+    [0.96, 0.48],
+  ],
+  [
+    [0.08, 0.58],
+    [0.14, 0.44],
+    [0.22, 0.28],
+    [0.12, 0.18],
+    [0.05, 0.32],
+  ],
+  [
+    [0.92, 0.24],
+    [0.86, 0.42],
+    [0.78, 0.58],
+    [0.88, 0.64],
+    [0.95, 0.46],
+  ],
+] as const;
 
-type DriftCloud = {
+const CLOUD_DEFS = [
+  {pathIndex: 0, assetIndex: 0, loopSec: 72, phase: 0, sizeScale: 0.92, mirrored: false},
+  {pathIndex: 1, assetIndex: 1, loopSec: 88, phase: 0, sizeScale: 0.78, mirrored: true},
+  {pathIndex: 2, assetIndex: 2, loopSec: 96, phase: 0.06, sizeScale: 0.86, mirrored: false},
+  {pathIndex: 3, assetIndex: 0, loopSec: 80, phase: 0.04, sizeScale: 0.68, mirrored: true},
+] as const;
+
+type PathCloud = {
   uid: number;
+  pathIndex: number;
   assetIndex: number;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
+  loopSec: number;
+  phase: number;
   sizePx: number;
   mirrored: boolean;
-  swayPhase: number;
 };
 
 type HomeDriftingCloudsProps = {
@@ -38,183 +68,189 @@ type HomeDriftingCloudsProps = {
   paused: boolean;
 };
 
+const cloudBandHeight = (viewportH: number) => viewportH * CLOUD_BAND_SCREEN_FRACTION;
+
 const readRootFontPx = () =>
   parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 
-const cloudSizePx = (viewportW: number, assetIndex: number): number => {
+const cloudSizePx = (viewportW: number, assetIndex: number, scale: number): number => {
   const asset = CLOUD_ASSETS[assetIndex];
-  const scale = SIZE_MIN_SCALE + Math.random() * (SIZE_MAX_SCALE - SIZE_MIN_SCALE);
   const root = readRootFontPx();
 
   return Math.min(viewportW * asset.maxVw * scale, asset.maxRem * root * scale);
 };
 
-const randomVelocity = (): {vx: number; vy: number} => {
-  const speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
-  const angle = Math.random() * Math.PI * 2;
+const catmullRom = (p0: number, p1: number, p2: number, p3: number, t: number): number => {
+  const t2 = t * t;
+  const t3 = t2 * t;
+
+  return (
+    0.5 *
+    (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+  );
+};
+
+const sampleClosedPath = (pathIndex: number, u: number): {nx: number; ny: number} => {
+  const points = CLOUD_PATHS[pathIndex % CLOUD_PATHS.length];
+  const n = points.length;
+  const wrapped = ((u % 1) + 1) % 1;
+  const f = wrapped * n;
+  const i = Math.floor(f) % n;
+  const t = f - Math.floor(f);
+
+  const at = (index: number) => points[(index + n) % n];
+
+  const p0 = at(i - 1);
+  const p1 = at(i);
+  const p2 = at(i + 1);
+  const p3 = at(i + 2);
 
   return {
-    vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed,
+    nx: catmullRom(p0[0], p1[0], p2[0], p3[0], t),
+    ny: catmullRom(p0[1], p1[1], p2[1], p3[1], t),
   };
 };
 
-const spawnCloud = (
+const buildClouds = (viewportW: number): PathCloud[] =>
+  CLOUD_DEFS.map((def, index) => ({
+    uid: index + 1,
+    pathIndex: def.pathIndex,
+    assetIndex: def.assetIndex,
+    loopSec: def.loopSec,
+    phase: def.phase,
+    sizePx: cloudSizePx(viewportW, def.assetIndex, def.sizeScale),
+    mirrored: def.mirrored,
+  }));
+
+const pathPosition = (
+  cloud: PathCloud,
   viewportW: number,
   viewportH: number,
-  uid: number,
-  mode: "inside" | "edge",
-): DriftCloud => {
-  const assetIndex = Math.floor(Math.random() * CLOUD_ASSETS.length);
-  const sizePx = cloudSizePx(viewportW, assetIndex);
-  const half = sizePx * 0.5;
+  elapsedSec: number,
+): {x: number; y: number} => {
   const bandH = cloudBandHeight(viewportH);
-  const ySpan = Math.max(1, bandH - sizePx);
-  const vel = randomVelocity();
-  let x = 0;
-  let y = 0;
-
-  if (mode === "inside") {
-    x = half + Math.random() * Math.max(1, viewportW - sizePx);
-    y = half + Math.random() * ySpan;
-  } else {
-    const edge = Math.floor(Math.random() * 3);
-
-    switch (edge) {
-      case 0:
-        x = -half - OFFSCREEN_PAD;
-        y = half + Math.random() * ySpan;
-        break;
-      case 1:
-        x = viewportW + half + OFFSCREEN_PAD;
-        y = half + Math.random() * ySpan;
-        break;
-      default:
-        x = half + Math.random() * Math.max(1, viewportW - sizePx);
-        y = -half - OFFSCREEN_PAD;
-        break;
-    }
-
-    const toCenterX = viewportW * 0.5 - x;
-    const toCenterY = bandH * 0.5 - y;
-    const len = Math.hypot(toCenterX, toCenterY) || 1;
-    const speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
-
-    vel.vx = (toCenterX / len) * speed * 0.75 + (Math.random() - 0.5) * 6;
-    vel.vy = (toCenterY / len) * speed * 0.75 + (Math.random() - 0.5) * 6;
-  }
+  const u = cloud.phase + elapsedSec / cloud.loopSec;
+  const {nx, ny} = sampleClosedPath(cloud.pathIndex, u);
 
   return {
-    uid,
-    assetIndex,
-    x,
-    y,
-    vx: vel.vx,
-    vy: vel.vy,
-    sizePx,
-    mirrored: Math.random() > 0.5,
-    swayPhase: Math.random() * Math.PI * 2,
+    x: nx * viewportW,
+    y: ny * bandH,
   };
 };
 
-const isOutsideHorizontally = (cloud: DriftCloud, w: number): boolean => {
-  const half = cloud.sizePx * 0.5;
+const applyCloudTransform = (
+  el: HTMLDivElement,
+  x: number,
+  y: number,
+  cloud: PathCloud,
+) => {
+  const mirror = cloud.mirrored ? " scaleX(-1)" : "";
 
-  return cloud.x < -half - OFFSCREEN_PAD || cloud.x > w + half + OFFSCREEN_PAD;
+  el.style.width = `${cloud.sizePx}px`;
+  el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)${mirror}`;
 };
-
-const bounceVertical = (cloud: DriftCloud, viewportH: number): DriftCloud => {
-  const half = cloud.sizePx * 0.5;
-  const bandH = cloudBandHeight(viewportH);
-  const yMin = half;
-  const yMax = Math.max(yMin, bandH - half);
-  let {y, vy} = cloud;
-
-  if (y < yMin) {
-    y = yMin;
-    vy = Math.abs(vy) * BOUNCE_RESTITUTION;
-  } else if (y > yMax) {
-    y = yMax;
-    vy = -Math.abs(vy) * BOUNCE_RESTITUTION;
-  }
-
-  return {...cloud, y, vy};
-};
-
-const initialClouds = (w: number, h: number): DriftCloud[] =>
-  Array.from({length: CLOUD_COUNT}, (_, index) => spawnCloud(w, h, index + 1, "inside"));
 
 export function HomeDriftingClouds({visible, paused}: HomeDriftingCloudsProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const uidRef = useRef(CLOUD_COUNT + 1);
   const pausedRef = useRef(paused);
-  const [clouds, setClouds] = useState<DriftCloud[]>([]);
+  const cloudsRef = useRef<PathCloud[]>([]);
+  const nodeRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const startMsRef = useRef(0);
+  const pauseOffsetMsRef = useRef(0);
+  const pauseStartedMsRef = useRef<number | null>(null);
+  const [clouds, setClouds] = useState<PathCloud[]>([]);
 
   pausedRef.current = paused;
+
+  useEffect(() => {
+    if (paused) {
+      if (pauseStartedMsRef.current === null) {
+        pauseStartedMsRef.current = performance.now();
+      }
+
+      return;
+    }
+
+    if (pauseStartedMsRef.current !== null) {
+      pauseOffsetMsRef.current += performance.now() - pauseStartedMsRef.current;
+      pauseStartedMsRef.current = null;
+    }
+  }, [paused]);
 
   useLayoutEffect(() => {
     const root = rootRef.current?.parentElement;
 
     if (!root || root.clientWidth <= 0) return;
 
-    setClouds(initialClouds(root.clientWidth, root.clientHeight));
+    const w = root.clientWidth;
+    const h = root.clientHeight;
+
+    cloudsRef.current = buildClouds(w);
+    startMsRef.current = performance.now();
+    setClouds(cloudsRef.current);
+
+    requestAnimationFrame(() => {
+      for (const cloud of cloudsRef.current) {
+        const el = nodeRefs.current.get(cloud.uid);
+
+        if (!el) continue;
+
+        const {x, y} = pathPosition(cloud, w, h, 0);
+
+        applyCloudTransform(el, x, y, cloud);
+      }
+    });
   }, []);
 
   useEffect(() => {
     const root = rootRef.current?.parentElement;
 
     if (!root) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setClouds(initialClouds(root.clientWidth, root.clientHeight));
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reducedMotion) {
+      cloudsRef.current = buildClouds(root.clientWidth);
+      setClouds(cloudsRef.current);
+
+      const w = root.clientWidth;
+      const h = root.clientHeight;
+
+      for (const cloud of cloudsRef.current) {
+        const el = nodeRefs.current.get(cloud.uid);
+
+        if (!el) continue;
+
+        const {x, y} = pathPosition(cloud, w, h, 0);
+
+        applyCloudTransform(el, x, y, cloud);
+      }
 
       return;
     }
 
     let frame = 0;
-    let last = performance.now();
-
-    const ensureClouds = () => {
-      const w = root.clientWidth;
-      const h = root.clientHeight;
-
-      setClouds((prev) => (prev.length ? prev : initialClouds(w, h)));
-    };
-
-    ensureClouds();
 
     const tick = (now: number) => {
       const w = root.clientWidth;
       const h = root.clientHeight;
 
-      if (!pausedRef.current && w > 0 && h > 0) {
-        const dt = Math.min(0.05, (now - last) / 1000);
+      if (w > 0 && h > 0 && cloudsRef.current.length) {
+        const pauseLive =
+          pauseStartedMsRef.current !== null ? now - pauseStartedMsRef.current : 0;
+        const elapsedSec = (now - startMsRef.current - pauseOffsetMsRef.current - pauseLive) / 1000;
 
-        last = now;
+        if (!pausedRef.current) {
+          for (const cloud of cloudsRef.current) {
+            const el = nodeRefs.current.get(cloud.uid);
 
-        setClouds((prev) => {
-          if (!prev.length) return initialClouds(w, h);
+            if (!el) continue;
 
-          return prev.map((cloud) => {
-            if (isOutsideHorizontally(cloud, w)) {
-              const nextUid = uidRef.current++;
+            const {x, y} = pathPosition(cloud, w, h, elapsedSec);
 
-              return spawnCloud(w, h, nextUid, "edge");
-            }
-
-            const sway = Math.sin(now / 2200 + cloud.swayPhase) * SWAY_PX;
-
-            return bounceVertical(
-              {
-                ...cloud,
-                x: cloud.x + cloud.vx * dt + sway * dt,
-                y: cloud.y + cloud.vy * dt,
-              },
-              h,
-            );
-          });
-        });
-      } else {
-        last = now;
+            applyCloudTransform(el, x, y, cloud);
+          }
+        }
       }
 
       frame = requestAnimationFrame(tick);
@@ -224,15 +260,9 @@ export function HomeDriftingClouds({visible, paused}: HomeDriftingCloudsProps) {
 
     const onResize = () => {
       const w = root.clientWidth;
-      const h = root.clientHeight;
 
-      setClouds((prev) =>
-        prev.map((cloud) =>
-          isOutsideHorizontally(cloud, w)
-            ? spawnCloud(w, h, uidRef.current++, "inside")
-            : bounceVertical(cloud, h),
-        ),
-      );
+      cloudsRef.current = buildClouds(w);
+      setClouds([...cloudsRef.current]);
     };
 
     window.addEventListener("resize", onResize);
@@ -242,6 +272,29 @@ export function HomeDriftingClouds({visible, paused}: HomeDriftingCloudsProps) {
       window.removeEventListener("resize", onResize);
     };
   }, []);
+
+  useEffect(() => {
+    const root = rootRef.current?.parentElement;
+
+    if (!root) return;
+
+    const w = root.clientWidth;
+    const h = root.clientHeight;
+    const pauseLive =
+      pauseStartedMsRef.current !== null ? performance.now() - pauseStartedMsRef.current : 0;
+    const elapsedSec =
+      (performance.now() - startMsRef.current - pauseOffsetMsRef.current - pauseLive) / 1000;
+
+    for (const cloud of cloudsRef.current) {
+      const el = nodeRefs.current.get(cloud.uid);
+
+      if (!el) continue;
+
+      const {x, y} = pathPosition(cloud, w, h, elapsedSec);
+
+      applyCloudTransform(el, x, y, cloud);
+    }
+  }, [clouds]);
 
   return (
     <div
@@ -258,13 +311,12 @@ export function HomeDriftingClouds({visible, paused}: HomeDriftingCloudsProps) {
         return (
           <div
             key={cloud.uid}
-            className="absolute will-change-transform"
-            style={{
-              width: cloud.sizePx,
-              left: cloud.x,
-              top: cloud.y,
-              transform: `translate(-50%, -50%) ${cloud.mirrored ? "scaleX(-1)" : ""}`,
+            ref={(el) => {
+              if (el) nodeRefs.current.set(cloud.uid, el);
+              else nodeRefs.current.delete(cloud.uid);
             }}
+            className="absolute left-0 top-0 will-change-transform"
+            style={{width: cloud.sizePx}}
           >
             <Image
               alt=""

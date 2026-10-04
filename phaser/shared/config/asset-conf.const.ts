@@ -51,6 +51,9 @@ export const CandyCrushAssetConf = {
     mega_disabled: "mega_disabled",
     containerItems: "containerItems",
     containerItems_bg: "containerItems_bg",
+    settingsHome: "settingsHome",
+    btnSound: "btnSound",
+    btnNoSound: "btnNoSound",
 
     // for exitManager
     btnExitGame: "btnExitGame",

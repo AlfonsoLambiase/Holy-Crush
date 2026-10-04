@@ -12,8 +12,6 @@ import {
 import {LANGUAGE_LABELS, LANGUAGES} from "@/language";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick, playNoTouch} from "@/settings/click";
-import {addBooster, getBoosterCount, isBoosterFull, type BoosterId} from "@/settings/boosters";
-import {refillHeart} from "@/settings/heart";
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
 import {getStageIndex, prepareEnterWorld} from "@/settings/progress";
@@ -21,6 +19,8 @@ import {getMusicTrack, playStageTrack, playTrack, stopTrack} from "@/settings/so
 
 import {HomeDriftingClouds} from "./HomeDriftingClouds";
 import {HomeLightFall} from "./HomeLightFall";
+import {SharePanel} from "./SharePanel";
+import {WoodPanel} from "./WoodPanel";
 import type {BootStartScene} from "@game/scenes/boot";
 
 import {PhaserGame} from "./PhaserGame";
@@ -31,14 +31,39 @@ const INTRO_MOVE_MS = 1100; // durata della risalita
 const PRESS_MS = 220; // attesa dell'effetto premuto prima di avviare il gioco
 
 const MENU_BUTTONS = [
-  {key: "shop", src: "/ui_home/shop.png", duration: "5.2s", delay: "-0.8s", x: "-2px", y: "-3px"},
-  {key: "access", src: "/ui_home/user.png", duration: "4.6s", delay: "-1.6s", x: "2px", y: "-4px"},
-  {key: "settings", src: "/ui_home/settings.png", duration: "5.6s", delay: "-2.4s", x: "-1px", y: "-3px"},
+  {
+    key: "share",
+    panel: "share",
+    src: "/ui_home/share.png",
+    duration: "5.2s",
+    delay: "-0.8s",
+    x: "-2px",
+    y: "-3px",
+  },
+  {
+    key: "access",
+    panel: "access",
+    src: "/ui_home/user.png",
+    duration: "4.6s",
+    delay: "-1.6s",
+    x: "2px",
+    y: "-4px",
+  },
+  {
+    key: "settings",
+    panel: "settings",
+    src: "/ui_home/settings.png",
+    duration: "5.6s",
+    delay: "-2.4s",
+    x: "-1px",
+    y: "-3px",
+  },
 ] as const;
 
 const START_FLOAT = {duration: "4.8s", delay: "0s", x: "2px", y: "-4px"};
 
-type MenuPanel = (typeof MENU_BUTTONS)[number]["key"];
+type MenuButtonKey = (typeof MENU_BUTTONS)[number]["key"];
+type MenuPanel = (typeof MENU_BUTTONS)[number]["panel"];
 
 const PANEL_TEXT_GLOW =
   "0 0 8px rgba(255,236,170,0.55), 0 2px 2px rgba(0,0,0,0.45)";
@@ -53,50 +78,10 @@ const PANEL_TITLE_STYLE: React.CSSProperties = {
   ...PANEL_OUTLINE,
 };
 
-type WoodPanelProps = {
-  alt: string;
-  src?: string;
-  children: React.ReactNode;
-  onClose: () => void;
-};
-
-const POPUP_CLOSE_MS = 260;
-
-function WoodPanel({alt, src = "/ui_home/settingContainer.png", children, onClose}: WoodPanelProps) {
-  const [leaving, setLeaving] = useState(false);
-
-  const requestClose = () => {
-    if (leaving) return;
-
-    setLeaving(true);
-    window.setTimeout(onClose, POPUP_CLOSE_MS);
-  };
-
-  return (
-    <div
-      className={`absolute inset-0 z-20 flex items-center justify-center bg-black/55 px-3 ${
-        leaving ? "popup-backdrop-out" : "popup-backdrop-in"
-      }`}
-      onClick={requestClose}
-    >
-      <div
-        className={`relative w-[min(88vw,28rem)] ${leaving ? "popup-panel-out" : "popup-panel-in"}`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <Image
-          alt={alt}
-          className={`h-auto w-full ${src.includes("gameContainer") ? "" : "drop-shadow-2xl"}`}
-          height={1152}
-          src={src}
-          width={863}
-        />
-        <div className="absolute inset-[11%] flex flex-col items-center justify-center overflow-hidden px-[6%] text-center">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
+const PANEL_SECTION_TITLE_CLASS = "font-display text-2xl font-bold text-[#ffd76a] sm:text-3xl";
+const PANEL_BODY_TEXT_CLASS = "font-accent text-lg font-bold text-[#fff8dc] sm:text-xl";
+const PANEL_LANGUAGE_VALUE_CLASS =
+  "font-display text-xl font-bold text-[#fff8dc] sm:text-2xl";
 
 type TestamentCardProps = {
   label: string;
@@ -148,91 +133,7 @@ function TestamentCard({
   );
 }
 
-type SettingsChoiceProps = {
-  label: string;
-  isActive: boolean;
-  isPressed?: boolean;
-  onClick: () => void;
-};
-
-const SHOP_ITEMS = [
-  {src: "/mode_0/stage_ui/logo_stage_fill.png", title: "shopEnergy", body: "shopEnergyBody"},
-  {src: "/mode_0/stage_common/super.png", title: "shopCross", body: "shopCrossBody", booster: "super"},
-  {src: "/mode_0/stage_common/mega.png", title: "shopStar", body: "shopStarBody", booster: "mega"},
-] as const;
-
-function ShopMarket() {
-  const {t} = useLanguage();
-  const [stock, setStock] = useState(() => ({
-    super: getBoosterCount("super"),
-    mega: getBoosterCount("mega"),
-  }));
-
-  const buy = (booster?: BoosterId) => {
-    if (!booster) {
-      refillHeart();
-
-      return;
-    }
-
-    addBooster(booster);
-    setStock({super: getBoosterCount("super"), mega: getBoosterCount("mega")});
-  };
-
-  return (
-    <div className="flex h-full w-full flex-col overflow-y-auto">
-      <p
-        className="shrink-0 font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
-        style={PANEL_TITLE_STYLE}
-      >
-        {t("shop")}
-      </p>
-      <div className="mt-2 flex min-h-0 flex-1 flex-col justify-evenly gap-2">
-        {SHOP_ITEMS.map((item) => (
-          <div
-            key={item.title}
-            className="flex items-center gap-2 rounded-xl border border-[#e7c27a] bg-[#2a160c]/80 px-1.5 py-1.5"
-          >
-            <span className="relative h-11 w-11 shrink-0">
-              <Image
-                alt={t(item.title)}
-                className="h-11 w-11 object-contain"
-                height={96}
-                src={item.src}
-                width={96}
-              />
-              {"booster" in item && stock[item.booster] > 0 ? (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-[#2a160c] bg-[#ffd76a] px-0.5 font-accent text-[0.65rem] font-bold text-white">
-                  {stock[item.booster]}
-                </span>
-              ) : null}
-            </span>
-            <div className="min-w-0 flex-1 text-left">
-              <p className="font-display text-sm font-bold leading-tight text-[#ffd76a]">{t(item.title)}</p>
-              <p className="mt-0.5 font-display text-[0.68rem] leading-snug text-[#fff8dc]">{t(item.body)}</p>
-              <button
-                className="mt-1.5 rounded-xl border-2 border-[#a67c22] bg-[#3d2614] px-2 py-1.5 font-accent text-[0.62rem] font-bold leading-tight text-[#fff8dc]"
-                type="button"
-                onClick={() => {
-                  if ("booster" in item && isBoosterFull(item.booster)) {
-                    playNoTouch();
-
-                    return;
-                  }
-
-                  playClick();
-                  buy("booster" in item ? item.booster : undefined);
-                }}
-              >
-                {t("watchAd")}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+const APP_CORNER_BTN_CLASS = "h-[min(16vw,4.75rem)] w-[min(16vw,4.75rem)]";
 
 function GoogleMark() {
   return (
@@ -262,14 +163,11 @@ function AccessPanel() {
 
   return (
     <div className="flex w-full flex-col items-center">
-      <p
-        className="font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
-        style={PANEL_TITLE_STYLE}
-      >
+      <p className={PANEL_SECTION_TITLE_CLASS} style={PANEL_TITLE_STYLE}>
         {t("access")}
       </p>
       <button
-        className="mt-8 flex w-full max-w-xs items-center justify-center gap-3 rounded-2xl border-2 border-[#a67c22] bg-[#3d2614] px-3 py-3 font-accent text-base font-bold text-[#fff8dc] transition-transform duration-100 active:translate-y-1 active:scale-95"
+        className={`mt-8 flex w-full max-w-xs items-center justify-center gap-3 rounded-2xl border-2 border-[#a67c22] bg-[#3d2614] px-3 py-3.5 ${PANEL_BODY_TEXT_CLASS} transition-transform duration-100 active:translate-y-1 active:scale-95`}
         style={{outline: "2px solid #2a160ccc"}}
         type="button"
         onClick={() => playClick()}
@@ -281,18 +179,69 @@ function AccessPanel() {
   );
 }
 
-function SettingsChoice({label, isActive, isPressed = false, onClick}: SettingsChoiceProps) {
+function SettingsSoundToggle({
+  isOn,
+  onEnable,
+  onDisable,
+  soundOnLabel,
+  soundOffLabel,
+}: {
+  isOn: boolean;
+  onEnable: () => void;
+  onDisable: () => void;
+  soundOnLabel: string;
+  soundOffLabel: string;
+}) {
+  const activeClass = "z-10 scale-[1.1] opacity-100 brightness-100";
+  const idleClass = "scale-[0.86] opacity-45 brightness-[0.52] saturate-[0.75]";
+
   return (
-    <button
-      className={`w-[90%] justify-self-center rounded-2xl border-2 border-[#a67c22] px-3 py-2 font-accent text-base font-bold transition-transform duration-100 ${
-        isPressed ? "translate-y-1 scale-95" : "active:translate-y-1 active:scale-95"
-      } ${isActive ? "bg-[#ffd76a] text-[#140d2d]" : "bg-[#3d2614] text-[#fff8dc]"}`}
-      style={{outline: `2px solid ${isActive ? "#96743c" : "#2a160ccc"}`}}
-      type="button"
-      onClick={onClick}
-    >
-      {label}
-    </button>
+    <div className="mt-3 flex items-end justify-center gap-6 sm:gap-8">
+      <button
+        aria-label={soundOnLabel}
+        aria-pressed={isOn}
+        className={`touch-manipulation transition-all duration-200 ease-out active:scale-95 ${
+          isOn ? activeClass : idleClass
+        }`}
+        type="button"
+        onClick={() => {
+          if (isOn) return;
+
+          playClick();
+          onEnable();
+        }}
+      >
+        <Image
+          alt=""
+          className={`${APP_CORNER_BTN_CLASS} drop-shadow-lg`}
+          height={156}
+          src="/ui_game/btnSound.png"
+          width={156}
+        />
+      </button>
+      <button
+        aria-label={soundOffLabel}
+        aria-pressed={!isOn}
+        className={`touch-manipulation transition-all duration-200 ease-out active:scale-95 ${
+          isOn ? idleClass : activeClass
+        }`}
+        type="button"
+        onClick={() => {
+          if (!isOn) return;
+
+          playClick();
+          onDisable();
+        }}
+      >
+        <Image
+          alt=""
+          className={`${APP_CORNER_BTN_CLASS} drop-shadow-lg`}
+          height={156}
+          src="/ui_game/btnNoSound.png"
+          width={156}
+        />
+      </button>
+    </div>
   );
 }
 
@@ -303,7 +252,7 @@ function LanguageArrow({direction, onClick}: {direction: -1 | 1; onClick: () => 
   return (
     <button
       aria-label={isLeft ? "previous language" : "next language"}
-      className="px-1.5 py-1 font-accent text-lg font-bold leading-none text-[#ffd76a]"
+      className="px-1.5 py-1 font-accent text-xl font-bold leading-none text-[#ffd76a] sm:text-2xl"
       type="button"
       onClick={() => {
         setZoomKey((key) => key + 1);
@@ -401,7 +350,7 @@ export function HomeScreen() {
   const [curtainPhase, setCurtainPhase] = useState<CloudCurtainPhase>("idle");
   const [showWorld, setShowWorld] = useState(false);
   const [phaserBootStart, setPhaserBootStart] = useState<BootStartScene>("default");
-  const [pressedPanel, setPressedPanel] = useState<MenuPanel | null>(null);
+  const [pressedPanel, setPressedPanel] = useState<MenuButtonKey | null>(null);
   const [openPanel, setOpenPanel] = useState<MenuPanel | null>(null);
   const [isMusicOn, setIsMusicOn] = useState(isMusicEnabled);
   const [isEffectsOn, setIsEffectsOn] = useState(isEffectsEnabled);
@@ -457,8 +406,10 @@ export function HomeScreen() {
   useEffect(() => {
     if (!pressedPanel) return;
 
+    const item = MENU_BUTTONS.find((button) => button.key === pressedPanel);
+
     const timer = setTimeout(() => {
-      setOpenPanel(pressedPanel);
+      if (item) setOpenPanel(item.panel);
       setPressedPanel(null);
     }, PRESS_MS);
 
@@ -534,7 +485,7 @@ export function HomeScreen() {
           {MENU_BUTTONS.map(({key, src, duration, delay, x, y}) => (
             <HomeImageButton
               key={key}
-              alt={t(key)}
+              alt={key === "share" ? t("share") : t(key)}
               className="w-[min(16vw,4.75rem)]"
               float={{duration, delay, x, y}}
               height={512}
@@ -553,6 +504,7 @@ export function HomeScreen() {
       {isTestamentOpen && (
         <WoodPanel
           alt={t("newTestament")}
+          className="absolute inset-0 z-20"
           src="/ui_home/gameContainer.png"
           onClose={() => {
             if (isNewTestamentPressed) return;
@@ -586,66 +538,48 @@ export function HomeScreen() {
       {openPanel && (
         <WoodPanel
           alt={t(openPanel)}
-          src={openPanel === "shop" ? "/ui_home/gameContainer.png" : undefined}
+          className="absolute inset-0 z-20"
           onClose={() => setOpenPanel(null)}
         >
           {openPanel === "settings" ? (
             <>
-              <p
-                className="font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
-                style={PANEL_TITLE_STYLE}
-              >
+              <p className={PANEL_SECTION_TITLE_CLASS} style={PANEL_TITLE_STYLE}>
                 {t("music")}
               </p>
-              <div className="mt-3 grid w-full max-w-md grid-cols-2 gap-3">
-                <SettingsChoice
-                  label={t("on")}
-                  isActive={isMusicOn}
-                  onClick={() => {
-                    setIsMusicOn(true);
-                    setMusicEnabled(true);
-                  }}
-                />
-                <SettingsChoice
-                  label={t("off")}
-                  isActive={!isMusicOn}
-                  onClick={() => {
-                    setIsMusicOn(false);
-                    setMusicEnabled(false);
-                    stopTrack();
-                  }}
-                />
-              </div>
+              <SettingsSoundToggle
+                isOn={isMusicOn}
+                soundOffLabel={t("off")}
+                soundOnLabel={t("on")}
+                onDisable={() => {
+                  setIsMusicOn(false);
+                  setMusicEnabled(false);
+                  stopTrack();
+                }}
+                onEnable={() => {
+                  setIsMusicOn(true);
+                  setMusicEnabled(true);
+                  playTrack("home");
+                }}
+              />
 
-              <p
-                className="mt-6 font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
-                style={PANEL_TITLE_STYLE}
-              >
+              <p className={`mt-6 ${PANEL_SECTION_TITLE_CLASS}`} style={PANEL_TITLE_STYLE}>
                 {t("effects")}
               </p>
-              <div className="mt-3 grid w-full max-w-md grid-cols-2 gap-3">
-                <SettingsChoice
-                  label={t("on")}
-                  isActive={isEffectsOn}
-                  onClick={() => {
-                    setIsEffectsOn(true);
-                    setEffectsEnabled(true);
-                  }}
-                />
-                <SettingsChoice
-                  label={t("off")}
-                  isActive={!isEffectsOn}
-                  onClick={() => {
-                    setIsEffectsOn(false);
-                    setEffectsEnabled(false);
-                  }}
-                />
-              </div>
+              <SettingsSoundToggle
+                isOn={isEffectsOn}
+                soundOffLabel={t("off")}
+                soundOnLabel={t("on")}
+                onDisable={() => {
+                  setIsEffectsOn(false);
+                  setEffectsEnabled(false);
+                }}
+                onEnable={() => {
+                  setIsEffectsOn(true);
+                  setEffectsEnabled(true);
+                }}
+              />
 
-              <p
-                className="mt-6 font-display text-xl font-bold text-[#ffd76a] sm:text-2xl"
-                style={PANEL_TITLE_STYLE}
-              >
+              <p className={`mt-6 ${PANEL_SECTION_TITLE_CLASS}`} style={PANEL_TITLE_STYLE}>
                 {t("language")}
               </p>
               <div className="mt-2 flex items-center justify-center gap-1">
@@ -656,10 +590,7 @@ export function HomeScreen() {
                     setLanguage(LANGUAGES[(index - 1 + LANGUAGES.length) % LANGUAGES.length]);
                   }}
                 />
-                <p
-                  className="font-display text-lg font-bold text-[#fff8dc] sm:text-xl"
-                  style={PANEL_TITLE_STYLE}
-                >
+                <p className={PANEL_LANGUAGE_VALUE_CLASS} style={PANEL_TITLE_STYLE}>
                   {LANGUAGE_LABELS[language]}
                 </p>
                 <LanguageArrow
@@ -671,8 +602,8 @@ export function HomeScreen() {
                 />
               </div>
             </>
-          ) : openPanel === "shop" ? (
-            <ShopMarket />
+          ) : openPanel === "share" ? (
+            <SharePanel />
           ) : (
             <AccessPanel />
           )}
