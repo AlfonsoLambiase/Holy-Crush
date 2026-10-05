@@ -103,19 +103,32 @@ export const playCloudOff = () => playSfx("/sounds/cloud_off.mp3", SFX_LEAD_TRIM
 export const playBook = () => playSfx("/sounds/book.mp3", SFX_LEAD_TRIM_SEC);
 
 const UNLOCKED_SRC = "/sounds/unlocked.mp3";
+const PULSE_SRC = "/sounds/pulse.mp3";
 
-export const playUnlocked = (): (() => void) => {
+export const playPulse = () => playSfx(PULSE_SRC);
+
+export const playUnlocked = (onEnded?: () => void): (() => void) => {
   if (typeof window === "undefined" || !isEffectsEnabled()) {
     return () => {};
   }
 
   const clip = getClip(UNLOCKED_SRC);
+  let cancelled = false;
 
+  const handleEnded = () => {
+    if (cancelled) return;
+
+    onEnded?.();
+  };
+
+  clip.addEventListener("ended", handleEnded, {once: true});
   clip.volume = 1;
   clip.currentTime = 0;
   void clip.play().catch(() => {});
 
   return () => {
+    cancelled = true;
+    clip.removeEventListener("ended", handleEnded);
     clip.pause();
     clip.currentTime = 0;
   };

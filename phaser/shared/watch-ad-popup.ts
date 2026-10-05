@@ -12,7 +12,8 @@ const WATCH_BTN_W = 600;
 const WATCH_BTN_H = 112;
 const TITLE_Y_RATIO = -0.1;
 const BODY_Y_RATIO = 0.06;
-const WATCH_Y_RATIO = 0.19;
+/** Spazio tra fine testo e bottone annuncio (quota altezza piastra). */
+const BODY_WATCH_GAP_RATIO = 0.07;
 
 export type WatchAdPopup = {
   close: () => void;
@@ -68,7 +69,9 @@ export const showWatchAdPopup = (
       strokeThickness: 5,
     })
     .setOrigin(0.5);
-  const watchLocalY = plate.height * WATCH_Y_RATIO;
+  const bodyBottom = body.y + body.displayHeight / 2;
+  const watchLocalY =
+    bodyBottom + plate.height * BODY_WATCH_GAP_RATIO + WATCH_BTN_H / 2;
   const watchVisual = addWatchVisual(scene, 0, watchLocalY);
 
   let consumed = false;

@@ -3,7 +3,7 @@
 import * as Phaser from "phaser";
 
 import {isEffectsEnabled} from "@/settings/effects";
-import {getStageIndex, registerWin} from "@/settings/progress";
+import {getStageIndex, registerWin, type RegisterWinResult} from "@/settings/progress";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {AssetPaths} from "../shared/config/asset-paths.const";
 import {addFillPair} from "../shared/fill-pair";
@@ -31,20 +31,20 @@ export class Outro extends Phaser.Scene {
     this.imageKey = this.#won ? "endWin" : "endFailed";
 
     const played = Number(this.registry.get("level"));
-    const stageCleared = this.#won && registerWin(played);
+    const winResult = this.#won ? registerWin(played) : "none";
 
-    this.time.delayedCall(3000, () => this.#leave(stageCleared));
+    this.time.delayedCall(3000, () => this.#leave(winResult));
   }
 
-  #leave(stageCleared: boolean) {
-    if (!stageCleared) {
+  #leave(winResult: RegisterWinResult) {
+    if (winResult !== "stage") {
       const played = Number(this.registry.get("level"));
 
       if (Number.isFinite(played) && played >= 1) {
         this.registry.set("stageMapFocusLevel", played);
       }
 
-      if (this.#won) {
+      if (winResult === "level") {
         this.registry.set("stageMapUnlockReveal", true);
       }
 

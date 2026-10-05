@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 
 import {getCurrentLanguage, t} from "@/language";
-import {playBook, playClick, playNoTouch, playRecharge, playUnlocked} from "@/settings/click";
+import {playBook, playClick, playNoTouch, playPulse, playRecharge, playUnlocked} from "@/settings/click";
 import {getHeartRemaining, isHeartEmpty, refillHeart, spendHeart} from "@/settings/heart";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 import {darkenHex, getStageLevelNumber, getStageMap, hexToInt, stagePoint, type StageMapConfig} from "@/settings/stage-map";
@@ -37,7 +37,7 @@ const SCROLL_INERTIA_MUL = 0.62;
 const SCROLL_INERTIA_MAX = 42;
 const SCROLL_FRICTION = 0.9;
 const SCROLL_VEL_STOP = 0.2;
-const UNLOCK_SWAY_MS = 1300;
+const UNLOCK_SWAY_MS = 980;
 const UNLOCK_SWAY_X = 4;
 const UNLOCK_FALL_Y = 140;
 const UNLOCK_FALL_MS = 520;
@@ -67,6 +67,7 @@ export class StageMapScene extends Phaser.Scene {
   #fadeBottom = 0;
   #levelLayers: LevelLayer[] = [];
   #unlockRevealActive = false;
+  #stopUnlockSfx: (() => void) | null = null;
   #onScrollDown: ((pointer: Phaser.Input.Pointer) => void) | null = null;
   #onScrollMove: ((pointer: Phaser.Input.Pointer) => void) | null = null;
   #onScrollUp: (() => void) | null = null;
@@ -86,6 +87,8 @@ export class StageMapScene extends Phaser.Scene {
   }
 
   shutdown() {
+    this.#stopUnlockSfx?.();
+    this.#stopUnlockSfx = null;
     this.#unbindScroll();
     this.#cancelRecharge();
     this.#scrollVelocity = 0;
@@ -503,7 +506,22 @@ export class StageMapScene extends Phaser.Scene {
     layer.plate.add(swayIcon);
     layer.plate.bringToTop(swayIcon);
 
-    const stopUnlocked = playUnlocked();
+    let pulsePlayed = false;
+    let unlockAnimDone = false;
+    let unlockSoundDone = false;
+
+    const tryPlayPulse = () => {
+      if (pulsePlayed || !unlockAnimDone || !unlockSoundDone) return;
+
+      pulsePlayed = true;
+      playPulse();
+    };
+
+    this.#stopUnlockSfx?.();
+    this.#stopUnlockSfx = playUnlocked(() => {
+      unlockSoundDone = true;
+      tryPlayPulse();
+    });
 
     this.tweens.add({
       targets: swayIcon,
@@ -513,7 +531,6 @@ export class StageMapScene extends Phaser.Scene {
       repeat: 3,
       ease: "Sine.easeInOut",
       onComplete: () => {
-        stopUnlocked();
         this.tweens.add({
           targets: swayIcon,
           y: UNLOCK_FALL_Y,
@@ -523,6 +540,9 @@ export class StageMapScene extends Phaser.Scene {
           onComplete: () => {
             swayIcon.destroy();
             this.#unlockRevealActive = false;
+            this.#stopUnlockSfx = null;
+            unlockAnimDone = true;
+            tryPlayPulse();
             this.#startLevelPulse(layer.levelContent);
           },
         });

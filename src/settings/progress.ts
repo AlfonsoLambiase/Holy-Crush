@@ -90,14 +90,15 @@ export const prepareEnterWorld = (worldIndex: number): void => {
   writeProgress({stage: first, cleared: 0});
 };
 
-//* true quando questa vittoria chiude lo stage e si passa al successivo.
+export type RegisterWinResult = "none" | "level" | "stage";
+
 //* Si avanza solo battendo il livello più avanti già aperto, non ripetendone uno vecchio.
-export const registerWin = (level?: number): boolean => {
+export const registerWin = (level?: number): RegisterWinResult => {
   const progress = readProgress();
   const frontier = progress.cleared + 1;
   const played = level && level > 0 ? Math.floor(level) : frontier;
 
-  if (played !== frontier) return false;
+  if (played !== frontier) return "none";
 
   if (frontier >= getStageMap(progress.stage).levels) {
     const nextStage = progress.stage + 1;
@@ -107,10 +108,10 @@ export const registerWin = (level?: number): boolean => {
       cleared: 0,
     });
 
-    return true;
+    return "stage";
   }
 
   writeProgress({...progress, cleared: frontier});
 
-  return false;
+  return "level";
 };
