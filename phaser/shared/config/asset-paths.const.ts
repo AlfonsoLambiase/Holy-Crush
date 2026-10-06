@@ -52,6 +52,14 @@ const STAGE_COMMON_KEYS = new Set([
   "mega",
   "super_disabled",
   "mega_disabled",
+  "G",
+  "H",
+  "I",
+  "J",
+  "L",
+  "R",
+  "V",
+  "X",
 ]);
 
 //* Il file su disco non coincide col nome logico usato in gioco

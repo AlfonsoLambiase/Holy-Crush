@@ -17,18 +17,30 @@ import {
   EMPTY,
   ROCKET_H,
   ROCKET_V,
-  expandDestroyed,
+  collectBlasts,
   findMatchRuns,
   findHintMove,
   generatePlayableBoard,
   hasMatches,
   hasValidMove,
   isAdjacent,
+  isPiece,
   isSpecial,
   shuffleBoard,
   specialsFromRuns,
   swapCells,
 } from "../shared/match3";
+import {
+  applyWave,
+  blocksColumn,
+  columnSegments,
+  coverKey,
+  holdsPiece,
+  obstacleFromSymbol,
+  pickThornTarget,
+  terrainKey,
+  type ObstacleCell,
+} from "../shared/obstacles";
 
 import {Game} from "./game";
 
@@ -52,6 +64,10 @@ const HINT_PULSE_MS = 420;
 const HINT_PULSE_SCALE = 1.12;
 
 type RocketOrigin = {cell: Cell; type: number};
+type FadeArt = {cell: Cell; image: Phaser.GameObjects.Image};
+
+const ICE_ALPHA = 0.72;
+const FULL_CELL_ART = new Set(["G", "H", "I", "J", "R", "X"]);
 
 export class GameManager extends Phaser.Scene {
   audioManager!: AudioManager;
@@ -71,7 +87,9 @@ export class GameManager extends Phaser.Scene {
   private mainContainer!: Phaser.GameObjects.Container;
   private gridBackground!: Phaser.GameObjects.Image;
   private blocks: (Phaser.GameObjects.Image | null)[][] = [];
-  private gridMask: boolean[][] = [];
+  private obstacles: (ObstacleCell | null)[][] = [];
+  private covers: (Phaser.GameObjects.Image | null)[][] = [];
+  private terrains: (Phaser.GameObjects.Image | null)[][] = [];
   private pieces: (Phaser.GameObjects.Image | null)[][] = [];
   private board: number[][] = [];
 
@@ -110,7 +128,9 @@ export class GameManager extends Phaser.Scene {
     this.#pieceKeys = getPieceKeysForStageLevel(level, getStageIndex());
     const shape = getGridForLevel(level);
 
-    this.gridMask = shape.mask;
+    this.obstacles = shape.cells.map((row) =>
+      row.map((symbol) => (symbol === "." ? null : obstacleFromSymbol(symbol))),
+    );
     this.gridCols = shape.cols;
     this.gridRows = shape.rows;
     this.computeLayoutDimensions();
@@ -148,17 +168,26 @@ export class GameManager extends Phaser.Scene {
       this.gridRows,
       this.gridCols,
       this.#pieceKeys.length,
-      (row, col) => this.isOpen(row, col),
+      (row, col) => holdsPiece(this.obstacles[row]?.[col] ?? null),
+      (row, col) => this.allowsSwap(row, col),
+      (row, col) => this.canMatch(row, col),
     );
 
     this.blocks = [];
     this.pieces = [];
+    this.covers = [];
+    this.terrains = [];
 
     for (let row = 0; row < this.gridRows; row++) {
       const rowBlocks: (Phaser.GameObjects.Image | null)[] = [];
       const rowPieces: (Phaser.GameObjects.Image | null)[] = [];
+      const rowCovers: (Phaser.GameObjects.Image | null)[] = [];
+      const rowTerrains: (Phaser.GameObjects.Image | null)[] = [];
 
       for (let col = 0; col < this.gridCols; col++) {
+        rowCovers.push(null);
+        rowTerrains.push(null);
+
         if (!this.isOpen(row, col)) {
           rowBlocks.push(null);
           rowPieces.push(null);
@@ -173,12 +202,19 @@ export class GameManager extends Phaser.Scene {
 
         this.mainContainer.add(block);
         rowBlocks.push(block);
-        rowPieces.push(this.spawnPiece(row, col, this.board[row][col], y));
+
+        const type = this.board[row][col];
+
+        rowPieces.push(type === EMPTY ? null : this.spawnPiece(row, col, type, y));
       }
 
       this.blocks.push(rowBlocks);
       this.pieces.push(rowPieces);
+      this.covers.push(rowCovers);
+      this.terrains.push(rowTerrains);
     }
+
+    this.syncArt();
   }
 
   private spawnPiece(
@@ -224,7 +260,7 @@ export class GameManager extends Phaser.Scene {
       const local = this.toLocal(pointer);
       const cell = this.getCellAt(local.x, local.y);
 
-      if (!cell) return;
+      if (!cell || !this.canMove(cell)) return;
 
       this.swipeStart = {cell, x: local.x, y: local.y};
       this.swipeLocked = false;
@@ -287,12 +323,13 @@ export class GameManager extends Phaser.Scene {
     }
 
     this.hintCells = [];
+    this.stackSprites();
   }
 
   private showHint(): void {
     if (!this.canPlay()) return;
 
-    const move = findHintMove(this.board);
+    const move = findHintMove(this.board, (row, col) => this.allowsSwap(row, col), (row, col) => this.canMatch(row, col));
 
     if (!move) return;
 
@@ -351,7 +388,25 @@ export class GameManager extends Phaser.Scene {
   }
 
   private isOpen(row: number, col: number): boolean {
-    return this.gridMask[row]?.[col] === true;
+    return this.obstacles[row]?.[col] != null;
+  }
+
+  //* Il pezzo si può scambiare: niente muro, roccia, rovo, ghiaccio o catena.
+  private allowsSwap(row: number, col: number): boolean {
+    const cell = this.obstacles[row]?.[col];
+
+    return !!cell && cell.blocker === null && !(cell.lock && cell.lockLayers > 0);
+  }
+
+  //* Il ghiaccio non entra nei match. La catena sì.
+  private canMatch(row: number, col: number): boolean {
+    const cell = this.obstacles[row]?.[col];
+
+    return !!cell && cell.blocker === null && cell.lock !== "ice";
+  }
+
+  private canMove(cell: Cell): boolean {
+    return this.allowsSwap(cell.r, cell.c) && isPiece(this.board[cell.r][cell.c]);
   }
 
   private inBounds(cell: Cell): boolean {
@@ -360,6 +415,7 @@ export class GameManager extends Phaser.Scene {
 
   private async trySwap(a: Cell, b: Cell): Promise<void> {
     if (!this.inBounds(b) || !isAdjacent(a, b) || this.isBusy || this.isGameOver) return;
+    if (!this.canMove(a) || !this.canMove(b)) return;
 
     const pieceA = this.pieces[a.r][a.c];
     const pieceB = this.pieces[b.r][b.c];
@@ -372,13 +428,15 @@ export class GameManager extends Phaser.Scene {
     this.swapSprites(a, b);
     swapCells(this.board, a, b);
     await this.animateSwap(pieceA, pieceB);
+    this.stackSprites();
 
     const activated = [a, b].filter((cell) => isSpecial(this.board[cell.r][cell.c]));
 
-    if (!hasMatches(this.board) && activated.length === 0) {
+    if (!hasMatches(this.board, (row, col) => this.canMatch(row, col)) && activated.length === 0) {
       this.swapSprites(a, b);
       swapCells(this.board, a, b);
       await this.animateSwap(pieceA, pieceB);
+      this.stackSprites();
       this.gameScene.audioManager.playAudio(assetConf.audio.error);
       this.isBusy = false;
       this.restartHintTimer();
@@ -414,12 +472,15 @@ export class GameManager extends Phaser.Scene {
     ]);
   }
 
-  //* Scopo: Distrugge i match, crea rocket/bomb, fa cadere i pezzi e ripete finché ci sono cascade
-  private async resolveBoard(activated: Cell[] = [], preferred?: Cell): Promise<void> {
+  //* Scopo: Distrugge i match, colpisce gli ostacoli, fa cadere i pezzi e ripete le cascate.
+  private async resolveBoard(activated: Cell[] = [], preferred?: Cell, growThorns = true): Promise<void> {
     let isFirstWave = true;
+    let thornDamaged = false;
+    const canMatch = (row: number, col: number) => this.canMatch(row, col);
+    const allowsSwap = (row: number, col: number) => this.allowsSwap(row, col);
 
     while (!this.isGameOver) {
-      const runs = findMatchRuns(this.board);
+      const runs = findMatchRuns(this.board, canMatch);
       const matches = runs.flatMap((run) => run.cells);
       const extra = isFirstWave ? activated : [];
 
@@ -430,20 +491,31 @@ export class GameManager extends Phaser.Scene {
       const spawns = matches.length ? specialsFromRuns(runs, preferred) : [];
       const spawnKeys = new Set(spawns.map((spawn) => `${spawn.cell.r},${spawn.cell.c}`));
       const uniqueMatches = this.uniqueCells(matches);
-      const destroyCells = expandDestroyed(this.board, uniqueMatches, extra).filter(
-        (cell) => !spawnKeys.has(`${cell.r},${cell.c}`),
+      const origins = this.uniqueCells(
+        [...uniqueMatches, ...extra].filter((cell) => isSpecial(this.board[cell.r][cell.c])),
+      );
+      const {pop, thornDamaged: hit} = applyWave(
+        this.board,
+        this.obstacles,
+        uniqueMatches,
+        collectBlasts(this.board, origins),
+        spawnKeys,
       );
 
-      const bombCenters = destroyCells.filter((cell) => this.board[cell.r][cell.c] === BOMB);
-      const rocketCenters = this.rocketOrigins(destroyCells);
+      if (hit) thornDamaged = true;
+
+      const bombCenters = pop.filter((cell) => this.board[cell.r][cell.c] === BOMB);
+      const rocketCenters = this.rocketOrigins(pop);
 
       preferred = undefined;
 
-      await this.destroyMatches(destroyCells, bombCenters, rocketCenters);
+      await this.destroyMatches(pop, bombCenters, rocketCenters, this.peelArt());
+      this.syncArt();
 
       for (const spawn of spawns) this.placeSpecial(spawn.cell, spawn.type);
 
-      this.gameScene.uiManager.updateScore(destroyCells.length);
+      this.stackSprites();
+      this.gameScene.uiManager.updateScore(pop.length);
       this.gameScene.audioManager.playAudio(assetConf.audio.success);
 
       if (this.gameScene.uiManager.score >= this.gameScene.uiManager.maxScore) {
@@ -457,11 +529,12 @@ export class GameManager extends Phaser.Scene {
       await this.collapseAndFill();
     }
 
-    if (
-      !this.isGameOver &&
-      this.gameScene.uiManager.score < this.gameScene.uiManager.maxScore &&
-      !hasValidMove(this.board)
-    ) {
+    const stillPlaying =
+      !this.isGameOver && this.gameScene.uiManager.score < this.gameScene.uiManager.maxScore;
+
+    if (growThorns && stillPlaying && !thornDamaged) this.growThorn();
+
+    if (stillPlaying && !hasValidMove(this.board, allowsSwap, canMatch)) {
       await this.warnAndShuffle();
     }
   }
@@ -516,6 +589,7 @@ export class GameManager extends Phaser.Scene {
     matches: Cell[],
     bombCenters: Cell[] = [],
     rocketCenters: RocketOrigin[] = [],
+    fades: FadeArt[] = [],
   ): Promise<void> {
     for (const bomb of bombCenters) {
       this.playBombShockwave(bomb);
@@ -604,7 +678,40 @@ export class GameManager extends Phaser.Scene {
         });
       });
 
-    await Promise.all([...launches, ...tweens]);
+    const fadeTweens = fades.map(({cell, image}) => {
+      const delay = this.destroyDelay(cell, bombCenters, rocketCenters);
+
+      return new Promise<void>((resolve) => {
+        const pop = () => {
+          if (!image.active) {
+            resolve();
+
+            return;
+          }
+
+          this.mainContainer.bringToTop(image);
+          this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase);
+          this.tweens.killTweensOf(image);
+          this.tweens.add({
+            targets: image,
+            scaleX: 0,
+            scaleY: 0,
+            alpha: 0,
+            duration: DESTROY_MS,
+            ease: "Back.easeIn",
+            onComplete: () => {
+              if (image.active) image.destroy();
+              resolve();
+            },
+          });
+        };
+
+        if (delay <= 0) pop();
+        else this.time.delayedCall(delay, pop);
+      });
+    });
+
+    await Promise.all([...launches, ...tweens, ...fadeTweens]);
   }
 
   private destroyDelay(cell: Cell, bombCenters: Cell[], rocketCenters: RocketOrigin[]): number {
@@ -774,59 +881,206 @@ export class GameManager extends Phaser.Scene {
     const moves: Promise<void>[] = [];
 
     for (let col = 0; col < this.gridCols; col++) {
-      const slots: number[] = [];
+      const segments = columnSegments(this.gridRows, (row) => this.columnKind(row, col));
 
-      for (let row = this.gridRows - 1; row >= 0; row--) {
-        if (this.isOpen(row, col)) slots.push(row);
-      }
+      for (const segment of segments) {
+        const keptSprites: Phaser.GameObjects.Image[] = [];
+        const keptTypes: number[] = [];
 
-      const keptSprites: Phaser.GameObjects.Image[] = [];
-      const keptTypes: number[] = [];
+        for (const row of segment.slots) {
+          const piece = this.pieces[row][col];
 
-      for (const row of slots) {
-        const piece = this.pieces[row][col];
+          if (piece?.active && this.board[row][col] !== EMPTY) {
+            keptSprites.push(piece);
+            keptTypes.push(this.board[row][col]);
+          } else if (piece?.active) {
+            this.tweens.killTweensOf(piece);
+            piece.destroy();
+          }
 
-        if (piece?.active && this.board[row][col] !== EMPTY) {
-          keptSprites.push(piece);
-          keptTypes.push(this.board[row][col]);
-        } else if (piece?.active) {
-          this.tweens.killTweensOf(piece);
-          piece.destroy();
+          this.pieces[row][col] = null;
+          this.board[row][col] = EMPTY;
         }
 
-        this.pieces[row][col] = null;
-        this.board[row][col] = EMPTY;
-      }
+        for (let i = 0; i < keptSprites.length; i++) {
+          const row = segment.slots[i];
+          const pos = this.cellPos({r: row, c: col});
 
-      for (let i = 0; i < keptSprites.length; i++) {
-        const row = slots[i];
-        const pos = this.cellPos({r: row, c: col});
+          this.pieces[row][col] = keptSprites[i];
+          this.board[row][col] = keptTypes[i];
+          this.tweens.killTweensOf(keptSprites[i]);
+          this.applyPieceLook(keptSprites[i], keptTypes[i]);
+          moves.push(this.moveImage(keptSprites[i], pos.x, pos.y, FALL_MS));
+        }
 
-        this.pieces[row][col] = keptSprites[i];
-        this.board[row][col] = keptTypes[i];
-        this.tweens.killTweensOf(keptSprites[i]);
-        this.applyPieceLook(keptSprites[i], keptTypes[i]);
-        this.mainContainer.bringToTop(keptSprites[i]);
-        moves.push(this.moveImage(keptSprites[i], pos.x, pos.y, FALL_MS));
-      }
+        if (!segment.refill) continue;
 
-      const missing = slots.length - keptSprites.length;
+        const missing = segment.slots.length - keptSprites.length;
 
-      for (let i = 0; i < missing; i++) {
-        const row = slots[keptSprites.length + i];
-        const type = Phaser.Math.Between(0, this.#pieceKeys.length - 1);
-        const fromY = this.startY - (i + 1) * this.cellH;
-        const piece = this.spawnPiece(row, col, type, fromY);
-        const pos = this.cellPos({r: row, c: col});
+        for (let i = 0; i < missing; i++) {
+          const row = segment.slots[keptSprites.length + i];
+          const type = Phaser.Math.Between(0, this.#pieceKeys.length - 1);
+          const fromY = this.startY - (i + 1) * this.cellH;
+          const piece = this.spawnPiece(row, col, type, fromY);
+          const pos = this.cellPos({r: row, c: col});
 
-        this.board[row][col] = type;
-        this.pieces[row][col] = piece;
-        moves.push(this.moveImage(piece, pos.x, pos.y, FALL_MS));
+          this.board[row][col] = type;
+          this.pieces[row][col] = piece;
+          moves.push(this.moveImage(piece, pos.x, pos.y, FALL_MS));
+        }
       }
     }
 
+    this.stackSprites();
     await Promise.all(moves);
     this.syncPieceVisuals();
+  }
+
+  private columnKind(row: number, col: number): "hole" | "block" | "mobile" {
+    const cell = this.obstacles[row]?.[col] ?? null;
+
+    if (!cell) return "hole";
+    if (blocksColumn(cell)) return "block";
+
+    return "mobile";
+  }
+
+  private growThorn(): void {
+    const target = pickThornTarget(this.obstacles, this.board);
+
+    if (!target) return;
+
+    const piece = this.pieces[target.r][target.c];
+
+    if (piece?.active) {
+      this.tweens.killTweensOf(piece);
+      piece.destroy();
+    }
+
+    this.pieces[target.r][target.c] = null;
+    this.board[target.r][target.c] = EMPTY;
+
+    const cell = this.obstacles[target.r][target.c];
+
+    if (!cell) return;
+
+    cell.blocker = "thorn";
+    this.syncArt();
+  }
+
+  //* Toglie l'arte degli ostacoli distrutti e scala J in I, H in G.
+  private peelArt(): FadeArt[] {
+    const fading: FadeArt[] = [];
+
+    for (let row = 0; row < this.gridRows; row++) {
+      for (let col = 0; col < this.gridCols; col++) {
+        const cell = this.obstacles[row]?.[col] ?? null;
+
+        this.peelLayer(row, col, coverKey(cell), this.covers, fading);
+        this.peelLayer(row, col, terrainKey(cell), this.terrains, fading);
+      }
+    }
+
+    return fading;
+  }
+
+  private peelLayer(
+    row: number,
+    col: number,
+    nextKey: string | null,
+    layer: (Phaser.GameObjects.Image | null)[][],
+    fading: FadeArt[],
+  ): void {
+    const current = layer[row]?.[col];
+
+    if (!current?.active) return;
+    if (current.texture.key === nextKey) return;
+
+    if (!nextKey) {
+      layer[row][col] = null;
+      fading.push({cell: {r: row, c: col}, image: current});
+
+      return;
+    }
+
+    this.paintObstacle(current, nextKey);
+  }
+
+  private syncArt(): void {
+    for (let row = 0; row < this.gridRows; row++) {
+      for (let col = 0; col < this.gridCols; col++) {
+        const cell = this.obstacles[row]?.[col] ?? null;
+
+        this.syncLayer(row, col, coverKey(cell), this.covers);
+        this.syncLayer(row, col, terrainKey(cell), this.terrains);
+      }
+    }
+
+    this.stackSprites();
+  }
+
+  private syncLayer(
+    row: number,
+    col: number,
+    nextKey: string | null,
+    layer: (Phaser.GameObjects.Image | null)[][],
+  ): void {
+    const current = layer[row]?.[col];
+
+    if (!nextKey) {
+      if (current?.active) current.destroy();
+      if (layer[row]) layer[row][col] = null;
+
+      return;
+    }
+
+    if (!current?.active) {
+      layer[row][col] = this.spawnArt(row, col, nextKey);
+
+      return;
+    }
+
+    this.paintObstacle(current, nextKey);
+    const pos = this.cellPos({r: row, c: col});
+
+    current.setPosition(pos.x, pos.y);
+  }
+
+  private spawnArt(row: number, col: number, key: string): Phaser.GameObjects.Image {
+    const {x, y} = this.cellPos({r: row, c: col});
+    const image = this.add.image(x, y, key).setOrigin(0.5);
+
+    this.paintObstacle(image, key);
+    this.mainContainer.add(image);
+
+    return image;
+  }
+
+  private paintObstacle(image: Phaser.GameObjects.Image, key: string): void {
+    image.setTexture(key).setAngle(0).setVisible(true);
+
+    if (FULL_CELL_ART.has(key)) image.setDisplaySize(this.cellW, this.cellH);
+    else image.setScale(this.fitScale(image));
+
+    image.setAlpha(key === "I" || key === "J" ? ICE_ALPHA : 1);
+  }
+
+  //* Dal basso: block, terreno, pezzo, copertura.
+  private stackSprites(): void {
+    if (!this.mainContainer) return;
+
+    const raise = (rows: (Phaser.GameObjects.Image | null)[][]) => {
+      for (const row of rows) {
+        for (const image of row) {
+          if (image?.active) this.mainContainer.bringToTop(image);
+        }
+      }
+    };
+
+    raise(this.blocks);
+    raise(this.terrains);
+    raise(this.pieces);
+    raise(this.covers);
   }
 
   private syncPieceVisuals(): void {
@@ -847,6 +1101,8 @@ export class GameManager extends Phaser.Scene {
         piece.setPosition(pos.x, pos.y);
       }
     }
+
+    this.stackSprites();
   }
 
   private async warnAndShuffle(): Promise<void> {
@@ -883,7 +1139,12 @@ export class GameManager extends Phaser.Scene {
     await this.tweenPromise({targets: label, scale: 1, duration: 320, ease: "Back.easeOut"});
     await this.delay(900);
 
-    shuffleBoard(this.board, this.#pieceKeys.length);
+    shuffleBoard(
+      this.board,
+      this.#pieceKeys.length,
+      (row, col) => this.allowsSwap(row, col),
+      (row, col) => this.canMatch(row, col),
+    );
     this.applyBoardTextures();
 
     await this.tweenPromise({targets: label, scale: 0.76, duration: 260, ease: "Sine.easeIn"});
@@ -891,8 +1152,8 @@ export class GameManager extends Phaser.Scene {
     overlay.destroy();
     label.destroy();
 
-    if (hasMatches(this.board)) {
-      await this.resolveBoard();
+    if (hasMatches(this.board, (row, col) => this.canMatch(row, col))) {
+      await this.resolveBoard([], undefined, false);
     }
   }
 
