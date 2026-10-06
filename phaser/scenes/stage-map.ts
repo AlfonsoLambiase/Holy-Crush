@@ -4,7 +4,7 @@ import {getCurrentLanguage, t} from "@/language";
 import {playBook, playClick, playNoTouch, playPulse, playRecharge, playUnlocked} from "@/settings/click";
 import {getHeartRemaining, isHeartEmpty, refillHeart, spendHeart} from "@/settings/heart";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
-import {darkenHex, getStageLevelNumber, getStageMap, hexToInt, stagePoint, type StageMapConfig} from "@/settings/stage-map";
+import {darkenHex, getStageLevelNumber, getStageMap, type StageMapConfig} from "@/settings/stage-map";
 import {playStageTrack} from "@/settings/soundtrack";
 import {
   computeStageMapCornerButtons,
@@ -17,20 +17,18 @@ import {APP_FONT} from "../shared/config/font.const";
 import {addStageHeart, type StageHeart} from "../shared/stage-heart";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
 import {dynamicValueForViewport} from "../shared/viewport-scale";
+import {ROAD_TILES, stackedLevelPointsFallback, stackedLevelPointsFromImage} from "../shared/road-path";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
 
 const assetConf = CandyCrushAssetConf;
 
 const LEVEL_SCALE = 0.11;
-const LEVEL_GAP = 0.18; // quota di schermo tra un livello e il successivo
 const LEVEL_PULSE_SCALE_MUL = 1.24;
 const LEVEL_PULSE_MS = 750;
 const RECHARGE_MS = 1200;
 const PATH_FADE_ALPHA = 0.1;
 const PATH_FADE_PX = 56;
 const PATH_FADE_TOP_EXTRA = 58;
-const PATH_STUB_LOW = 0.35;
-const PATH_CURVE_DIVISIONS = 512;
 const PAN_DRAG_THRESHOLD = 12;
 const SCROLL_WHEEL_FACTOR = 0.85;
 const SCROLL_INERTIA_MUL = 0.62;
@@ -60,9 +58,9 @@ export class StageMapScene extends Phaser.Scene {
   #leaving = false;
   #panning = false;
   #panFrom: number | null = null;
-  #pathGfx: Phaser.GameObjects.Graphics | null = null;
-  #pathPoints: Phaser.Math.Vector2[] = [];
-  #pathStyle: {thick: number; fill: number; edge: number} | null = null;
+  #roadMask: Phaser.GameObjects.Graphics | null = null;
+  #bandTop = 0;
+  #bandHeight = 0;
   #fadeTop = 0;
   #fadeBottom = 0;
   #levelLayers: LevelLayer[] = [];
@@ -91,6 +89,8 @@ export class StageMapScene extends Phaser.Scene {
     this.#stopUnlockSfx = null;
     this.#unbindScroll();
     this.#cancelRecharge();
+    this.#roadMask?.destroy();
+    this.#roadMask = null;
     this.#scrollVelocity = 0;
   }
 
@@ -121,10 +121,9 @@ export class StageMapScene extends Phaser.Scene {
     const stage = getStageIndex();
     const unlocked = getUnlockedCount();
     const map = getStageMap(stage);
-    const worldH = this.#worldHeight(height, map.levels);
     const mascotH = this.#mascotDisplayHeight(width, height);
-    const pathBottom = 1 - mascotH / worldH;
-    const stops = Array.from({length: map.levels}, (_, index) => stagePoint(map, index, pathBottom));
+    const fade = this.#uiFadeBands(width, height, mascotH);
+    const placed = this.#placeRoad(width, height, map.levels, fade);
 
     playStageTrack(stage);
 
@@ -134,12 +133,12 @@ export class StageMapScene extends Phaser.Scene {
       .setDepth(0)
       .setScrollFactor(0);
 
-    const fade = this.#uiFadeBands(width, height, mascotH);
-
     this.#fadeTop = fade.top;
     this.#fadeBottom = fade.bottom;
-    this.#addMascot(width, height, worldH, map);
-    this.#drawPath(width, worldH, map, pathBottom);
+    this.#bandTop = fade.top;
+    this.#bandHeight = Math.max(1, fade.bottom - fade.top);
+    this.#addMascot(width, height, placed.worldH, map);
+    this.#addRoad(width, placed);
 
     const unlockReveal = this.registry.get("stageMapUnlockReveal") === true;
     const revealLevelIndex = unlockReveal ? unlocked - 1 : -1;
@@ -148,14 +147,16 @@ export class StageMapScene extends Phaser.Scene {
       this.registry.remove("stageMapUnlockReveal");
     }
 
-    stops.forEach((stop, index) => {
+    const buttonPx = this.#levelButtonSize(width, height, placed.stops);
+
+    placed.stops.forEach((stop, index) => {
       const isOpen = index < unlocked;
       const isCurrent = isOpen && index === unlocked - 1;
 
       this.#addLevelButton(
-        width * stop.x,
-        worldH * stop.y,
-        LEVEL_SCALE,
+        stop.x,
+        stop.y,
+        buttonPx,
         index + 1,
         getStageLevelNumber(stage, index),
         isOpen,
@@ -166,7 +167,7 @@ export class StageMapScene extends Phaser.Scene {
     });
 
     this.#addHeader();
-    this.#bindScroll(width, height, worldH, map, pathBottom, unlocked);
+    this.#bindScroll(width, height, placed.worldH, map.levels, placed.stops, unlocked);
 
     if (unlockReveal && revealLevelIndex >= 0) {
       this.#runUnlockReveal(revealLevelIndex);
@@ -178,35 +179,89 @@ export class StageMapScene extends Phaser.Scene {
     }
   }
 
-  #worldHeight(screenH: number, levels: number): number {
-    return screenH * (0.26 + Math.max(1, levels - 1) * LEVEL_GAP + 0.16);
+  #placeRoad(
+    width: number,
+    screenH: number,
+    levels: number,
+    fade: {top: number; bottom: number},
+  ) {
+    const bandTop = fade.top;
+    const bandBottom = Math.max(bandTop + 1, fade.bottom);
+    const key = assetConf.image.road;
+    const source = this.#roadSource(key);
+    const frameW = source?.width || 900;
+    const frameH = source?.height || 1600;
+    const dispW = width;
+    const dispH = frameH * (dispW / frameW);
+    const stackH = dispH * ROAD_TILES;
+    const roadTop = bandTop;
+    const worldH = Math.max(screenH, roadTop + stackH + (screenH - bandBottom));
+    const roadLeft = (width - dispW) / 2;
+    const cacheKey = `${source?.src ?? key}:marks7`;
+    const points = source
+      ? stackedLevelPointsFromImage(source, levels, cacheKey)
+      : stackedLevelPointsFallback(levels);
+    const stops = points.map((point) => ({
+      x: roadLeft + point.x * dispW,
+      y: roadTop + point.y * stackH,
+    }));
+
+    return {worldH, roadTop, dispW, dispH, stackH, stops};
   }
 
-  #drawPath(width: number, worldH: number, map: StageMapConfig, pathBottom: number) {
-    const steps = Math.max(1, (map.levels - 1) * 8);
-    const samples = Array.from({length: steps + 1}, (_, step) => {
-      const t = (step / steps) * Math.max(1, map.levels - 1);
-      const point = stagePoint(map, t, pathBottom);
+  #roadSource(key: string) {
+    if (!this.textures.exists(key)) return null;
 
-      return new Phaser.Math.Vector2(width * point.x, worldH * point.y);
-    });
-    const stub = Math.min(width, this.scale.height) * 0.03;
-    const first = samples[0];
-    const last = samples[samples.length - 1];
-    const thick = Math.min(width, this.scale.height) * 0.036;
-    const curve = new Phaser.Curves.Path(first.x, first.y + stub * PATH_STUB_LOW);
-
-    curve.lineTo(first.x, first.y);
-    curve.splineTo(samples.slice(1));
-    curve.lineTo(last.x, last.y - stub);
-
-    this.#pathPoints = curve.getPoints(PATH_CURVE_DIVISIONS).map((point) => point.clone());
-    this.#pathStyle = {
-      thick,
-      fill: hexToInt(map.pathColor),
-      edge: hexToInt(darkenHex(map.pathColor)),
+    const image = this.textures.get(key).getSourceImage() as CanvasImageSource & {
+      width: number;
+      height: number;
+      src?: string;
     };
-    this.#pathGfx = this.add.graphics().setDepth(2);
+
+    if (!image || image.width < 2 || image.height < 2) return null;
+
+    return image;
+  }
+
+  #addRoad(
+    width: number,
+    placed: {roadTop: number; dispW: number; dispH: number},
+  ) {
+    const key = assetConf.image.road;
+
+    if (!this.textures.exists(key)) return;
+
+    this.#roadMask = this.make.graphics();
+    this.children.remove(this.#roadMask);
+    this.#roadMask.fillStyle(0xffffff);
+    const mask = this.#roadMask.createGeometryMask();
+
+    for (let tile = 0; tile < ROAD_TILES; tile += 1) {
+      this.add
+        .image(width / 2, placed.roadTop + tile * placed.dispH, key)
+        .setOrigin(0.5, 0)
+        .setDisplaySize(placed.dispW, placed.dispH)
+        .setDepth(2)
+        .setMask(mask);
+    }
+  }
+
+  #levelButtonSize(width: number, height: number, stops: {x: number; y: number}[]) {
+    let minGap = Math.min(width, height);
+
+    for (let index = 1; index < stops.length; index += 1) {
+      minGap = Math.min(
+        minGap,
+        Phaser.Math.Distance.Between(
+          stops[index - 1].x,
+          stops[index - 1].y,
+          stops[index].x,
+          stops[index].y,
+        ),
+      );
+    }
+
+    return Math.min(Math.min(width, height) * LEVEL_SCALE, (minGap / LEVEL_PULSE_SCALE_MUL) * 0.9);
   }
 
   #fadeAlpha(screenY: number): number {
@@ -242,7 +297,7 @@ export class StageMapScene extends Phaser.Scene {
   }
 
   #syncMapFade() {
-    this.#paintPath();
+    this.#syncRoadMask();
     this.#syncLevelFade();
   }
 
@@ -254,34 +309,14 @@ export class StageMapScene extends Phaser.Scene {
     }
   }
 
-  #paintPath() {
-    const road = this.#pathGfx;
-    const style = this.#pathStyle;
-    const points = this.#pathPoints;
+  #syncRoadMask() {
+    const mask = this.#roadMask;
 
-    if (!road || !style || points.length < 2) return;
+    if (!mask) return;
 
-    const scrollY = this.cameras.main.scrollY;
-    const cullTop = scrollY - PATH_FADE_PX * 2;
-    const cullBottom = scrollY + this.scale.height + PATH_FADE_PX * 2;
-
-    road.clear();
-
-    for (let index = 0; index < points.length - 1; index += 1) {
-      const from = points[index];
-      const to = points[index + 1];
-      const midWorldY = (from.y + to.y) * 0.5;
-
-      if (midWorldY < cullTop || midWorldY > cullBottom) continue;
-
-      const screenY = midWorldY - scrollY;
-      const alpha = this.#fadeAlpha(screenY);
-
-      road.lineStyle(style.thick, style.edge, alpha);
-      road.lineBetween(from.x, from.y, to.x, to.y);
-      road.lineStyle(style.thick * 0.52, style.fill, alpha);
-      road.lineBetween(from.x, from.y, to.x, to.y);
-    }
+    mask.clear();
+    mask.fillStyle(0xffffff);
+    mask.fillRect(0, this.cameras.main.scrollY + this.#bandTop, this.scale.width, this.#bandHeight);
   }
 
   #readBtnHeight(): number {
@@ -348,9 +383,8 @@ export class StageMapScene extends Phaser.Scene {
     map: StageMapConfig,
     revealPending = false,
   ) {
-    const {width, height} = this.scale;
     const button = this.add.image(0, 0, assetConf.image.btnPlay);
-    const buttonScale = (Math.min(width, height) * size) / button.width;
+    const buttonScale = size / button.width;
 
     button.setScale(buttonScale);
 
@@ -579,8 +613,8 @@ export class StageMapScene extends Phaser.Scene {
     width: number,
     screenH: number,
     worldH: number,
-    map: StageMapConfig,
-    pathBottom: number,
+    levels: number,
+    stops: {x: number; y: number}[],
     unlocked: number,
   ) {
     this.#unbindScroll();
@@ -594,20 +628,21 @@ export class StageMapScene extends Phaser.Scene {
     const focusLevel =
       Number.isFinite(registryFocus) && registryFocus >= 1
         ? registryFocus
-        : Phaser.Math.Clamp(unlocked, 1, map.levels);
+        : Phaser.Math.Clamp(unlocked, 1, levels);
 
     if (Number.isFinite(registryFocus) && registryFocus >= 1) {
       this.registry.remove("stageMapFocusLevel");
     }
 
-    const index = Phaser.Math.Clamp(focusLevel - 1, 0, map.levels - 1);
-    const stop = stagePoint(map, index, pathBottom);
-    const scrollY = Phaser.Math.Clamp(worldH * stop.y - screenH * 0.42, 0, maxScroll);
+    const index = Phaser.Math.Clamp(focusLevel - 1, 0, Math.max(0, levels - 1));
+    const stop = stops[index];
+    const focusY = this.#bandTop + this.#bandHeight * 0.62;
+    const scrollY = Phaser.Math.Clamp((stop?.y ?? 0) - focusY, 0, maxScroll);
 
     this.cameras.main.setBounds(0, 0, width, worldH);
     this.cameras.main.setScroll(0, scrollY);
     this.#clampScrollY();
-    this.#markScrollDirty();
+    this.#syncMapFade();
 
     this.#onScrollDown = (pointer: Phaser.Input.Pointer) => {
       if (this.#energyPopup) return;

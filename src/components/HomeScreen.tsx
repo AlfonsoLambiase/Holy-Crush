@@ -22,6 +22,17 @@ import {HomeLightFall} from "./HomeLightFall";
 import {SharePanel} from "./SharePanel";
 import {WoodPanel} from "./WoodPanel";
 import type {BootStartScene} from "@game/scenes/boot";
+import {
+  applyTestStageForStart,
+  bootStartForTestMode,
+  isStageStartTestEnabled,
+  readTestStageSelection,
+  readTestStageStartMode,
+  StageStartTestPanel,
+  writeTestStageSelection,
+  writeTestStageStartMode,
+  type TestStageStartMode,
+} from "@game/level-up-test";
 
 import {PhaserGame} from "./PhaserGame";
 import {WorldScreen} from "./WorldScreen";
@@ -385,6 +396,8 @@ export function HomeScreen() {
   const [curtainPhase, setCurtainPhase] = useState<CloudCurtainPhase>("idle");
   const [showWorld, setShowWorld] = useState(false);
   const [phaserBootStart, setPhaserBootStart] = useState<BootStartScene>("default");
+  const [testStageIndex, setTestStageIndex] = useState(readTestStageSelection);
+  const [testStartMode, setTestStartMode] = useState<TestStageStartMode>(readTestStageStartMode);
   const [pressedPanel, setPressedPanel] = useState<MenuButtonKey | null>(null);
   const [openPanel, setOpenPanel] = useState<MenuPanel | null>(null);
   const [isMusicOn, setIsMusicOn] = useState(isMusicEnabled);
@@ -453,6 +466,13 @@ export function HomeScreen() {
 
   const homeSuspended = showWorld || isPlaying;
 
+  const launchTestStage = () => {
+    applyTestStageForStart(testStageIndex, testStartMode);
+    playStageTrack(testStageIndex);
+    setPhaserBootStart(bootStartForTestMode(testStartMode));
+    setIsPlaying(true);
+  };
+
   return (
     <div className="relative h-dvh w-full overflow-hidden">
       <div
@@ -488,6 +508,22 @@ export function HomeScreen() {
         }`}
         style={{transitionDelay: isIntroDone ? `${INTRO_MOVE_MS * 0.6}ms` : "0ms"}}
       >
+        {isStageStartTestEnabled() ? (
+          <StageStartTestPanel
+            mode={testStartMode}
+            stageIndex={testStageIndex}
+            onLaunch={launchTestStage}
+            onModeChange={(mode) => {
+              writeTestStageStartMode(mode);
+              setTestStartMode(mode);
+            }}
+            onStageIndexChange={(index) => {
+              writeTestStageSelection(index);
+              setTestStageIndex(index);
+            }}
+          />
+        ) : null}
+
         <HomeImageButton
           alt={t("start")}
           className="w-[min(62vw,18rem)]"
@@ -668,9 +704,15 @@ export function HomeScreen() {
               setCurtainPhase("idle");
             }}
             onEnter={(worldIndex) => {
-              prepareEnterWorld(worldIndex);
+              if (isStageStartTestEnabled()) {
+                applyTestStageForStart(testStageIndex, testStartMode);
+                setPhaserBootStart(bootStartForTestMode(testStartMode));
+              } else {
+                prepareEnterWorld(worldIndex);
+                setPhaserBootStart("default");
+              }
+
               playStageTrack(getStageIndex());
-              setPhaserBootStart("default");
               setShowWorld(false);
               setIsPlaying(true);
             }}

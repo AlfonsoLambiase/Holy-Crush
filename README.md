@@ -35,7 +35,7 @@ Ogni stage ha:
 - una stage road, il percorso sulla mappa
 - i pulsanti dei livelli lungo quel percorso
 
-Le stage road sono di meno degli stage. Si riusano in parti uguali: con 6 road, la stessa road vale per 2 stage di fila (`road_0` sugli stage 0 e 1, `road_1` su 2 e 3, e così via). Se il rapporto cambia, si aggiornano `ROAD_COUNT` e `ROAD_REUSE` in `phaser/shared/config/asset-paths.const.ts`.
+Ogni stage ha la sua road, con lo stesso indice del background: `backgroundStage_1` va con `road_1`. Sulla mappa la stessa road si ripete **3 volte in verticale**; su ogni blocco ci sono **7** livelli (ingresso, cinque curve, uscita), sull’ultimo blocco in alto **6**, per **20** livelli totali.
 
 Ogni stage ha da 4 a 5 livelli. Completati tutti, si passa allo stage successivo (opening successivo, poi la sua mappa).
 

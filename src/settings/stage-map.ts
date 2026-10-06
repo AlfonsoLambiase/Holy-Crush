@@ -1,6 +1,8 @@
 //* Qui decidi la mappa di ogni stage.
 
-//* numberColor e pathColor vanno tenuti uguali: colorano il numero e il percorso.
+//* numberColor colora il numero sul pulsante del livello.
+
+//* La strada è road_N (come backgroundStage_N), impilata 3 volte: 7+7+6 livelli.
 
 //* Se gli stage finiscono, si ricomincia dal primo.
 
@@ -12,31 +14,15 @@ export const DRAIN_FILL_IN_CIRCLE = true;
 
 export const STAGE_LEVELS = 20;
 
-//* Stage di contenuto (op_0 … op_19, backgroundStage_0 … backgroundStage_19)
+//* Stage di contenuto (op_0 … op_19, backgroundStage_0 … backgroundStage_19, road_0 … road_19)
 
 export const STAGE_COUNT = 20;
-
-export type PathShape =
-  "snake" | "mirror" | "wide" | "tight" | "drift" | "slow";
 
 export type StageMapConfig = {
   levels: number;
 
   numberColor: string;
-
-  pathColor: string;
-
-  shape: PathShape;
 };
-
-const SHAPE_CYCLE: PathShape[] = [
-  "snake",
-  "mirror",
-  "wide",
-  "tight",
-  "drift",
-  "slow",
-];
 
 const PATH_COLORS = [
   "#ffe566",
@@ -82,10 +68,6 @@ export const STAGE_MAPS: StageMapConfig[] = Array.from(
     levels: STAGE_LEVELS,
 
     numberColor: PATH_COLORS[index] ?? PATH_COLORS[0],
-
-    pathColor: PATH_COLORS[index] ?? PATH_COLORS[0],
-
-    shape: SHAPE_CYCLE[index % SHAPE_CYCLE.length],
   }),
 );
 
@@ -124,63 +106,3 @@ export const darkenHex = (hex: string, amount = 0.62): string => {
 
   return `#${mixed.toString(16).padStart(6, "0")}`;
 };
-
-//* Il seno extra è 0 sui livelli, così il bottone resta sul tracciato e l'onda sta in mezzo
-
-const pathX = (shape: PathShape, t: number): number => {
-  switch (shape) {
-    case "mirror":
-      return (
-        0.5 - 0.2 * Math.cos(t * Math.PI) - 0.13 * Math.sin(t * Math.PI * 2)
-      );
-
-    case "wide":
-      return (
-        0.5 + 0.3 * Math.cos(t * Math.PI) + 0.06 * Math.sin(t * Math.PI * 2)
-      );
-
-    case "tight":
-      return (
-        0.5 + 0.18 * Math.cos(t * Math.PI) + 0.14 * Math.sin(t * Math.PI * 3)
-      );
-
-    case "drift":
-      return (
-        0.5 +
-        0.22 * Math.cos(t * Math.PI + 0.8) +
-        0.1 * Math.sin(t * Math.PI * 2)
-      );
-
-    case "slow":
-      return (
-        0.5 + 0.26 * Math.cos(t * Math.PI * 0.5) + 0.08 * Math.sin(t * Math.PI)
-      );
-
-    default:
-      return (
-        0.5 + 0.2 * Math.cos(t * Math.PI) + 0.13 * Math.sin(t * Math.PI * 2)
-      );
-  }
-};
-
-//* y: 0 in alto, 1 in basso. I livelli partono sempre dal fondo.
-
-export const stagePoint = (
-  config: StageMapConfig,
-
-  t: number,
-
-  bottom = PATH_BOTTOM,
-
-  top = PATH_TOP,
-): { x: number; y: number } => {
-  const span = Math.max(1, config.levels - 1);
-
-  const along = t / span;
-
-  return { x: pathX(config.shape, t), y: bottom - along * (bottom - top) };
-};
-
-const PATH_BOTTOM = 0.92;
-
-const PATH_TOP = 0.06;
