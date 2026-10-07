@@ -1,6 +1,7 @@
-import {createElement, type ChangeEvent, type ReactNode} from "react";
+import {createElement, type ReactNode} from "react";
 
-import {normalizeStageIndex, STAGE_COUNT} from "@/settings/stage-map";
+import {TestStagePicker} from "@/components/TestStagePicker";
+import {normalizeStageIndex} from "@/settings/stage-map";
 import type {BootStartScene} from "./scenes/boot";
 
 const PROGRESS_KEY = "holy-crush-cleared";
@@ -71,35 +72,17 @@ export function StageStartTestPanel({
 }: StageStartTestPanelProps): ReactNode {
   if (!isStageStartTestEnabled()) return null;
 
-  const options = Array.from({length: STAGE_COUNT}, (_, index) =>
-    createElement("option", {key: index, value: String(index)}, `Stage ${index + 1}`),
-  );
-
   return createElement(
     "div",
     {
       className:
-        "flex w-[min(92vw,20rem)] flex-col gap-2 rounded-xl border border-amber-600/50 bg-black/55 px-3 py-2 text-left font-display text-xs text-[#fff8dc] shadow-lg backdrop-blur-sm",
+        "relative z-20 flex w-[min(92vw,20rem)] flex-col gap-2 rounded-xl border border-amber-600/50 bg-black/55 px-3 py-2 text-left font-display text-xs text-[#fff8dc] shadow-lg backdrop-blur-sm",
     },
     createElement(
       "label",
       {className: "flex flex-col gap-1"},
       createElement("span", {className: "text-[0.65rem] uppercase tracking-wide text-amber-200/90"}, "Test stage"),
-      createElement(
-        "select",
-        {
-          className:
-            "rounded-lg border border-amber-700/60 bg-[#2a1810] px-2 py-1.5 text-sm text-[#fde8a0] outline-none",
-          value: String(stageIndex),
-          onChange: (event: ChangeEvent<HTMLSelectElement>) => {
-            const next = normalizeStageIndex(Number(event.target.value));
-
-            writeTestStageSelection(next);
-            onStageIndexChange(next);
-          },
-        },
-        options,
-      ),
+      createElement(TestStagePicker, {stageIndex, onStageIndexChange}),
     ),
     createElement(
       "fieldset",

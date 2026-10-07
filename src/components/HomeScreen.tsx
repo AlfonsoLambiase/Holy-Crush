@@ -526,7 +526,7 @@ export function HomeScreen() {
 
         <HomeImageButton
           alt={t("start")}
-          className="w-[min(62vw,18rem)]"
+          className="relative z-0 w-[min(62vw,18rem)]"
           float={START_FLOAT}
           height={181}
           src="/ui_home/start.png"
