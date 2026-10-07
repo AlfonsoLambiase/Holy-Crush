@@ -22,13 +22,17 @@ import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
 
 const assetConf = CandyCrushAssetConf;
 
-const LEVEL_SCALE = 0.11;
+const LEVEL_SCALE = 0.11 * 1.2;
 const LEVEL_PULSE_SCALE_MUL = 1.24;
 const LEVEL_PULSE_MS = 750;
 const RECHARGE_MS = 1200;
-const PATH_FADE_ALPHA = 0.1;
-const PATH_FADE_PX = 56;
+const PATH_FADE_MIN_ALPHA = 0;
+const PATH_FADE_PX = 112;
 const PATH_FADE_TOP_EXTRA = 58;
+//* Alza lo stack road rispetto alla mascotte (senza tagliare il png)
+const ROAD_START_OFFSET_TILE = 0.055;
+//* Padding mondo in alto: scroll fino al pivot liv. 20 dentro al crop
+const ROAD_SCROLL_TOP_TILE = 0.03;
 const PAN_DRAG_THRESHOLD = 12;
 const SCROLL_WHEEL_FACTOR = 0.85;
 const SCROLL_INERTIA_MUL = 0.62;
@@ -194,7 +198,10 @@ export class StageMapScene extends Phaser.Scene {
     const dispW = width;
     const dispH = frameH * (dispW / frameW);
     const stackH = dispH * ROAD_TILES;
-    const roadTop = bandTop;
+    const roadTopBase = Math.max(0, bandTop - dispH * ROAD_START_OFFSET_TILE);
+    const roadScrollTopPad =
+      Math.max(0, bandTop - roadTopBase) + dispH * ROAD_SCROLL_TOP_TILE;
+    const roadTop = roadTopBase + roadScrollTopPad;
     const worldH = Math.max(screenH, roadTop + stackH + (screenH - bandBottom));
     const roadLeft = (width - dispW) / 2;
     const cacheKey = `${source?.src ?? key}:marks7`;
@@ -265,23 +272,22 @@ export class StageMapScene extends Phaser.Scene {
   }
 
   #fadeAlpha(screenY: number): number {
-    if (screenY <= this.#fadeTop) {
-      if (screenY <= this.#fadeTop - PATH_FADE_PX) return PATH_FADE_ALPHA;
+    // Sotto il bordo del vecchio crop: opaco; sopra/sotto banda: alpha morbido fino a 0
+    if (screenY >= this.#fadeTop && screenY <= this.#fadeBottom) return 1;
+
+    if (screenY < this.#fadeTop) {
+      if (screenY <= this.#fadeTop - PATH_FADE_PX) return PATH_FADE_MIN_ALPHA;
 
       const t = (screenY - (this.#fadeTop - PATH_FADE_PX)) / PATH_FADE_PX;
 
-      return PATH_FADE_ALPHA + t * (1 - PATH_FADE_ALPHA);
+      return PATH_FADE_MIN_ALPHA + t * (1 - PATH_FADE_MIN_ALPHA);
     }
 
-    if (screenY >= this.#fadeBottom) {
-      if (screenY >= this.#fadeBottom + PATH_FADE_PX) return PATH_FADE_ALPHA;
+    if (screenY >= this.#fadeBottom + PATH_FADE_PX) return PATH_FADE_MIN_ALPHA;
 
-      const t = (this.#fadeBottom + PATH_FADE_PX - screenY) / PATH_FADE_PX;
+    const t = (this.#fadeBottom + PATH_FADE_PX - screenY) / PATH_FADE_PX;
 
-      return PATH_FADE_ALPHA + t * (1 - PATH_FADE_ALPHA);
-    }
-
-    return 1;
+    return PATH_FADE_MIN_ALPHA + t * (1 - PATH_FADE_MIN_ALPHA);
   }
 
   #clampScrollY() {

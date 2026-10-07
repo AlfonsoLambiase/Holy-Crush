@@ -489,11 +489,11 @@ export const buildStackedLevelPoints = (
   if (points.length === totalLevels) {
     points[0] = {
       x: entry.x,
-      y: (ROAD_TILES - 1 + entry.y) / ROAD_TILES,
+      y: 1,
     };
     points[totalLevels - 1] = {
       x: exit.x,
-      y: exit.y / ROAD_TILES,
+      y: 0,
     };
   }
 
