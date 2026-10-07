@@ -21,6 +21,7 @@
 /build
 
 # misc
+scripts/.stage-verse-translations.partial.json
 .DS_Store
 *.pem
 

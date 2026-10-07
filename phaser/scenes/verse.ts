@@ -25,7 +25,7 @@ export class VerseScene extends Phaser.Scene {
     const {width, height} = this.scale;
     const stage = Number(this.registry.get("stage")) || DEFAULT_STAGE;
     const level = Number(this.registry.get("level")) || 1;
-    const verse = getVerseByStageAndLevel(stage, level);
+    const verse = getVerseByStageAndLevel(stage, level, getCurrentLanguage());
     const fontSize = Math.round(Phaser.Math.Clamp(width * 0.055, 28, 72));
 
     this.#isComplete = false;

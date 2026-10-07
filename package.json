@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "verses:i18n": "node scripts/generate-stage-verse-translations.mjs",
+    "verses:i18n:finish": "node scripts/finish-stage-verse-translations.mjs && node scripts/write-verse-translations-output.mjs",
     "mobile:sync": "npm run build && cap sync",
     "mobile:android": "npm run mobile:sync && cap open android",
     "mobile:ios": "npm run mobile:sync && cap open ios"
