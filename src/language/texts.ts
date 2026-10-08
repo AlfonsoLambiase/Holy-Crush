@@ -270,6 +270,13 @@ const UI_TEXTS: TextEntry[] = [
     fr: "TOUCHE POUR CONTINUER",
   },
   {
+    key: "noMovesShuffle",
+    it: "Nessuna mossa disponibile\nRimescolo la griglia",
+    en: "No moves available\nShuffling the board",
+    es: "No hay movimientos disponibles\nBarajando el tablero",
+    fr: "Aucun coup disponible\nJe mélange la grille",
+  },
+  {
     key: "newTestament",
     it: "Nuovo Testamento",
     en: "New Testament",

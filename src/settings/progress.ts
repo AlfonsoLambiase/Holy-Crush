@@ -49,7 +49,7 @@ const writeProgress = (progress: Progress) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
 };
 
-//* Indice file: op_0, backgroundStage_0, road_0
+//* Indice file opening: op_0 …; scenery: stage-scenery-assets.ts
 export const getStageIndex = (): number => readProgress().stage;
 
 //* Quanti play sono aperti sullo stage corrente

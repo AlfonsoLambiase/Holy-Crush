@@ -46,9 +46,8 @@ export const applyTestStageForStart = (
   if (typeof localStorage === "undefined") return;
 
   const stage = normalizeStageIndex(stageIndex);
-  const cleared = mode === "map" ? 1 : 0;
 
-  localStorage.setItem(PROGRESS_KEY, JSON.stringify({stage, cleared}));
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify({stage, cleared: 0}));
 };
 
 export const bootStartForTestMode = (mode: TestStageStartMode): BootStartScene =>

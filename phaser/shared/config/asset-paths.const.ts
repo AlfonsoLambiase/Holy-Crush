@@ -1,3 +1,10 @@
+import {
+  type StageSceneryTheme,
+  sceneryBackgroundPath,
+  sceneryBlockPath,
+  sceneryRoadPath,
+  stageSceneryTheme,
+} from "@/settings/stage-scenery-assets";
 import {STAGE_COUNT} from "@/settings/stage-map";
 
 //* Mappa i nomi logici degli asset sulle cartelle reali dentro /public
@@ -91,22 +98,26 @@ export const stageFileIndex = (stage: number = DEFAULT_STAGE): number => {
   return Math.min(index, STAGE_COUNT - 1);
 };
 
-//* backgroundStage_N e road_N sono la stessa coppia di stage
-const stageBackground = (index: number) =>
-  `/mode_0/stage_background/backgroundStage_${index}.png`;
-
-const STAGE_FILE: Record<string, (index: number) => string> = {
+const STAGE_FILE: Record<string, (fileIndex: number) => string> = {
   opening: (index) => `/mode_0/stage_opening/op_${index}.png`,
-  backgroundStage: stageBackground,
-  backgroundGame: stageBackground,
-  endBackground: stageBackground,
-  block: (index) => `/mode_0/stage_block/block_${index}.png`,
-  road: (index) => `/mode_0/stage_road/road_${index}.png`,
   stageMascot: (index) => `/mode_0/stage_thumbnail/thumbnail_${index}.png`,
 };
 
+const SCENERY_PATH: Record<string, (theme: StageSceneryTheme) => string> =
+  {
+    backgroundStage: sceneryBackgroundPath,
+    backgroundGame: sceneryBackgroundPath,
+    endBackground: sceneryBackgroundPath,
+    block: sceneryBlockPath,
+    road: sceneryRoadPath,
+  };
+
 export const AssetPaths = {
   image: (key: string, stage: number = DEFAULT_STAGE) => {
+    const sceneryPath = SCENERY_PATH[key];
+
+    if (sceneryPath) return sceneryPath(stageSceneryTheme(stage));
+
     const staged = STAGE_FILE[key];
 
     if (staged) return staged(stageFileIndex(stage));

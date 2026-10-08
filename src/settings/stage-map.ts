@@ -2,7 +2,7 @@
 
 //* numberColor colora il numero sul pulsante del livello.
 
-//* La strada è road_N (come backgroundStage_N), impilata 3 volte: 7+7+6 livelli.
+//* Sfondo/strada/blocchi: bg_* / road_* / block_* in stage-scenery-assets.ts.
 
 //* Se gli stage finiscono, si ricomincia dal primo.
 
@@ -14,7 +14,7 @@ export const DRAIN_FILL_IN_CIRCLE = true;
 
 export const STAGE_LEVELS = 20;
 
-//* Stage di contenuto (op_0 … op_19, backgroundStage_0 … backgroundStage_19, road_0 … road_19)
+//* Stage di contenuto (op_0 … op_19 + set scenery tematici)
 
 export const STAGE_COUNT = 20;
 

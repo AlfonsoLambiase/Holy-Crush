@@ -24,6 +24,8 @@ const assetConf = CandyCrushAssetConf;
 
 const LEVEL_SCALE = 0.11 * 1.2;
 const LEVEL_PULSE_SCALE_MUL = 1.24;
+/** Sotto questa frazione del cap viewport, il gap road è considerato inaffidabile (es. road_sabbia). */
+const LEVEL_BTN_MIN_GAP_FRAC = 0.75;
 const LEVEL_PULSE_MS = 750;
 const RECHARGE_MS = 1200;
 const PATH_FADE_MIN_ALPHA = 0;
@@ -268,7 +270,12 @@ export class StageMapScene extends Phaser.Scene {
       );
     }
 
-    return Math.min(Math.min(width, height) * LEVEL_SCALE, (minGap / LEVEL_PULSE_SCALE_MUL) * 0.9);
+    const viewportCap = Math.min(width, height) * LEVEL_SCALE;
+    const gapCap = (minGap / LEVEL_PULSE_SCALE_MUL) * 0.9;
+
+    if (gapCap < viewportCap * LEVEL_BTN_MIN_GAP_FRAC) return viewportCap;
+
+    return Math.min(viewportCap, gapCap);
   }
 
   #fadeAlpha(screenY: number): number {

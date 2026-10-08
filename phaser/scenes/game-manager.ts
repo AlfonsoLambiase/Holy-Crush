@@ -2,6 +2,7 @@
 /* eslint-disable no-console */
 import * as Phaser from "phaser";
 
+import {getCurrentLanguage, t} from "@/language";
 import {getPieceKeysForStageLevel} from "@/settings/level-pieces";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 
@@ -1115,7 +1116,7 @@ export class GameManager extends Phaser.Scene {
       0.55,
     );
     const label = this.add
-      .text(0, 0, "Nessuna mossa disponibile\nRimescolo la griglia", {
+      .text(0, 0, t("noMovesShuffle", getCurrentLanguage()), {
         fontFamily: APP_FONT,
         fontSize: "42px",
         color: "#ffffff",
