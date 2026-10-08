@@ -1,3 +1,4 @@
+import {Capacitor} from "@capacitor/core";
 import {createElement, type ReactNode} from "react";
 
 import {TestStagePicker} from "@/components/TestStagePicker";
@@ -10,7 +11,10 @@ const SESSION_MODE_KEY = "holy-crush-test-start-mode";
 
 export type TestStageStartMode = "opening" | "map";
 
-export const isStageStartTestEnabled = (): boolean => process.env.NODE_ENV === "development";
+export const isStageStartTestEnabled = (): boolean =>
+  process.env.NODE_ENV === "development" ||
+  process.env.NEXT_PUBLIC_ENABLE_STAGE_PICKER === "true" ||
+  (typeof window !== "undefined" && Capacitor.isNativePlatform());
 
 export const readTestStageSelection = (): number => {
   if (typeof sessionStorage === "undefined") return 0;

@@ -10,15 +10,16 @@ const assetsDir = path.join(root, "assets");
 const publicIconsDir = path.join(root, "public", "icons");
 const appDir = path.join(root, "src", "app");
 
-/** Celeste simile allo sfondo del logo */
+/** Sfondo adaptive Android/iOS (logo_app è PNG trasparente). */
 const ICON_BG = {r: 159, g: 212, b: 245, alpha: 1};
 const MASTER = 1024;
-const INSET = 0.07;
+const INSET = 0.06;
 
 async function buildSquareIconBuffer(size) {
   const inner = Math.round(size * (1 - INSET * 2));
   const logo = await sharp(logoPath)
     .resize({width: inner, height: inner, fit: "inside", withoutEnlargement: false})
+    .ensureAlpha()
     .png()
     .toBuffer();
 
