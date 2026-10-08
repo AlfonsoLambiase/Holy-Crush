@@ -33,7 +33,7 @@ export function WoodPanel({
 
   return (
     <div
-      className={`${className} flex touch-auto items-center justify-center bg-black/55 px-3 ${
+      className={`${className} flex touch-auto items-center justify-center overflow-y-auto bg-black/55 px-3 py-[max(0.5rem,env(safe-area-inset-top))] ${
         leaving ? "popup-backdrop-out" : "popup-backdrop-in"
       }`}
       onClick={requestClose}
@@ -42,19 +42,23 @@ export function WoodPanel({
       onPointerUp={(event) => event.stopPropagation()}
     >
       <div
-        className={`relative w-[min(88vw,28rem)] ${leaving ? "popup-panel-out" : "popup-panel-in"}`}
+        className={`relative aspect-[863/1152] w-[min(88vw,28rem,calc(92dvh*863/1152))] max-h-[92dvh] shrink-0 ${
+          leaving ? "popup-panel-out" : "popup-panel-in"
+        }`}
         onClick={(event) => event.stopPropagation()}
       >
         <Image
           alt={alt}
-          className={`h-auto w-full ${src.includes("gameContainer") ? "" : "drop-shadow-2xl"}`}
+          className={`h-full w-full object-fill ${src.includes("gameContainer") ? "" : "drop-shadow-2xl"}`}
           height={1152}
           src={src}
           width={863}
         />
         <div
-          className={`absolute inset-[11%] flex flex-col items-center overflow-hidden px-[6%] text-center ${
-            contentAlign === "start" ? "justify-start" : "justify-center"
+          className={`absolute inset-[11%] flex min-h-0 flex-col overflow-x-hidden overscroll-y-contain px-[6%] py-1 text-center [-webkit-overflow-scrolling:touch] ${
+            contentAlign === "start"
+              ? "items-stretch justify-start overflow-y-auto"
+              : "items-center justify-center overflow-y-auto"
           }`}
         >
           {children}

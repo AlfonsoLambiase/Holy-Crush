@@ -19,7 +19,8 @@ const PANEL_TITLE_STYLE: React.CSSProperties = {
   ...PANEL_OUTLINE,
 };
 
-const PANEL_SECTION_TITLE_CLASS = "font-display text-2xl font-bold text-[#ffd76a] sm:text-3xl";
+const PANEL_SECTION_TITLE_CLASS =
+  "font-display text-xl font-bold text-[#ffd76a] max-[380px]:text-lg sm:text-2xl md:text-3xl";
 
 const SHARE_ICON_CLASS =
   "flex h-[min(14vw,4rem)] w-[min(14vw,4rem)] items-center justify-center rounded-full border-2 border-[#a67c22] bg-[#3d2614] text-[#fff8dc] shadow-[0_0_10px_rgba(255,214,120,0.35)] transition-transform duration-100 active:scale-95";
@@ -156,7 +157,7 @@ export function SharePanel() {
         {t("share")}
       </p>
 
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-4 sm:gap-5">
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-3 max-[700px]:mt-3 sm:mt-6 sm:gap-5">
         <button
           aria-label={t("shareWhatsApp")}
           className={SHARE_ICON_CLASS}

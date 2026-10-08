@@ -7,6 +7,7 @@ import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
 import {playClick} from "@/settings/click";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
+import {popupPlateScale} from "../shared/popup-plate-scale";
 import {animatePopupClose, animatePopupOpen} from "../shared/popup-motion";
 import {dynamicValueForViewport} from "../shared/viewport-scale";
 
@@ -146,7 +147,7 @@ export class ExitManager extends Phaser.Scene {
     const centerX = this.width / 2;
     const centerY = this.height / 2;
 
-    this.#popupBaseScale = this.#scaleOf(0.4, 0.95);
+    this.#popupBaseScale = popupPlateScale(this, assetConf.image.popupExitGame);
     this.popupContainer = this.add
       .container(centerX, centerY)
       .setDepth(101)
@@ -290,7 +291,8 @@ export class ExitManager extends Phaser.Scene {
 
   showPopup(mode: PopupMode = "exit") {
     this.#mode = mode;
-    this.#popupBaseScale = this.#scaleOf(0.4, 0.95);
+    this.#popupBaseScale = popupPlateScale(this, assetConf.image.popupExitGame);
+    this.popupContainer?.setScale(this.#popupBaseScale);
     this.#layoutChoiceButtons();
     this.titleText?.setText(
       t(this.#mode === "reload" ? "reloadTitle" : "exitTitle", getCurrentLanguage()),

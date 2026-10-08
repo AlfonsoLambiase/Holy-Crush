@@ -16,6 +16,7 @@ import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
 import {addCountBadge, type CountBadge} from "../shared/count-badge";
 import {addMaskedImageFill, tweenRemainingSync, type FillPair} from "../shared/fill-pair";
+import {popupPlateScale} from "../shared/popup-plate-scale";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
 import {GameSettingsMenu} from "./game-settings-menu";
 import type {Game} from "../scenes/game";
@@ -333,7 +334,7 @@ export class ItemsBar {
     this.#popup = showWatchAdPopup(this.scene, {
       title: t(titleKey, language),
       body: t(bodyKey, language),
-      scale: this.scaleOf(0.42, 0.9),
+      scale: popupPlateScale(this.scene, assetConf.image.popupExitGame),
       onClose: () => {
         this.#popup = null;
       },

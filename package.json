@@ -9,7 +9,8 @@
     "lint": "eslint",
     "verses:i18n": "node scripts/generate-stage-verse-translations.mjs",
     "verses:i18n:finish": "node scripts/finish-stage-verse-translations.mjs && node scripts/write-verse-translations-output.mjs",
-    "mobile:sync": "npm run build && cap sync",
+    "icons:generate": "node scripts/generate-app-icons.mjs && npx @capacitor/assets generate --ios --android --iconBackgroundColor \"#9fd4f5\"",
+    "mobile:sync": "npm run icons:generate && npm run build && cap sync",
     "mobile:android": "npm run mobile:sync && cap open android",
     "mobile:ios": "npm run mobile:sync && cap open ios"
   },
@@ -23,7 +24,9 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.5.2",
+    "sharp": "^0.34.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

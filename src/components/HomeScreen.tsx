@@ -89,7 +89,8 @@ const PANEL_TITLE_STYLE: React.CSSProperties = {
   ...PANEL_OUTLINE,
 };
 
-const PANEL_SECTION_TITLE_CLASS = "font-display text-2xl font-bold text-[#ffd76a] sm:text-3xl";
+const PANEL_SECTION_TITLE_CLASS =
+  "font-display text-xl font-bold text-[#ffd76a] max-[380px]:text-lg sm:text-2xl md:text-3xl";
 const PANEL_BODY_TEXT_CLASS = "font-accent text-lg font-bold text-[#fff8dc] sm:text-xl";
 const PANEL_LANGUAGE_VALUE_CLASS =
   "font-display text-xl font-bold text-[#fff8dc] sm:text-2xl";
@@ -193,7 +194,7 @@ function AccessPanel() {
       <p className={PANEL_SECTION_TITLE_CLASS} style={PANEL_TITLE_STYLE}>
         {t("access")}
       </p>
-      <div className="mt-6 flex w-full max-w-sm flex-col items-stretch gap-4 sm:gap-5">
+      <div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-3 max-[700px]:mt-3 sm:mt-6 sm:gap-5">
         <div className="flex items-center gap-3 sm:gap-4">
           <button
             aria-label={t("googleSignIn")}
@@ -616,6 +617,7 @@ export function HomeScreen() {
         <WoodPanel
           alt={t(openPanel)}
           className="absolute inset-0 z-20"
+          contentAlign="start"
           onClose={() => setOpenPanel(null)}
         >
           {openPanel === "settings" ? (
@@ -639,7 +641,7 @@ export function HomeScreen() {
                 }}
               />
 
-              <p className={`mt-6 ${PANEL_SECTION_TITLE_CLASS}`} style={PANEL_TITLE_STYLE}>
+              <p className={`mt-4 max-[700px]:mt-3 sm:mt-6 ${PANEL_SECTION_TITLE_CLASS}`} style={PANEL_TITLE_STYLE}>
                 {t("effects")}
               </p>
               <SettingsSoundToggle
@@ -656,7 +658,7 @@ export function HomeScreen() {
                 }}
               />
 
-              <p className={`mt-6 ${PANEL_SECTION_TITLE_CLASS}`} style={PANEL_TITLE_STYLE}>
+              <p className={`mt-4 max-[700px]:mt-3 sm:mt-6 ${PANEL_SECTION_TITLE_CLASS}`} style={PANEL_TITLE_STYLE}>
                 {t("language")}
               </p>
               <div className="mt-2 flex items-center justify-center gap-1">
@@ -712,11 +714,12 @@ export function HomeScreen() {
             onEnter={(worldIndex) => {
               if (isStageStartTestEnabled()) {
                 applyTestStageForStart(testStageIndex, testStartMode);
-                setPhaserBootStart(bootStartForTestMode(testStartMode));
               } else {
                 prepareEnterWorld(worldIndex);
-                setPhaserBootStart("default");
               }
+
+              // Sempre opening dello stage effettivo (dopo prepareEnterWorld / test).
+              setPhaserBootStart("opening");
 
               playStageTrack(getStageIndex());
               setShowWorld(false);

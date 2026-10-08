@@ -137,6 +137,17 @@ canvas {
 .cloud-curtain-root {
   overflow: hidden;
   clip-path: inset(0);
+  --cloud-closed-inset-vw: 170;
+  --cloud-center-overlap-rem: 0rem;
+  --cloud-img-min-width-vw: 0;
+  --cloud-closed-x-left: max(
+    calc(var(--cloud-closed-inset-vw) * 1vw - 100%),
+    calc(50vw - 100% + var(--cloud-center-overlap-rem))
+  );
+  --cloud-closed-x-right: min(
+    calc(100% - var(--cloud-closed-inset-vw) * 1vw),
+    calc(100% - 50vw - var(--cloud-center-overlap-rem))
+  );
 }
 
 .cloud-curtain-side {
@@ -179,6 +190,7 @@ canvas {
   width: auto;
   max-width: none;
   height: auto;
+  min-width: calc(var(--cloud-img-min-width-vw) * 1vw);
 }
 
 .cloud-curtain-float[data-motion="closing"][data-index="0"] {

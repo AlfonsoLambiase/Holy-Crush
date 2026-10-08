@@ -1,6 +1,7 @@
 import * as Phaser from "phaser";
 
 import {getCurrentLanguage, openingTextKey, t} from "@/language";
+import {devicePixelRatio} from "@/settings/app-header-layout";
 import {getStageIndex} from "@/settings/progress";
 import {playStageTrack} from "@/settings/soundtrack";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
@@ -15,6 +16,12 @@ const RAY_COUNT = 9;
 const SKY_TOP = 0x1a4f86;
 const SKY_HORIZON = 0xf3d7a2;
 const GOLD = 0xffd76a;
+const PANEL_HEIGHT_RATIO = 0.3;
+const PANEL_BOTTOM_MARGIN_RATIO = 0.035;
+const PANEL_WIDTH_RATIO = 0.86;
+/** Layout contain + bleed: soglie in px CSS (Phaser scale = fisici × DPR). */
+const OPENING_TABLET_MIN_CSS_SHORT = 640;
+const OPENING_TABLET_MIN_CSS_LONG = 900;
 
 export class OpeningScene extends Phaser.Scene {
   #body!: Phaser.GameObjects.Text;
@@ -36,15 +43,38 @@ export class OpeningScene extends Phaser.Scene {
     const key = openingTextKey(stage);
     const translated = t(key, language);
     const copy = translated === key ? t("opening_0", language) : translated;
-    const fontSize = Math.round(Phaser.Math.Clamp(width * 0.042, 26, 58));
+    const dpr = devicePixelRatio();
+    const cssShort = Math.min(width, height) / dpr;
+    const cssLong = Math.max(width, height) / dpr;
+    const tallOpeningLayout =
+      cssShort >= OPENING_TABLET_MIN_CSS_SHORT && cssLong >= OPENING_TABLET_MIN_CSS_LONG;
+    const aspect = width / Math.max(height, 1);
+    const fontSize = Math.round(
+      tallOpeningLayout
+        ? Phaser.Math.Clamp(Math.min(width * 0.042, height * 0.034), 22, aspect > 0.72 ? 48 : 58)
+        : Phaser.Math.Clamp(width * 0.042, 26, 58),
+    );
 
     this.#isComplete = false;
+    if (tallOpeningLayout) this.cameras.main.setBackgroundColor(SKY_TOP);
     playStageTrack(getStageIndex());
 
-    const art = this.#placeArt(width, height);
-    const panelW = width * 0.86;
-    const panelH = Math.min(height * 0.3, art.displayHeight * 0.36);
-    const panelY = art.y + art.displayHeight / 2 - panelH * 0.62;
+    let panelW: number;
+    let panelH: number;
+    let panelY: number;
+    let art: Phaser.GameObjects.Image;
+
+    if (tallOpeningLayout) {
+      panelW = width * PANEL_WIDTH_RATIO;
+      panelH = height * PANEL_HEIGHT_RATIO;
+      panelY = height - height * PANEL_BOTTOM_MARGIN_RATIO - panelH / 2;
+      art = this.#placeArtTablet(width, height, panelY - panelH / 2);
+    } else {
+      art = this.#placeArt(width, height);
+      panelW = width * 0.86;
+      panelH = Math.min(height * 0.3, art.displayHeight * 0.36);
+      panelY = art.y + art.displayHeight / 2 - panelH * 0.62;
+    }
 
     this.add
       .rectangle(width / 2, panelY, panelW, panelH, 0x140d2d, 0.72)
@@ -119,6 +149,106 @@ export class OpeningScene extends Phaser.Scene {
     return art;
   }
 
+  //* Tablet: fit nello spazio sopra il pannello (evita taglio testo su viewport larghi).
+  #placeArtTablet(width: number, height: number, panelTopY: number): Phaser.GameObjects.Image {
+    const art = this.add
+      .image(width / 2, height / 2, assetConf.image.opening)
+      .setOrigin(0.5)
+      .setDepth(2);
+
+    const topMargin = height * 0.02;
+    const maxArtBottom = Math.max(topMargin + 8, panelTopY - height * 0.015);
+    const maxArtHeight = Math.max(64, maxArtBottom - topMargin);
+    const scale = Math.min(width / art.width, maxArtHeight / art.height);
+
+    art.setScale(scale);
+    art.setY(topMargin + maxArtHeight / 2);
+
+    const artTop = art.y - art.displayHeight / 2;
+    const artBottom = art.y + art.displayHeight / 2;
+    const artLeft = art.x - art.displayWidth / 2;
+    const artRight = art.x + art.displayWidth / 2;
+
+    const top = Math.max(0, artTop);
+    const bottom = Math.min(height, artBottom);
+    const lineH = this.#placeLines(width, top, bottom);
+    const outerTop = Math.max(0, top - lineH);
+    const outerBottom = Math.max(0, height - bottom - lineH);
+
+    this.#addSky(width, top, bottom);
+
+    if (outerTop > 2) {
+      this.#addRays(width / 2, top - lineH, outerTop + 48, false);
+    }
+
+    if (outerBottom > 2) {
+      this.#addRays(width / 2, bottom + lineH, outerBottom + 48, true);
+    }
+
+    this.#fillTabletBleed(width, artTop, artBottom, artLeft, artRight, panelTopY);
+
+    return art;
+  }
+
+  /** Bande ai lati + sotto l'op: stessi gradienti di #addSky (non blu piatto). */
+  #fillTabletBleed(
+    width: number,
+    artTop: number,
+    artBottom: number,
+    artLeft: number,
+    artRight: number,
+    panelTopY: number,
+  ): void {
+    const bleed = this.add.graphics().setDepth(0);
+    const gapBelowArt = Math.max(0, panelTopY - artBottom);
+    const horizonY = (artTop + artBottom) / 2;
+
+    if (gapBelowArt > 1) {
+      this.#paintLowerSkyRect(bleed, 0, artBottom, width, gapBelowArt);
+    }
+
+    if (artLeft > 1) this.#paintSideSkyPillar(bleed, 0, artLeft, panelTopY, horizonY);
+    if (artRight < width - 1) {
+      this.#paintSideSkyPillar(bleed, artRight, width - artRight, panelTopY, horizonY);
+    }
+  }
+
+  #paintSideSkyPillar(
+    g: Phaser.GameObjects.Graphics,
+    x: number,
+    w: number,
+    pillarBottomY: number,
+    horizonY: number,
+  ): void {
+    const upperH = Math.max(0, horizonY);
+    const lowerH = Math.max(0, pillarBottomY - horizonY);
+
+    if (upperH > 1) this.#paintUpperSkyRect(g, x, 0, w, upperH);
+    if (lowerH > 1) this.#paintLowerSkyRect(g, x, horizonY, w, lowerH);
+  }
+
+  #paintUpperSkyRect(
+    g: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): void {
+    g.fillGradientStyle(SKY_TOP, SKY_TOP, SKY_HORIZON, SKY_HORIZON, 1);
+    g.fillRect(x, y, w, h);
+  }
+
+  #paintLowerSkyRect(
+    g: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): void {
+    g.fillGradientStyle(SKY_HORIZON, SKY_HORIZON, SKY_TOP, SKY_TOP, 1);
+    g.fillRect(x, y, w, h);
+  }
+
   #placeLines(width: number, top: number, bottom: number): number {
     const key = assetConf.image.line;
     const above = this.add.image(width / 2, top, key).setOrigin(0.5, 1).setDepth(3);
@@ -132,11 +262,10 @@ export class OpeningScene extends Phaser.Scene {
 
   #addSky(width: number, top: number, bottom: number): void {
     const sky = this.add.graphics().setDepth(0);
+    const lowerH = this.scale.height - bottom;
 
-    sky.fillGradientStyle(SKY_TOP, SKY_TOP, SKY_HORIZON, SKY_HORIZON, 1);
-    sky.fillRect(0, 0, width, top);
-    sky.fillGradientStyle(SKY_HORIZON, SKY_HORIZON, SKY_TOP, SKY_TOP, 1);
-    sky.fillRect(0, bottom, width, this.scale.height - bottom);
+    this.#paintUpperSkyRect(sky, 0, 0, width, top);
+    if (lowerH > 0) this.#paintLowerSkyRect(sky, 0, bottom, width, lowerH);
   }
 
   #addRays(x: number, y: number, reach: number, flip: boolean): void {

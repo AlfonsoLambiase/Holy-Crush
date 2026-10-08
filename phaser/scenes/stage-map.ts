@@ -16,6 +16,7 @@ import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {addStageHeart, type StageHeart} from "../shared/stage-heart";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
+import {popupPlateScale} from "../shared/popup-plate-scale";
 import {dynamicValueForViewport} from "../shared/viewport-scale";
 import {ROAD_TILES, stackedLevelPointsFallback, stackedLevelPointsFromImage} from "../shared/road-path";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
@@ -715,7 +716,7 @@ export class StageMapScene extends Phaser.Scene {
     this.#energyPopup = showWatchAdPopup(this, {
       title: t("energyEmptyTitle", language),
       body: t("energyEmptyBody", language),
-      scale: dynamicValueForViewport(this, 0.42, 0.9),
+      scale: popupPlateScale(this, assetConf.image.popupExitGame),
       onClose: () => {
         this.#energyPopup = null;
       },
