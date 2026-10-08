@@ -15,7 +15,7 @@ import {playClick, playNoTouch} from "@/settings/click";
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
 import {getStageIndex, prepareEnterWorld} from "@/settings/progress";
-import {getMusicTrack, playStageTrack, playTrack, stopTrack} from "@/settings/soundtrack";
+import {playStageTrack, playTrack, stopTrack} from "@/settings/soundtrack";
 
 import {HomeDriftingClouds} from "./HomeDriftingClouds";
 import {HomeLightFall} from "./HomeLightFall";
@@ -396,12 +396,17 @@ export function HomeScreen() {
   const [curtainPhase, setCurtainPhase] = useState<CloudCurtainPhase>("idle");
   const [showWorld, setShowWorld] = useState(false);
   const [phaserBootStart, setPhaserBootStart] = useState<BootStartScene>("default");
-  const [testStageIndex, setTestStageIndex] = useState(readTestStageSelection);
-  const [testStartMode, setTestStartMode] = useState<TestStageStartMode>(readTestStageStartMode);
+  const [testStageIndex, setTestStageIndex] = useState(0);
+  const [testStartMode, setTestStartMode] = useState<TestStageStartMode>("map");
   const [pressedPanel, setPressedPanel] = useState<MenuButtonKey | null>(null);
   const [openPanel, setOpenPanel] = useState<MenuPanel | null>(null);
   const [isMusicOn, setIsMusicOn] = useState(isMusicEnabled);
   const [isEffectsOn, setIsEffectsOn] = useState(isEffectsEnabled);
+  useEffect(() => {
+    setTestStageIndex(readTestStageSelection());
+    setTestStartMode(readTestStageStartMode());
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => setIsIntroDone(true), INTRO_HOLD_MS);
 
@@ -409,14 +414,10 @@ export function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (isPlaying || !isMusicOn) return;
+    if (isPlaying || showWorld || !isMusicOn) return;
 
     playTrack("home");
-
-    return () => {
-      if (getMusicTrack() === "home") stopTrack();
-    };
-  }, [isPlaying, isMusicOn]);
+  }, [isPlaying, showWorld, isMusicOn]);
 
   useEffect(() => {
     if (!isStartPressed) return;
@@ -592,6 +593,11 @@ export function HomeScreen() {
                 if (isNewTestamentPressed) return;
 
                 playClick();
+
+                if (isStageStartTestEnabled()) {
+                  applyTestStageForStart(testStageIndex, testStartMode);
+                }
+
                 setIsNewTestamentPressed(true);
               }}
             />

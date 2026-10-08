@@ -10,10 +10,10 @@ const assetConf = CandyCrushAssetConf;
 
 const WATCH_BTN_W = 600;
 const WATCH_BTN_H = 112;
-const TITLE_Y_RATIO = -0.1;
-const BODY_Y_RATIO = 0.06;
+const TITLE_Y_RATIO = -0.22;
+const BODY_Y_RATIO = -0.05;
 /** Spazio tra fine testo e bottone annuncio (quota altezza piastra). */
-const BODY_WATCH_GAP_RATIO = 0.07;
+const BODY_WATCH_GAP_RATIO = 0.085;
 
 export type WatchAdPopup = {
   close: () => void;

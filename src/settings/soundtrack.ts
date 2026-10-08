@@ -8,7 +8,7 @@ const TRACKS = {
   world1: {src: "/sounds/ost_4.wav", volume: 0.65},
   world2: {src: "/sounds/ost_5.mp3", volume: 0.65},
   world3: {src: "/sounds/ost_6.mp3", volume: 0.65},
-  world4: {src: "/sounds/ost_2.mp3", volume: 0.65},
+  world4: {src: "/sounds/ost_3.mp3", volume: 0.65},
 } as const;
 
 export type MusicTrack = keyof typeof TRACKS;
@@ -64,7 +64,7 @@ const applyResumePosition = (el: HTMLAudioElement, track: MusicTrack): void => {
 
 export const getMusicTrack = (): MusicTrack | null => current;
 
-/** OST del mondo (world_0 → ost_1 … world_4 → ost_2). */
+/** OST del mondo (world_0 → ost_1 … world_4 → ost_3). */
 export const worldMusicTrack = (worldIndex: number): MusicTrack => {
   const safe = Math.min(Math.max(Math.floor(worldIndex), 0), WORLD_COUNT - 1);
 

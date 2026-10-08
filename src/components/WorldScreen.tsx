@@ -9,8 +9,13 @@ import {WoodPanel} from "@/components/WoodPanel";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick, playNoTouch, playSwitch} from "@/settings/click";
 import {computeStageHudMetrics, type StageHudMetrics} from "@/settings/stage-hud-layout";
-import {isWorldUnlocked} from "@/settings/progress";
-import {WORLD_COUNT, worldBackgroundPath, worldImagePath} from "@/settings/world-map";
+import {getStageIndex, isWorldUnlocked} from "@/settings/progress";
+import {
+  getWorldIndexForStage,
+  WORLD_COUNT,
+  worldBackgroundPath,
+  worldImagePath,
+} from "@/settings/world-map";
 
 const CLICKABLE_SCROLL_MAX = 0.35;
 const NEAR_SCALE_START = 1.18;
@@ -91,7 +96,7 @@ const defaultHudMetrics = (): StageHudMetrics => ({
 export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const {t} = useLanguage();
   const [scrollY, setScrollY] = useState(0);
-  const [viewportH, setViewportH] = useState(800);
+  const [viewportH, setViewportH] = useState(0);
   const [shopOpen, setShopOpen] = useState(false);
   const [shopPressed, setShopPressed] = useState(false);
   const [hudMetrics, setHudMetrics] = useState<StageHudMetrics>(defaultHudMetrics);
@@ -100,14 +105,43 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const gestureStartY = useRef(0);
   const gestureStartTime = useRef(0);
   const snapFrame = useRef<number | null>(null);
+  const initialFocusApplied = useRef(false);
+  const viewportHRef = useRef(0);
 
   useEffect(() => {
     const sync = () => {
-      setViewportH(window.innerHeight);
+      const h = window.innerHeight;
+
+      if (h <= 0) return;
+
+      const prevH = viewportHRef.current;
+      viewportHRef.current = h;
+      setViewportH(h);
       setHudMetrics(computeStageHudMetrics(window.innerWidth, window.innerHeight));
+
+      if (!initialFocusApplied.current) {
+        initialFocusApplied.current = true;
+        const worldIndex = getWorldIndexForStage(getStageIndex());
+        const target = worldIndex * h;
+
+        scrollRef.current = target;
+        setScrollY(target);
+
+        return;
+      }
+
+      if (prevH > 0 && prevH !== h) {
+        const worldIndex = Math.round(scrollRef.current / prevH);
+        const target = worldIndex * h;
+
+        scrollRef.current = target;
+        setScrollY(target);
+      }
     };
+
     sync();
     window.addEventListener("resize", sync);
+
     return () => window.removeEventListener("resize", sync);
   }, []);
 
