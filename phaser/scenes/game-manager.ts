@@ -86,7 +86,6 @@ export class GameManager extends Phaser.Scene {
   timeAddNewRow: number = 20000;
 
   private mainContainer!: Phaser.GameObjects.Container;
-  private gridBackground!: Phaser.GameObjects.Image;
   private blocks: (Phaser.GameObjects.Image | null)[][] = [];
   private obstacles: (ObstacleCell | null)[][] = [];
   private covers: (Phaser.GameObjects.Image | null)[][] = [];
@@ -158,11 +157,6 @@ export class GameManager extends Phaser.Scene {
   private createGrid(): void {
     this.mainContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2);
 
-    this.gridBackground = this.add
-      .image(0, 0, assetConf.image.backgroundGriglia)
-      .setOrigin(0.5)
-      .setVisible(false);
-    this.mainContainer.add(this.gridBackground);
     this.applyGridMetrics();
 
     this.board = generatePlayableBoard(

@@ -29,22 +29,10 @@ const UI_GAME_KEYS = new Set([
 ]);
 
 const STAGE_UI_KEYS = new Set([
-  "backgroundGame",
-  "backgroundScore",
-  "backgroundGriglia",
   "confetti_left",
   "confetti_right",
-  "endBackground",
-  "logo_stage",
   "logo_stage_bg",
   "logo_stage_fill",
-  "iconSandClock",
-  "iconHelp",
-  "iconScore",
-  "iconLive",
-  "logoPhaser",
-  "animLive",
-  "animBrokenHeart",
 ]);
 
 const HOME_UI_KEYS = new Set(["settingsHome"]);

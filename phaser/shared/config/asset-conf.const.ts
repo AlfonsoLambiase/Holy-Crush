@@ -23,17 +23,8 @@ export const CandyCrushAssetConf = {
     fill: "fill",
   } as const,
   image: {
-    // for timerManager
-    iconSandClock: "iconSandClock",
-
     // for game
     backgroundGame: "backgroundGame",
-    backgroundScore: "backgroundScore",
-    //logo_stage: "logo_stage",
-    iconHelp: "iconHelp",
-    iconScore: "iconScore",
-    iconLive: "iconLive",
-    logoPhaser: "logoPhaser", //! Solo per test
     endWin: "endWin",
     endWin_bg: "endWin_bg",
     endWin_fill: "endWin_fill",
@@ -41,7 +32,6 @@ export const CandyCrushAssetConf = {
     endBackground: "endBackground",
 
     // for specific game
-    backgroundGriglia: "backgroundGriglia",
     block: "block",
     rocket: "rocket",
     bomb: "bomb",
@@ -103,22 +93,6 @@ export const CandyCrushAssetConf = {
       frameWidth: 184,
       frameHeight: 184,
       key: "starsEffect",
-    },
-
-    // for animLive
-    animLive: {
-      // 41
-      frameWidth: 128,
-      frameHeight: 256,
-      key: "animLive",
-    },
-
-    // for brokenHeartAnim
-    animBrokenHeart: {
-      // 27
-      frameWidth: 128,
-      frameHeight: 104,
-      key: "animBrokenHeart",
     },
   },
   keyAnim: {

@@ -124,7 +124,7 @@ export class UIManager {
         this.scene.scale.height - 75,
         this.scene.scale.height - 170,
       ) + this.ofssetY,
-      assetConf.image.iconHelp,
+      "iconHelp",
     );
 
     iconHelp.setOrigin(0, 0.5);

@@ -11,7 +11,7 @@ import {OpeningScene} from "./scenes/opening";
 import {StageMapScene} from "./scenes/stage-map";
 import {VerseScene} from "./scenes/verse";
 import {CandyCrushAssetConf} from "./shared/config/asset-conf.const";
-import {AssetPaths, DEFAULT_STAGE} from "./shared/config/asset-paths.const";
+import {DEFAULT_STAGE} from "./shared/config/asset-paths.const";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
@@ -51,7 +51,7 @@ export const createGame = ({
   }
 
   game.scene.start(assetConf.scene.boot, {
-    sponsorLogo: sponsorLogo ?? AssetPaths.image("logo_stage", stage),
+    sponsorLogo: sponsorLogo ?? "empty",
     isTesting,
     safeTop,
     stage,

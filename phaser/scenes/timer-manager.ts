@@ -61,7 +61,7 @@ export class TimerManager extends Phaser.Scene {
     const iconTimer = this.add.sprite(
       config.width - this.gameScene.setDynamicValueBasedOnScale(50, 80) + this.ofssetX,
       this.gameScene.setDynamicValueBasedOnScale(-75, 110) + this.ofssetY,
-      assetConf.image.iconSandClock,
+      "iconSandClock",
     );
 
     iconTimer
