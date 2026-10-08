@@ -12,8 +12,11 @@ const CLOUD_ASSETS = [
 const CLOUD_COUNT = 4;
 const CLOUD_BAND_SCREEN_FRACTION = 0.42;
 
+type CloudPoint = readonly [number, number];
+type CloudPath = readonly CloudPoint[];
+
 /** Coordinate normalizzate [0–1]. Primo punto = spawn iniziale (sinistra o destra, fuori dal logo). */
-const CLOUD_PATHS: readonly (readonly [number, number])[] = [
+const CLOUD_PATHS: readonly CloudPath[] = [
   [
     [0.06, 0.34],
     [0.1, 0.52],
