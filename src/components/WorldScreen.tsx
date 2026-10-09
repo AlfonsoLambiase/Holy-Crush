@@ -444,7 +444,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
           draggable={false}
           fill
           sizes="4rem"
-          src="/ui_home/shop.png"
+          src="/images/ui_home/shop.png"
         />
       </button>
 

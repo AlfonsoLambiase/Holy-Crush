@@ -16,7 +16,7 @@ type WoodPanelProps = {
 
 export function WoodPanel({
   alt,
-  src = "/ui_home/settingContainer.png",
+  src = "/images/ui_home/settingContainer.png",
   children,
   onClose,
   className = "absolute inset-0 z-50",

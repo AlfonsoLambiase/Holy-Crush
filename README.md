@@ -71,7 +71,7 @@ Esempio: Stage 2, livello 3 → riapre → Opening 2 → stage road dello Stage 
 - Mappa stage / stage road: `phaser/scenes/stage-map.ts`
 - Livello (versetto + partita): `phaser/scenes/verse.ts`, `phaser/scenes/game.ts`
 - Progressione locale: `src/settings/progress.ts`
-- Immagini: `public/stages/stage_opening/op_N.png`, `public/stages/stage_background/backgroundStage_N.png`, `public/stages/stage_road/road_N.png`
-- Pulsanti: `public/ui_game/btnPlay.png`, `btnPlayBlock.png`, `btnRead.png`, `btnExitGame.png`
+- Immagini: `public/images/mode_0/stage_opening/op_N.png`, `public/images/mode_0/stage_background/bg_*.png`, `public/images/mode_0/stage_road/road_*.png`
+- Pulsanti: `public/images/ui_game/btnPlay.png`, `btnPlayBlock.png`, `btnRead.png`, `btnExitGame.png`
 
 I file degli stage partono da 0 (`op_0` è l'Opening 1).

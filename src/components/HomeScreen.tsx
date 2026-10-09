@@ -45,7 +45,7 @@ const MENU_BUTTONS = [
   {
     key: "share",
     panel: "share",
-    src: "/ui_home/share.png",
+    src: "/images/ui_home/share.png",
     duration: "5.2s",
     delay: "-0.8s",
     x: "-2px",
@@ -54,7 +54,7 @@ const MENU_BUTTONS = [
   {
     key: "access",
     panel: "access",
-    src: "/ui_home/user.png",
+    src: "/images/ui_home/user.png",
     duration: "4.6s",
     delay: "-1.6s",
     x: "2px",
@@ -63,7 +63,7 @@ const MENU_BUTTONS = [
   {
     key: "settings",
     panel: "settings",
-    src: "/ui_home/settings.png",
+    src: "/images/ui_home/settings.png",
     duration: "5.6s",
     delay: "-2.4s",
     x: "-1px",
@@ -262,7 +262,7 @@ function SettingsSoundToggle({
           alt=""
           className={`${APP_CORNER_BTN_CLASS} drop-shadow-lg`}
           height={156}
-          src="/ui_game/btnSound.png"
+          src="/images/ui_game/btnSound.png"
           width={156}
         />
       </button>
@@ -284,7 +284,7 @@ function SettingsSoundToggle({
           alt=""
           className={`${APP_CORNER_BTN_CLASS} drop-shadow-lg`}
           height={156}
-          src="/ui_game/btnNoSound.png"
+          src="/images/ui_game/btnNoSound.png"
           width={156}
         />
       </button>
@@ -479,7 +479,7 @@ export function HomeScreen() {
     <div className="relative h-dvh w-full overflow-hidden">
       <div
         aria-hidden={homeSuspended}
-        className={`absolute inset-0 overflow-hidden bg-[url('/ui_home/background.png')] bg-cover bg-center bg-no-repeat ${
+        className={`absolute inset-0 overflow-hidden bg-[url('/images/ui_home/background.png')] bg-cover bg-center bg-no-repeat ${
           homeSuspended ? "home-shell-suspended invisible pointer-events-none" : ""
         }`}
       >
@@ -499,7 +499,7 @@ export function HomeScreen() {
           className="h-auto w-full drop-shadow-xl"
           height={702}
           priority
-          src="/ui_home/logo.png"
+          src="/images/ui_home/logo.png"
           width={942}
         />
       </div>
@@ -531,7 +531,7 @@ export function HomeScreen() {
           className="relative z-0 w-[min(62vw,18rem)]"
           float={START_FLOAT}
           height={181}
-          src="/ui_home/start.png"
+          src="/images/ui_home/start.png"
           width={479}
           isPressed={isStartPressed}
           onClick={() => {
@@ -578,7 +578,7 @@ export function HomeScreen() {
         <WoodPanel
           alt={t("newTestament")}
           className="absolute inset-0 z-20"
-          src="/ui_home/gameContainer.png"
+          src="/images/ui_home/gameContainer.png"
           onClose={() => {
             if (isNewTestamentPressed) return;
 
@@ -588,7 +588,7 @@ export function HomeScreen() {
           <div className="flex h-full w-full flex-col gap-1">
             <TestamentCard
               label={t("newTestament")}
-              src="/ui_game/mode_0.png"
+              src="/images/ui_game/mode_0.png"
               isPressed={isNewTestamentPressed}
               onClick={() => {
                 if (isNewTestamentPressed) return;
@@ -606,7 +606,7 @@ export function HomeScreen() {
               className="mt-1"
               disabled
               label={t("oldTestament")}
-              src="/ui_game/mode_1.png"
+              src="/images/ui_game/mode_1.png"
               onClick={() => playNoTouch()}
             />
           </div>

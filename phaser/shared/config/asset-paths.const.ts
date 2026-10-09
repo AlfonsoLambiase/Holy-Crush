@@ -7,8 +7,10 @@ import {
 } from "@/settings/stage-scenery-assets";
 import {STAGE_COUNT} from "@/settings/stage-map";
 
-//* Mappa i nomi logici degli asset sulle cartelle reali dentro /public
+//* Mappa i nomi logici degli asset sulle cartelle reali dentro /public/images
 export const DEFAULT_STAGE = 1;
+
+const IMAGES = "/images";
 
 const UI_GAME_KEYS = new Set([
   "btnCancel",
@@ -65,16 +67,16 @@ const FILE_NAME: Record<string, string> = {
 };
 
 const folderFor = (key: string): string => {
-  if (key === "starsEffect" || key === "sparklingStars") return "/effects";
-  if (HOME_UI_KEYS.has(key)) return "/ui_home";
-  if (UI_GAME_KEYS.has(key)) return "/ui_game";
-  if (STAGE_COMMON_KEYS.has(key)) return "/mode_0/stage_common";
-  if (key.startsWith("endWin") || key === "endFailed") return "/mode_0/stage_end";
-  if (key.startsWith("obj_")) return "/mode_0/stage_obj";
-  if (key.startsWith("op_")) return "/mode_0/stage_opening";
-  if (STAGE_UI_KEYS.has(key)) return "/mode_0/stage_ui";
+  if (key === "starsEffect" || key === "sparklingStars") return `${IMAGES}/effects`;
+  if (HOME_UI_KEYS.has(key)) return `${IMAGES}/ui_home`;
+  if (UI_GAME_KEYS.has(key)) return `${IMAGES}/ui_game`;
+  if (STAGE_COMMON_KEYS.has(key)) return `${IMAGES}/mode_0/stage_common`;
+  if (key.startsWith("endWin") || key === "endFailed") return `${IMAGES}/mode_0/stage_end`;
+  if (key.startsWith("obj_")) return `${IMAGES}/mode_0/stage_obj`;
+  if (key.startsWith("op_")) return `${IMAGES}/mode_0/stage_opening`;
+  if (STAGE_UI_KEYS.has(key)) return `${IMAGES}/mode_0/stage_ui`;
 
-  return "/mode_0/stage_ui";
+  return `${IMAGES}/mode_0/stage_ui`;
 };
 
 //* I png degli stage partono da 0, lo stage di gioco da 1
@@ -87,8 +89,8 @@ export const stageFileIndex = (stage: number = DEFAULT_STAGE): number => {
 };
 
 const STAGE_FILE: Record<string, (fileIndex: number) => string> = {
-  opening: (index) => `/mode_0/stage_opening/op_${index}.png`,
-  stageMascot: (index) => `/mode_0/stage_thumbnail/thumbnail_${index}.png`,
+  opening: (index) => `${IMAGES}/mode_0/stage_opening/op_${index}.png`,
+  stageMascot: (index) => `${IMAGES}/mode_0/stage_thumbnail/thumbnail_${index}.png`,
 };
 
 const SCENERY_PATH: Record<string, (theme: StageSceneryTheme) => string> =

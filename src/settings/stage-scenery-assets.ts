@@ -49,13 +49,13 @@ export const stageSceneryTheme = (stageOneBased: number): StageSceneryTheme => {
 };
 
 export const sceneryBackgroundPath = (theme: StageSceneryTheme): string =>
-  `/mode_0/stage_background/bg_${theme}.png`;
+  `/images/mode_0/stage_background/bg_${theme}.png`;
 
 export const sceneryBlockPath = (theme: StageSceneryTheme): string =>
-  `/mode_0/stage_block/block_${theme}.png`;
+  `/images/mode_0/stage_block/block_${theme}.png`;
 
 export const sceneryRoadPath = (theme: StageSceneryTheme): string =>
-  `/mode_0/stage_road/road_${theme}.png`;
+  `/images/mode_0/stage_road/road_${theme}.png`;
 
 /** Tema usato da almeno uno stage (per preload batch futuro). */
 export const uniqueSceneryThemes = (): StageSceneryTheme[] => {

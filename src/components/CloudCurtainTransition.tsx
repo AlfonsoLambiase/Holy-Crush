@@ -5,7 +5,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 
 import {playCloudOff, playCloudOn} from "@/settings/click";
 
-export const CLOUD_CURTAIN_GROUP_SRC = "/ui_home/clouds_group.png";
+export const CLOUD_CURTAIN_GROUP_SRC = "/images/ui_home/clouds_group.png";
 export const CLOUD_CURTAIN_GROUP_WIDTH = 1774;
 export const CLOUD_CURTAIN_GROUP_HEIGHT = 1920;
 

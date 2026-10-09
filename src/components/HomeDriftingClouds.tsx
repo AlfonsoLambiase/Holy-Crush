@@ -4,9 +4,9 @@ import Image from "next/image";
 import {useEffect, useLayoutEffect, useRef, useState} from "react";
 
 const CLOUD_ASSETS = [
-  {src: "/ui_home/cloud_0.png", width: 640, height: 400, maxVw: 0.36, maxRem: 9.5},
-  {src: "/ui_home/cloud_1.png", width: 600, height: 380, maxVw: 0.34, maxRem: 9},
-  {src: "/ui_home/cloud_2.png", width: 680, height: 420, maxVw: 0.4, maxRem: 11},
+  {src: "/images/ui_home/cloud_0.png", width: 640, height: 400, maxVw: 0.36, maxRem: 9.5},
+  {src: "/images/ui_home/cloud_1.png", width: 600, height: 380, maxVw: 0.34, maxRem: 9},
+  {src: "/images/ui_home/cloud_2.png", width: 680, height: 420, maxVw: 0.4, maxRem: 11},
 ] as const;
 
 const CLOUD_COUNT = 4;

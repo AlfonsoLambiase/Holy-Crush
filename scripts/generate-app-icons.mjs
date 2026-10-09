@@ -5,9 +5,9 @@ import {fileURLToPath} from "node:url";
 import sharp from "sharp";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const logoPath = path.join(root, "public", "ui_home", "logo_app.png");
+const logoPath = path.join(root, "public", "images", "ui_home", "logo_app.png");
 const assetsDir = path.join(root, "assets");
-const publicIconsDir = path.join(root, "public", "icons");
+const publicIconsDir = path.join(root, "public", "images", "ui_home");
 const appDir = path.join(root, "src", "app");
 
 /** Sfondo adaptive Android/iOS (logo_app è PNG trasparente). */
@@ -42,7 +42,7 @@ async function main() {
   await sharp(masterBuf).resize(192).toFile(path.join(publicIconsDir, "icon-192.png"));
   await sharp(masterBuf).resize(512).toFile(path.join(publicIconsDir, "icon-512.png"));
 
-  console.log("Icone generate da public/ui_home/logo_app.png");
+  console.log("Icone generate da public/images/ui_home/logo_app.png");
 }
 
 main().catch((err) => {

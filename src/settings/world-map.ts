@@ -37,11 +37,11 @@ export function getWorldIndexForStage(stageIndex: number): number {
 }
 
 export function worldImagePath(index: number): string {
-  return `/world/world_${index}.png`;
+  return `/images/world/world_${index}.png`;
 }
 
 export function worldBackgroundPath(index: number): string {
   const safe = Math.min(Math.max(Math.floor(index), 0), WORLD_COUNT - 1);
 
-  return `/world/world_bg_${safe}.png`;
+  return `/images/world/world_bg_${safe}.png`;
 }
