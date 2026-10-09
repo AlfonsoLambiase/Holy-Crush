@@ -5,7 +5,7 @@ const TRACKS = {
   home: {src: "/sounds/ost_0.mp3", volume: 0.65},
   game: {src: "/sounds/ost_2.mp3", volume: 0.32},
   world0: {src: "/sounds/ost_1.mp3", volume: 0.65},
-  world1: {src: "/sounds/ost_4.wav", volume: 0.65},
+  world1: {src: "/sounds/ost_4.mp3", volume: 0.65},
   world2: {src: "/sounds/ost_5.mp3", volume: 0.65},
   world3: {src: "/sounds/ost_6.mp3", volume: 0.65},
   world4: {src: "/sounds/ost_3.mp3", volume: 0.65},
