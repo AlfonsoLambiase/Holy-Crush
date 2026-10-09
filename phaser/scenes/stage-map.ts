@@ -20,6 +20,8 @@ import {popupPlateScale} from "../shared/popup-plate-scale";
 import {dynamicValueForViewport} from "../shared/viewport-scale";
 import {ROAD_TILES, stackedLevelPointsFallback, stackedLevelPointsFromImage} from "../shared/road-path";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
+import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
+import {loadStageMapBootAssets} from "../shared/utils/load-assets";
 
 const assetConf = CandyCrushAssetConf;
 
@@ -89,6 +91,12 @@ export class StageMapScene extends Phaser.Scene {
 
   init(data?: {emitShellReady?: boolean}) {
     this.#emitShellReady = data?.emitShellReady ?? false;
+  }
+
+  preload() {
+    const stage = Number(this.registry.get("stage")) || DEFAULT_STAGE;
+
+    loadStageMapBootAssets(this, stage);
   }
 
   shutdown() {

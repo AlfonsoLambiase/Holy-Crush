@@ -5,6 +5,7 @@ import {getVerseByStageAndLevel} from "../components/verse";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
+import {loadGameAssets} from "../shared/utils/load-assets";
 
 const assetConf = CandyCrushAssetConf;
 
@@ -19,6 +20,13 @@ export class VerseScene extends Phaser.Scene {
 
   constructor() {
     super({key: assetConf.scene.verse});
+  }
+
+  preload() {
+    const stage = Number(this.registry.get("stage")) || DEFAULT_STAGE;
+    const level = Number(this.registry.get("level")) || 1;
+
+    loadGameAssets(this, stage, level);
   }
 
   create() {

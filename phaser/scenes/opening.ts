@@ -8,6 +8,7 @@ import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 import {APP_FONT} from "../shared/config/font.const";
+import {loadOpeningBootAssets} from "../shared/utils/load-assets";
 
 const assetConf = CandyCrushAssetConf;
 
@@ -34,6 +35,12 @@ export class OpeningScene extends Phaser.Scene {
 
   constructor() {
     super({key: assetConf.scene.opening});
+  }
+
+  preload() {
+    const stage = Number(this.registry.get("stage")) || DEFAULT_STAGE;
+
+    loadOpeningBootAssets(this, stage);
   }
 
   create() {

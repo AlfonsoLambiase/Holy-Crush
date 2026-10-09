@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 
 import {getStageIndex, shouldPlayStageOpening} from "@/settings/progress";
-import {loadAudios, loadFonts, loadImages, loadSpritesheets} from "../shared/utils/load-assets";
+import {loadBootAssets, resolveBootSceneTarget} from "../shared/utils/load-assets";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 
@@ -84,9 +84,8 @@ export class Boot extends Phaser.Scene {
   }
 
   #loadAssets(): void {
-    loadAudios(this);
-    loadSpritesheets(this, this.stage);
-    loadImages(this, this.stage);
-    loadFonts(this);
+    const target = resolveBootSceneTarget(this.bootStart, shouldPlayStageOpening());
+
+    loadBootAssets(this, this.stage, target);
   }
 }
