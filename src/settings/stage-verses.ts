@@ -54,8 +54,8 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 8,
-        reference: { it: "Luca 1,32-33" },
-        text: { it: "“Egli sarà grande e sarà chiamato Figlio dell'Altissimo; il Signore Dio gli darà il trono di Davide, suo padre, e regnerà per sempre sulla casa di Giacobbe; il suo regno non avrà fine.”" },
+        reference: { it: "Luca 1,39" },
+        text: { it: "In quei giorni Maria si alzò e andò in fretta verso la regione montuosa, in una città di Giuda." },
       },
       {
         level: 9,
@@ -229,8 +229,8 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
     levels: [
       {
         level: 41,
-        reference: { it: "Matteo 2,1" },
-        text: { it: "Gesù nacque a Betlemme di Giudea, al tempo del re Erode. Dopo la sua nascita, alcuni Magi arrivarono dall'Oriente a Gerusalemme." },
+        reference: { it: "Matteo 2,3" },
+        text: { it: "Quando il re Erode venne a sapere queste cose, ne rimase turbato, e con lui tutta Gerusalemme." },
       },
       {
         level: 42,
@@ -294,8 +294,8 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 54,
-        reference: { it: "Luca 2,16" },
-        text: { it: "Andarono dunque in fretta e trovarono Maria, Giuseppe e il bambino, che era deposto nella mangiatoia." },
+        reference: { it: "Luca 2,18" },
+        text: { it: "Tutti quelli che ascoltarono si meravigliarono delle cose dette loro dai pastori." },
       },
       {
         level: 55,
@@ -304,8 +304,8 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 56,
-        reference: { it: "Luca 2,20" },
-        text: { it: "I pastori tornarono indietro, glorificando e lodando Dio per tutto quello che avevano udito e visto, proprio come era stato loro annunciato." },
+        reference: { it: "Luca 2,21" },
+        text: { it: "Al compimento di otto giorni, venne circonciso e gli fu dato il nome di Gesù, come l'angelo gli aveva indicato prima della sua concezione." },
       },
       {
         level: 57,
@@ -314,8 +314,8 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 58,
-        reference: { it: "Matteo 1,23" },
-        text: { it: "Ecco, la vergine concepirà e darà alla luce un figlio, che sarà chiamato Emmanuele, che significa: “Dio con noi”." },
+        reference: { it: "Luca 2,25" },
+        text: { it: "C'era a Gerusalemme un uomo di nome Simeone, giusto e devoto, che aspettava la consolazione di Israele, e lo Spirito Santo era su di lui." },
       },
       {
         level: 59,
@@ -374,8 +374,8 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 69,
-        reference: { it: "Matteo 1,24" },
-        text: { it: "Quando Giuseppe si svegliò, fece ciò che l'angelo del Signore gli aveva comandato e prese con sé la sua sposa." },
+        reference: { it: "Luca 2,23" },
+        text: { it: "Come è scritto nella legge del Signore: «Ogni maschio primogenito sarà dedicato al Signore»," },
       },
       {
         level: 70,
@@ -414,13 +414,13 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 77,
-        reference: { it: "Luca 2,5" },
-        text: { it: "Andò a farsi registrare insieme a Maria, sua sposa, che era incinta." },
+        reference: { it: "Luca 2,24" },
+        text: { it: "e per offrire in sacrificio, come è prescritto nella legge del Signore, «un paio di tortore o due giovani colombi»." },
       },
       {
         level: 78,
-        reference: { it: "Luca 2,6-7" },
-        text: { it: "Mentre si trovavano a Betlemme, arrivò per Maria il momento di partorire. Diede alla luce il suo figlio primogenito, lo avvolse in fasce e lo depose in una mangiatoia, perché per loro non c'era posto nell'alloggio." },
+        reference: { it: "Luca 2,27" },
+        text: { it: "Guidato dallo Spirito, egli si recò nel tempio e, quando i genitori portarono il bambino Gesù per compiere quanto prescriveva la legge a suo riguardo," },
       },
       {
         level: 79,
@@ -449,23 +449,23 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 83,
-        reference: { it: "Matteo 2,21" },
-        text: { it: "Giuseppe si alzò, prese con sé il bambino e sua madre e tornò nella terra d'Israele." },
+        reference: { it: "Luca 2,29" },
+        text: { it: "Ora, Signore, lascia che il tuo servo vada in pace, secondo la tua parola:" },
       },
       {
         level: 84,
-        reference: { it: "Matteo 2,22" },
-        text: { it: "Ma quando seppe che in Giudea regnava Archelao al posto di suo padre Erode, ebbe paura di andare là. Avvertito in sogno, si ritirò nella regione della Galilea." },
+        reference: { it: "Luca 2,30" },
+        text: { it: "perché i miei occhi hanno visto la tua salvezza," },
       },
       {
         level: 85,
-        reference: { it: "Matteo 2,23" },
-        text: { it: "Andò ad abitare in una città chiamata Nazaret, affinché si compisse ciò che era stato detto per mezzo dei profeti: “Sarà chiamato Nazareno”." },
+        reference: { it: "Luca 2,31" },
+        text: { it: "che tu hai preparato davanti ai popoli:" },
       },
       {
         level: 86,
-        reference: { it: "Luca 2,39" },
-        text: { it: "Quando ebbero compiuto tutto ciò che era richiesto dalla legge del Signore, tornarono in Galilea, nella loro città di Nazaret." },
+        reference: { it: "Luca 2,33" },
+        text: { it: "Il padre e la madre di Gesù restavano meravigliati di quanto si diceva di lui." },
       },
       {
         level: 87,
@@ -549,8 +549,8 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 102,
-        reference: { it: "Luca 2,42" },
-        text: { it: "Quando Gesù ebbe dodici anni, salirono a Gerusalemme secondo l'usanza della festa." },
+        reference: { it: "Luca 2,34" },
+        text: { it: "Simeone li benedisse e disse a Maria, sua madre: «Egli è qui per la caduta e la risurrezione di molti in Israele, e segno di contraddizione»," },
       },
       {
         level: 103,
@@ -559,8 +559,8 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 104,
-        reference: { it: "Luca 2,44" },
-        text: { it: "Pensando che fosse nella compagnia dei viaggiatori, fecero una giornata di cammino e poi cominciarono a cercarlo tra i parenti e i conoscenti." },
+        reference: { it: "Luca 2,35" },
+        text: { it: "e una spada trafiggerà l'anima tua, affinché siano svelati i pensieri di molti cuori." },
       },
       {
         level: 105,
@@ -569,8 +569,8 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 106,
-        reference: { it: "Luca 2,46" },
-        text: { it: "Dopo tre giorni lo trovarono nel Tempio, seduto in mezzo ai maestri, mentre li ascoltava e faceva loro domande." },
+        reference: { it: "Luca 2,36" },
+        text: { it: "C'era anche una profetessa, Anna, figlia di Fanuele, della tribù di Aser, molto avanzata in età. Dopo sette anni di matrimonio aveva vissuto come vedova," },
       },
       {
         level: 107,
@@ -589,18 +589,18 @@ export const STAGE_VERSE_SETS: StageVerseSet[] = [
       },
       {
         level: 110,
-        reference: { it: "Luca 2,50" },
-        text: { it: "Ma essi non compresero ciò che aveva detto loro." },
+        reference: { it: "Luca 2,37" },
+        text: { it: "fino a ottantaquattro anni. Non si allontanava dal tempio, servendo Dio notte e giorno con digiuni e preghiere." },
       },
       {
         level: 111,
-        reference: { it: "Luca 2,51" },
-        text: { it: "Gesù tornò con loro a Nazaret e rimase loro sottomesso. Sua madre custodiva tutte queste cose nel suo cuore." },
+        reference: { it: "Luca 2,38" },
+        text: { it: "In quell'istante si avvicinò e innalzò lodi a Dio, parlando del bambino a quanti aspettavano la redenzione di Gerusalemme." },
       },
       {
         level: 112,
-        reference: { it: "Luca 2,52" },
-        text: { it: "Gesù cresceva in sapienza, età e grazia davanti a Dio e agli uomini." },
+        reference: { it: "Luca 2,26" },
+        text: { it: "Gli era stato rivelato dallo Spirito Santo che non avrebbe visto la morte prima di aver visto il Cristo del Signore." },
       },
       {
         level: 113,
