@@ -27,8 +27,14 @@ export const cornerButtonCssPx = (
     CORNER_BUTTON.maxRem * rootFontSizePx,
   );
 
+export const MAX_RENDER_DPR = 2;
+
 export const devicePixelRatio = (): number =>
   typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+
+/** Limita il framebuffer WebGL su device ad alto DPR (meno crash OOM su tablet/phone). */
+export const cappedDevicePixelRatio = (): number =>
+  Math.min(devicePixelRatio(), MAX_RENDER_DPR);
 
 /** Scala viewport (pixel di gioco / DPR), uguale a Phaser `getViewportGlobalScale`. */
 export const viewportGlobalScale = (physicalW: number, physicalH: number): number => {

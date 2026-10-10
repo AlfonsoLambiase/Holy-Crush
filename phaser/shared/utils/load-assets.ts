@@ -1,4 +1,4 @@
-import {getPieceKeysForStageLevel} from "@/settings/level-pieces";
+import {allObjTextureKeys, getPieceKeysForStageLevel} from "@/settings/level-pieces";
 import {getUnlockedCount} from "@/settings/progress";
 
 import {CandyCrushAssetConf} from "../config/asset-conf.const";
@@ -62,7 +62,7 @@ const GAME_CORE_IMAGES: ImageKey[] = [
   "endFailed",
 ];
 
-const GAME_SPRITESHEETS: SpritesheetKey[] = ["starsEffect", "confetti_left", "confetti_right"];
+const GAME_SPRITESHEETS: SpritesheetKey[] = ["starsEffect"];
 
 /** SFX usati in partita / outro (caricati lazy al primo play). */
 export const GAME_AUDIO_KEYS: AudioKey[] = [
@@ -149,6 +149,36 @@ export const loadGameAssets = (
   }
 
   queueSpritesheetLoads(scene, GAME_SPRITESHEETS, stage);
+  queueAudioLoads(scene, GAME_AUDIO_KEYS);
+};
+
+/** Libera GPU/RAM del pack partita quando si torna alla mappa (file asset restano on disk). */
+export const purgeGameSessionResources = (scene: Phaser.Scene): void => {
+  for (const key of GAME_CORE_IMAGES) {
+    if (scene.textures.exists(key)) scene.textures.remove(key);
+  }
+
+  for (const key of allObjTextureKeys()) {
+    if (scene.textures.exists(key)) scene.textures.remove(key);
+  }
+
+  for (const key of GAME_SPRITESHEETS) {
+    if (scene.textures.exists(key)) scene.textures.remove(key);
+  }
+
+  for (const key of ["confetti_left", "confetti_right"] as const) {
+    if (scene.textures.exists(key)) scene.textures.remove(key);
+  }
+
+  const animKeys = ["animConfettiLeft", "animConfettiRight", assetConf.keyAnim.animStars];
+
+  for (const animKey of animKeys) {
+    if (scene.anims.exists(animKey)) scene.anims.remove(animKey);
+  }
+
+  for (const key of GAME_AUDIO_KEYS) {
+    if (scene.cache.audio.exists(key)) scene.cache.audio.remove(key);
+  }
 };
 
 export type BootSceneTarget = "opening" | "stageMap";

@@ -7,6 +7,7 @@ import {getStageIndex, registerWin, type RegisterWinResult} from "@/settings/pro
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {AssetPaths} from "../shared/config/asset-paths.const";
 import {addFillPair} from "../shared/fill-pair";
+import {purgeGameSessionResources} from "../shared/utils/load-assets";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
@@ -37,6 +38,11 @@ export class Outro extends Phaser.Scene {
   }
 
   #leave(winResult: RegisterWinResult) {
+    //* Prima via gli sprite, poi le texture: altrimenti il renderer legge glTexture null
+    this.sound.stopAll();
+    this.children.removeAll(true);
+    purgeGameSessionResources(this);
+
     if (winResult !== "stage") {
       const played = Number(this.registry.get("level"));
 
@@ -56,7 +62,6 @@ export class Outro extends Phaser.Scene {
     const stage = getStageIndex() + 1;
 
     this.registry.set("stage", stage);
-    this.children.removeAll(true);
 
     for (const key of [
       assetConf.image.opening,

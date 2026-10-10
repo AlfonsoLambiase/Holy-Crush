@@ -1,9 +1,14 @@
 import * as Phaser from "phaser";
 
+import {cappedDevicePixelRatio} from "@/settings/app-header-layout";
+
 //* Factory: la config dipende dalla finestra, quindi va creata al mount e non all'import
 export const createCandyCrushConfig = (
   parent: HTMLElement,
-): Phaser.Types.Core.GameConfig => ({
+): Phaser.Types.Core.GameConfig => {
+  const dpr = cappedDevicePixelRatio();
+
+  return {
   type: Phaser.AUTO,
   width: 1920,
   height: 1080,
@@ -12,8 +17,8 @@ export const createCandyCrushConfig = (
   scale: {
     mode: Phaser.Scale.ENVELOP, // Fit the game to the screen
     autoCenter: Phaser.Scale.CENTER_BOTH, // Center the game on the screen
-    height: window.innerHeight * window.devicePixelRatio,
-    width: window.innerWidth * window.devicePixelRatio,
+    height: window.innerHeight * dpr,
+    width: window.innerWidth * dpr,
   },
   physics: {
     default: "arcade",
@@ -27,4 +32,5 @@ export const createCandyCrushConfig = (
     activePointers: 3, // Enable multitouch
   },
   scene: [],
-});
+  };
+};

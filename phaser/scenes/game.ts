@@ -116,52 +116,6 @@ export class Game extends Phaser.Scene {
     return Math.min(maxW / nativeW, maxH / nativeH);
   }
 
-  startAnimConfetti() {
-    const config = this.sys.game.config as {width: number; height: number};
-
-    // Create spriteLeft
-    const spriteLeft = this.add
-      .sprite(0, config.height / 2, assetConf.spritesheet.confetti_left.key)
-      .setOrigin(0, 0.5)
-      .setDepth(15)
-      .setScale(5)
-      .setScrollFactor(0);
-
-    if (!this.anims.exists("animConfettiLeft")) {
-      this.anims.create({
-        key: "animConfettiLeft",
-        frames: this.anims.generateFrameNumbers(assetConf.spritesheet.confetti_left.key, {
-          start: 0,
-          end: 54,
-        }),
-        frameRate: 20,
-      });
-    }
-
-    spriteLeft.play("animConfettiLeft");
-
-    // Create spriteRight
-    const spriteRight = this.add
-      .sprite(config.width, config.height / 2, assetConf.spritesheet.confetti_right.key)
-      .setOrigin(1, 0.5)
-      .setDepth(15)
-      .setScale(5)
-      .setScrollFactor(0);
-
-    if (!this.anims.exists("animConfettiRight")) {
-      this.anims.create({
-        key: "animConfettiRight",
-        frames: this.anims.generateFrameNumbers(assetConf.spritesheet.confetti_right.key, {
-          start: 0,
-          end: 54,
-        }),
-        frameRate: 20,
-      });
-    }
-
-    spriteRight.play("animConfettiRight");
-  }
-
   gameOver(): void {
     if (!this.isGameOver) {
       this.isGameOver = true;
@@ -172,8 +126,7 @@ export class Game extends Phaser.Scene {
 
       if (this.uiManager.score >= this.uiManager.maxScore) {
         console.log("HAI VINTO LA PARTITA COMPLIMENTI!!!");
-        this.startAnimConfetti();
-        delay = 3000;
+        delay = 1200;
         this.audioManager.playAudio(assetConf.audio.endWin);
       } else {
         console.log("HAI PERSO LA PARTITA!!!");

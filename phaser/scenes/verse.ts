@@ -17,6 +17,7 @@ export class VerseScene extends Phaser.Scene {
   #fullText: string = "";
   #typeEvent?: Phaser.Time.TimerEvent;
   #isComplete: boolean = false;
+  readonly #onPointerUp = () => this.#advance();
 
   constructor() {
     super({key: assetConf.scene.verse});
@@ -80,7 +81,12 @@ export class VerseScene extends Phaser.Scene {
 
     this.#startTyping();
 
-    this.input.on("pointerup", () => this.#advance());
+    this.input.on("pointerup", this.#onPointerUp);
+  }
+
+  shutdown() {
+    this.#typeEvent?.remove();
+    this.input.off("pointerup", this.#onPointerUp);
   }
 
   #startTyping(): void {

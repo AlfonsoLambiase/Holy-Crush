@@ -125,6 +125,14 @@ export class OpeningScene extends Phaser.Scene {
       this.#rayTweens.forEach((tween) => tween.remove());
       this.#rayMasks.forEach((mask) => mask.destroy());
       this.input.off("pointerup", this.#advance, this);
+
+      const textures = this.textures;
+
+      this.game.events.once(Phaser.Core.Events.POST_RENDER, () => {
+        for (const key of ["opening-ray", "opening-glow"]) {
+          if (textures.exists(key)) textures.remove(key);
+        }
+      });
     });
   }
 

@@ -4,6 +4,7 @@ import {useEffect, useRef, useState} from "react";
 import type * as PhaserType from "phaser";
 
 import {useLanguage} from "@/language/LanguageProvider";
+import {cappedDevicePixelRatio} from "@/settings/app-header-layout";
 
 import type {BootStartScene} from "@game/scenes/boot";
 
@@ -16,7 +17,7 @@ type PhaserGameProps = {
 const readSafeTop = (): number => {
   const raw = getComputedStyle(document.documentElement).getPropertyValue("--safe-top");
 
-  return (parseFloat(raw) || 0) * window.devicePixelRatio;
+  return (parseFloat(raw) || 0) * cappedDevicePixelRatio();
 };
 
 export function PhaserGame({bootStart = "default", onExit}: PhaserGameProps) {
