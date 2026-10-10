@@ -1,6 +1,6 @@
 import {BTN_READ_NATIVE_HEIGHT, LOGO_HEART} from "./app-header-tokens";
 import {
-  devicePixelRatio,
+  cappedDevicePixelRatio,
   layoutScaleForViewport,
   phaserImageScale,
   readSafeTopCss,
@@ -169,7 +169,7 @@ export const computeStageHudMetrics = (
   viewportCssWidth: number,
   viewportCssHeight: number,
 ): StageHudMetrics => {
-  const dpr = devicePixelRatio();
+  const dpr = cappedDevicePixelRatio();
   const physicalW = viewportCssWidth * dpr;
   const physicalH = viewportCssHeight * dpr;
   const safeTop = readSafeTopCss() * dpr;

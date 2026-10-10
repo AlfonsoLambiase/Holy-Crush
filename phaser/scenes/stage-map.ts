@@ -21,7 +21,7 @@ import {dynamicValueForViewport} from "../shared/viewport-scale";
 import {ROAD_TILES, stackedLevelPointsFallback, stackedLevelPointsFromImage} from "../shared/road-path";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
-import {loadStageMapBootAssets} from "../shared/utils/load-assets";
+import {loadStageMapBootAssets, purgeIdleMapTextures} from "../shared/utils/load-assets";
 
 const assetConf = CandyCrushAssetConf;
 
@@ -65,6 +65,7 @@ export class StageMapScene extends Phaser.Scene {
   #rechargeSafety: Phaser.Time.TimerEvent | null = null;
   #recharging = false;
   #leaving = false;
+  #releaseMapTextures = false;
   #panning = false;
   #panFrom: number | null = null;
   #roadMask: Phaser.GameObjects.Graphics | null = null;
@@ -107,6 +108,16 @@ export class StageMapScene extends Phaser.Scene {
     this.#roadMask?.destroy();
     this.#roadMask = null;
     this.#scrollVelocity = 0;
+
+    if (!this.#releaseMapTextures) return;
+
+    this.#releaseMapTextures = false;
+    const textures = this.textures;
+
+    //* Dopo il render: la display list della mappa è già stata smontata.
+    this.game.events.once(Phaser.Core.Events.POST_RENDER, () => {
+      purgeIdleMapTextures(textures);
+    });
   }
 
   update(_time: number, delta: number) {
@@ -126,7 +137,9 @@ export class StageMapScene extends Phaser.Scene {
   }
 
   create() {
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
     this.#leaving = false;
+    this.#releaseMapTextures = false;
     this.#heart = null;
     this.#cancelRecharge();
     this.#recharging = false;
@@ -480,6 +493,7 @@ export class StageMapScene extends Phaser.Scene {
         this.#heart?.setRemaining(getHeartRemaining());
         this.time.delayedCall(220, () => {
           this.registry.set("level", localLevel);
+          this.#releaseMapTextures = true;
           this.scene.start(assetConf.scene.verse);
         });
       });

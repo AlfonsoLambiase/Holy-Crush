@@ -5,9 +5,9 @@ import * as Phaser from "phaser";
 import {isEffectsEnabled} from "@/settings/effects";
 import {getStageIndex, registerWin, type RegisterWinResult} from "@/settings/progress";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
-import {AssetPaths} from "../shared/config/asset-paths.const";
+import {AssetPaths, DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 import {addFillPair} from "../shared/fill-pair";
-import {purgeGameSessionResources} from "../shared/utils/load-assets";
+import {loadOutroAssets, purgeGameSessionResources} from "../shared/utils/load-assets";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
@@ -21,6 +21,7 @@ const RAINBOW_Y = 0.3; // centro pagina, sopra Gesù
 export class Outro extends Phaser.Scene {
   imageKey: string = "endFailed"; // di default è endFailed
   #won = false;
+  #winResult: RegisterWinResult = "none";
 
   constructor() {
     super({key: assetConf.scene.outro});
@@ -32,9 +33,14 @@ export class Outro extends Phaser.Scene {
     this.imageKey = this.#won ? "endWin" : "endFailed";
 
     const played = Number(this.registry.get("level"));
-    const winResult = this.#won ? registerWin(played) : "none";
 
-    this.time.delayedCall(3000, () => this.#leave(winResult));
+    this.#winResult = this.#won ? registerWin(played) : "none";
+  }
+
+  preload() {
+    const stage = Number(this.registry.get("stage")) || DEFAULT_STAGE;
+
+    loadOutroAssets(this, stage);
   }
 
   #leave(winResult: RegisterWinResult) {
@@ -83,6 +89,8 @@ export class Outro extends Phaser.Scene {
   }
 
   create() {
+    this.time.delayedCall(3000, () => this.#leave(this.#winResult));
+
     //this.imageKey = `endFailed`; //* solo per test
     //this.imageKey = `endWin`; //* solo per test
 

@@ -55,6 +55,10 @@ const GAME_CORE_IMAGES: ImageKey[] = [
   "btnCancel",
   "popupExitGame",
   "btnExitGame",
+];
+
+/** Solo outro: non tenerli in GPU durante la partita. */
+const OUTRO_IMAGES: ImageKey[] = [
   "endBackground",
   "endWin",
   "endWin_bg",
@@ -62,20 +66,26 @@ const GAME_CORE_IMAGES: ImageKey[] = [
   "endFailed",
 ];
 
+/** Stesse chiavi del pack mappa. Rimuoverle all'uscita lascia glTexture null. */
+const MAP_SHARED_IMAGES = new Set<ImageKey>(["btnExitGame", "popupExitGame"]);
+
 const GAME_SPRITESHEETS: SpritesheetKey[] = ["starsEffect"];
 
-/** SFX usati in partita / outro (caricati lazy al primo play). */
+/** SFX di partita. Win/lose stanno nell'outro. */
 export const GAME_AUDIO_KEYS: AudioKey[] = [
   "success",
   "error",
   "explosion",
   "missile",
   "fill",
-  "endWin",
-  "endFailed",
-  "winSound",
-  "loseSound",
 ];
+
+const OUTRO_AUDIO_KEYS: AudioKey[] = ["endWin", "endFailed", "winSound", "loseSound"];
+
+/** Texture mappa che la partita non usa. Le condivise (exit) restano. */
+const MAP_IDLE_IMAGES: ImageKey[] = STAGE_MAP_IMAGES.filter(
+  (key) => !MAP_SHARED_IMAGES.has(key),
+);
 
 export const queueImageLoads = (
   scene: Phaser.Scene,
@@ -128,6 +138,30 @@ export const loadStageMapBootAssets = (scene: Phaser.Scene, stage: number = DEFA
   queueImageLoads(scene, STAGE_MAP_IMAGES, stage);
 };
 
+export const loadOutroAssets = (scene: Phaser.Scene, stage: number = DEFAULT_STAGE): void => {
+  queueImageLoads(scene, OUTRO_IMAGES, stage);
+  queueAudioLoads(scene, OUTRO_AUDIO_KEYS);
+};
+
+const removeTextureKeys = (
+  textures: Phaser.Textures.TextureManager,
+  keys: readonly string[],
+): void => {
+  for (const key of keys) {
+    if (textures.exists(key)) textures.remove(key);
+  }
+};
+
+/** Dopo il render della mappa: gli sprite sono già stati distrutti. */
+export const purgeIdleMapTextures = (textures: Phaser.Textures.TextureManager): void => {
+  removeTextureKeys(textures, MAP_IDLE_IMAGES);
+};
+
+/** Opening e line non servono a mappa né partita. */
+export const purgeOpeningTextures = (textures: Phaser.Textures.TextureManager): void => {
+  removeTextureKeys(textures, OPENING_IMAGES);
+};
+
 export const loadGameAssets = (
   scene: Phaser.Scene,
   stage: number = DEFAULT_STAGE,
@@ -155,6 +189,11 @@ export const loadGameAssets = (
 /** Libera GPU/RAM del pack partita quando si torna alla mappa (file asset restano on disk). */
 export const purgeGameSessionResources = (scene: Phaser.Scene): void => {
   for (const key of GAME_CORE_IMAGES) {
+    if (MAP_SHARED_IMAGES.has(key)) continue;
+    if (scene.textures.exists(key)) scene.textures.remove(key);
+  }
+
+  for (const key of OUTRO_IMAGES) {
     if (scene.textures.exists(key)) scene.textures.remove(key);
   }
 
@@ -176,7 +215,7 @@ export const purgeGameSessionResources = (scene: Phaser.Scene): void => {
     if (scene.anims.exists(animKey)) scene.anims.remove(animKey);
   }
 
-  for (const key of GAME_AUDIO_KEYS) {
+  for (const key of [...GAME_AUDIO_KEYS, ...OUTRO_AUDIO_KEYS]) {
     if (scene.cache.audio.exists(key)) scene.cache.audio.remove(key);
   }
 };

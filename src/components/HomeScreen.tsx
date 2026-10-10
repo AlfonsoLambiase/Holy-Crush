@@ -466,8 +466,6 @@ export function HomeScreen() {
     return () => clearTimeout(timer);
   }, [pressedPanel]);
 
-  const homeSuspended = showWorld || isPlaying;
-
   const launchTestStage = () => {
     applyTestStageForStart(testStageIndex, testStartMode);
     playStageTrack(testStageIndex);
@@ -477,14 +475,15 @@ export function HomeScreen() {
 
   return (
     <div className="relative h-dvh w-full overflow-hidden">
+      {!isPlaying && (
       <div
-        aria-hidden={homeSuspended}
+        aria-hidden={showWorld}
         className={`absolute inset-0 overflow-hidden bg-[url('/images/ui_home/background.png')] bg-cover bg-center bg-no-repeat ${
-          homeSuspended ? "home-shell-suspended invisible pointer-events-none" : ""
+          showWorld ? "home-shell-suspended invisible pointer-events-none" : ""
         }`}
       >
       <HomeLightFall />
-      <HomeDriftingClouds paused={homeSuspended} visible={isIntroDone} />
+      <HomeDriftingClouds paused={showWorld} visible={isIntroDone} />
       <div
         className="absolute left-1/2 top-0 z-10 w-[82%] max-w-sm ease-out"
         style={{
@@ -689,6 +688,7 @@ export function HomeScreen() {
         </WoodPanel>
       )}
       </div>
+      )}
 
       <CloudCurtainTransition
         hidden={isPlaying}

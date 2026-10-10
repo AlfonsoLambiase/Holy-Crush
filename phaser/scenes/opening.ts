@@ -1,14 +1,14 @@
 import * as Phaser from "phaser";
 
 import {getCurrentLanguage, openingTextKey, t} from "@/language";
-import {devicePixelRatio} from "@/settings/app-header-layout";
+import {cappedDevicePixelRatio} from "@/settings/app-header-layout";
 import {getStageIndex} from "@/settings/progress";
 import {playStageTrack} from "@/settings/soundtrack";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 import {APP_FONT} from "../shared/config/font.const";
-import {loadOpeningBootAssets} from "../shared/utils/load-assets";
+import {loadOpeningBootAssets, purgeOpeningTextures} from "../shared/utils/load-assets";
 
 const assetConf = CandyCrushAssetConf;
 
@@ -50,7 +50,7 @@ export class OpeningScene extends Phaser.Scene {
     const key = openingTextKey(stage);
     const translated = t(key, language);
     const copy = translated === key ? t("opening_0", language) : translated;
-    const dpr = devicePixelRatio();
+    const dpr = cappedDevicePixelRatio();
     const cssShort = Math.min(width, height) / dpr;
     const cssLong = Math.max(width, height) / dpr;
     const tallOpeningLayout =
@@ -132,6 +132,8 @@ export class OpeningScene extends Phaser.Scene {
         for (const key of ["opening-ray", "opening-glow"]) {
           if (textures.exists(key)) textures.remove(key);
         }
+
+        purgeOpeningTextures(textures);
       });
     });
   }

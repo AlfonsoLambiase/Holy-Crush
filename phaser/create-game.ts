@@ -12,6 +12,7 @@ import {StageMapScene} from "./scenes/stage-map";
 import {VerseScene} from "./scenes/verse";
 import {CandyCrushAssetConf} from "./shared/config/asset-conf.const";
 import {DEFAULT_STAGE} from "./shared/config/asset-paths.const";
+import {bindWebGLContextGuard} from "./shared/webgl-context";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
@@ -45,6 +46,9 @@ export const createGame = ({
   bootStart = "default",
 }: CreateGameOptions): Phaser.Game => {
   const game = new Phaser.Game(createCandyCrushConfig(parent));
+  const unbindContextGuard = bindWebGLContextGuard(game);
+
+  game.events.once(Phaser.Core.Events.DESTROY, unbindContextGuard);
 
   for (const [key, scene] of SCENES) {
     game.scene.add(key, scene);

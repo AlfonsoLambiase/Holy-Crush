@@ -29,16 +29,47 @@ export const cornerButtonCssPx = (
 
 export const MAX_RENDER_DPR = 2;
 
+/** Lato lungo CSS: da qui il cap scende (tablet / finestra larga). */
+const WIDE_SCREEN_CSS = 1000;
+const VERY_WIDE_SCREEN_CSS = 1280;
+
 export const devicePixelRatio = (): number =>
   typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
 
-/** Limita il framebuffer WebGL su device ad alto DPR (meno crash OOM su tablet/phone). */
-export const cappedDevicePixelRatio = (): number =>
-  Math.min(devicePixelRatio(), MAX_RENDER_DPR);
+/** `navigator.deviceMemory` è in GB, a bucket. Sotto i 2 GB il framebuffer va a 1. */
+const LOW_DEVICE_MEMORY_GB = 2;
+
+const deviceMemoryGb = (): number | null => {
+  if (typeof navigator === "undefined") return null;
+
+  const memory = (navigator as Navigator & {deviceMemory?: number}).deviceMemory;
+
+  return typeof memory === "number" ? memory : null;
+};
+
+/**
+ * Framebuffer del canvas di gioco.
+ * Phone resta a 2. Schermo largo (lato lungo ≥1000) scende a 1.5, ≥1280 a 1.
+ * Con deviceMemory ≤ 2 il cap è 1 anche sul phone. Su iOS l'API non c'è.
+ */
+export const cappedDevicePixelRatio = (): number => {
+  const dpr = devicePixelRatio();
+
+  if (typeof window === "undefined") return Math.min(dpr, MAX_RENDER_DPR);
+
+  const longSide = Math.max(window.innerWidth, window.innerHeight);
+  let cap =
+    longSide >= VERY_WIDE_SCREEN_CSS ? 1 : longSide >= WIDE_SCREEN_CSS ? 1.5 : MAX_RENDER_DPR;
+  const memory = deviceMemoryGb();
+
+  if (memory !== null && memory <= LOW_DEVICE_MEMORY_GB) cap = 1;
+
+  return Math.min(dpr, cap);
+};
 
 /** Scala viewport (pixel di gioco / DPR), uguale a Phaser `getViewportGlobalScale`. */
 export const viewportGlobalScale = (physicalW: number, physicalH: number): number => {
-  const dpr = devicePixelRatio();
+  const dpr = cappedDevicePixelRatio();
   const cssWidth = physicalW / dpr;
   const cssHeight = physicalH / dpr;
   const calculated = Math.min(physicalW / 1080, physicalH / 1920);
@@ -150,7 +181,7 @@ export const resolveHeaderMetrics = (
   safeTopPhysical: number,
   btnReadNativeHeight = BTN_READ_NATIVE_HEIGHT,
 ): ResolvedHeaderMetrics => {
-  const dpr = devicePixelRatio();
+  const dpr = cappedDevicePixelRatio();
   const cssW = physicalW / dpr;
   const cornerButtonCss = cornerButtonCssPx(cssW);
   const cornerButtonPhysical = cornerButtonCss * dpr;
