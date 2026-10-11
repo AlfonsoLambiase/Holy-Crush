@@ -5,7 +5,8 @@ export type ObstacleCell = {
   lock: "ice" | "chain" | null;
   lockLayers: number;
   terrain: number;
-  blocker: "rock" | "thorn" | "wall" | null;
+  blocker: "crate" | "rock" | "thorn" | "wall" | null;
+  blockerLayers: number;
 };
 
 export type FallSegment = {slots: number[]; refill: boolean};
@@ -18,7 +19,7 @@ const DIRS = [
 ] as const;
 
 export function obstacleFromSymbol(symbol: string): ObstacleCell {
-  const cell: ObstacleCell = {lock: null, lockLayers: 0, terrain: 0, blocker: null};
+  const cell: ObstacleCell = {lock: null, lockLayers: 0, terrain: 0, blocker: null, blockerLayers: 0};
 
   if (symbol === "G") cell.terrain = 1;
   else if (symbol === "H") cell.terrain = 2;
@@ -31,6 +32,15 @@ export function obstacleFromSymbol(symbol: string): ObstacleCell {
   } else if (symbol === "L") {
     cell.lock = "chain";
     cell.lockLayers = 1;
+  } else if (symbol === "B") {
+    cell.blocker = "crate";
+    cell.blockerLayers = 1;
+  } else if (symbol === "C") {
+    cell.blocker = "crate";
+    cell.blockerLayers = 2;
+  } else if (symbol === "D") {
+    cell.blocker = "crate";
+    cell.blockerLayers = 3;
   } else if (symbol === "R") cell.blocker = "rock";
   else if (symbol === "V") cell.blocker = "thorn";
   else if (symbol === "X") cell.blocker = "wall";
@@ -42,7 +52,7 @@ export function holdsPiece(cell: ObstacleCell | null): boolean {
   return !!cell && cell.blocker === null;
 }
 
-//* Ghiaccio, catena, roccia, rovo e muro fermano la caduta. Il terreno no.
+//* Ghiaccio, catena, cassa, roccia, rovo e muro fermano la caduta. Il terreno no.
 export function blocksColumn(cell: ObstacleCell | null): boolean {
   if (!cell) return false;
 
@@ -51,6 +61,9 @@ export function blocksColumn(cell: ObstacleCell | null): boolean {
 
 export function coverKey(cell: ObstacleCell | null): string | null {
   if (!cell) return null;
+  if (cell.blocker === "crate" && cell.blockerLayers >= 3) return "D";
+  if (cell.blocker === "crate" && cell.blockerLayers === 2) return "C";
+  if (cell.blocker === "crate") return "B";
   if (cell.blocker === "rock") return "R";
   if (cell.blocker === "thorn") return "V";
   if (cell.blocker === "wall") return "X";
@@ -144,7 +157,14 @@ function adjacentOnce(matchCells: Cell[], rows: number, cols: number): Cell[] {
   return [...hit].map(parseKey);
 }
 
-type Hit = {iceHits: number; chainBreak: boolean; rock: boolean; thorn: boolean; clearPiece: boolean};
+type Hit = {
+  iceHits: number;
+  crateHits: number;
+  chainBreak: boolean;
+  rock: boolean;
+  thorn: boolean;
+  clearPiece: boolean;
+};
 
 //* Un'ondata: il match dà al massimo 1 colpo adiacente. Ogni razzo o bomba aggiunge il suo.
 export function applyWave(
@@ -167,7 +187,14 @@ export function applyWave(
 
     if (found) return found;
 
-    const created: Hit = {iceHits: 0, chainBreak: false, rock: false, thorn: false, clearPiece: false};
+    const created: Hit = {
+      iceHits: 0,
+      crateHits: 0,
+      chainBreak: false,
+      rock: false,
+      thorn: false,
+      clearPiece: false,
+    };
 
     hits.set(key, created);
 
@@ -195,6 +222,7 @@ export function applyWave(
     if (!obs || obs.blocker === "wall") continue;
 
     if (obs.lock === "ice") hit(cell).iceHits += 1;
+    if (obs.blocker === "crate") hit(cell).crateHits += 1;
     if (obs.blocker === "thorn") hit(cell).thorn = true;
   }
 
@@ -231,6 +259,11 @@ export function applyWave(
       continue;
     }
 
+    if (obs.blocker === "crate") {
+      next.crateHits += times;
+      continue;
+    }
+
     if (obs.blocker === "rock") {
       next.rock = true;
       continue;
@@ -260,6 +293,11 @@ export function applyWave(
     if (next.chainBreak && obs.lock === "chain") {
       obs.lock = null;
       obs.lockLayers = 0;
+    }
+
+    if (obs.blocker === "crate" && next.crateHits > 0) {
+      obs.blockerLayers = Math.max(0, obs.blockerLayers - next.crateHits);
+      if (obs.blockerLayers === 0) obs.blocker = null;
     }
 
     if (next.rock && obs.blocker === "rock") obs.blocker = null;

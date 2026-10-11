@@ -9,6 +9,16 @@ import {GRID_0006} from "../../grid/grid-0006";
 import {GRID_0007} from "../../grid/grid-0007";
 import {GRID_0008} from "../../grid/grid-0008";
 import {GRID_0009} from "../../grid/grid-0009";
+import {GRID_0010} from "../../grid/grid-0010";
+import {GRID_0011} from "../../grid/grid-0011";
+import {GRID_0012} from "../../grid/grid-0012";
+import {GRID_0013} from "../../grid/grid-0013";
+import {GRID_0014} from "../../grid/grid-0014";
+import {GRID_0015} from "../../grid/grid-0015";
+import {GRID_0016} from "../../grid/grid-0016";
+import {GRID_0017} from "../../grid/grid-0017";
+import {GRID_0018} from "../../grid/grid-0018";
+import {GRID_0019} from "../../grid/grid-0019";
 
 //* Generazioni della griglia e limiti. La cella è quadrata e si blocca sulla larghezza.
 export const GRID_LIMITS = {
@@ -35,11 +45,21 @@ const GRIDS = {
   "grid-0007": createGrid("grid-0007", GRID_0007),
   "grid-0008": createGrid("grid-0008", GRID_0008),
   "grid-0009": createGrid("grid-0009", GRID_0009),
+  "grid-0010": createGrid("grid-0010", GRID_0010),
+  "grid-0011": createGrid("grid-0011", GRID_0011),
+  "grid-0012": createGrid("grid-0012", GRID_0012),
+  "grid-0013": createGrid("grid-0013", GRID_0013),
+  "grid-0014": createGrid("grid-0014", GRID_0014),
+  "grid-0015": createGrid("grid-0015", GRID_0015),
+  "grid-0016": createGrid("grid-0016", GRID_0016),
+  "grid-0017": createGrid("grid-0017", GRID_0017),
+  "grid-0018": createGrid("grid-0018", GRID_0018),
+  "grid-0019": createGrid("grid-0019", GRID_0019),
 } as const;
 
 export type GridId = keyof typeof GRIDS;
 
-//* Il numero sul bottone della mappa sceglie il disegno. 1 è il più piccolo, 10 è grid-0009.
+//* Il bottone della mappa sceglie il disegno. 1 è grid-0000, 20 è grid-0019. Ogni stage riusa le stesse 20.
 export const LEVEL_GRIDS = {
   1: "grid-0000",
   2: "grid-0001",
@@ -51,6 +71,16 @@ export const LEVEL_GRIDS = {
   8: "grid-0007",
   9: "grid-0008",
   10: "grid-0009",
+  11: "grid-0010",
+  12: "grid-0011",
+  13: "grid-0012",
+  14: "grid-0013",
+  15: "grid-0014",
+  16: "grid-0015",
+  17: "grid-0016",
+  18: "grid-0017",
+  19: "grid-0018",
+  20: "grid-0019",
 } as const satisfies Record<number, GridId>;
 
 export function getCellSize(gameWidth: number): number {
@@ -60,7 +90,7 @@ export function getCellSize(gameWidth: number): number {
 }
 
 export function getGridForLevel(level: number): GridShape {
-  const id = LEVEL_GRIDS[level as keyof typeof LEVEL_GRIDS] ?? "grid-0009";
+  const id = LEVEL_GRIDS[level as keyof typeof LEVEL_GRIDS] ?? "grid-0019";
   const shape = GRIDS[id];
   const {minCols, maxCols, minRows, maxRows} = GRID_LIMITS;
   const colsOk = shape.cols >= minCols && shape.cols <= maxCols;

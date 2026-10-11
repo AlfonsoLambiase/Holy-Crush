@@ -1,7 +1,4 @@
-//* . buco   0 pezzo
-//* G terreno 1   H terreno 2, al colpo diventa G
-//* I ghiaccio 1   J ghiaccio 2, al colpo diventa I
-//* L catena   R roccia   V rovo   X muro
+//* Livello 1. Solo pezzi (0), per provare match e caduta.
 export const GRID_0000 = [
   "000",
   "000",

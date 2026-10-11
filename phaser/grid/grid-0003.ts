@@ -1,11 +1,8 @@
-//* . buco   0 pezzo
-//* G terreno 1   H terreno 2, al colpo diventa G
-//* I ghiaccio 1   J ghiaccio 2, al colpo diventa I
-//* L catena   R roccia   V rovo   X muro
+//* Livello 4. Terreno resistente (H), due colpi. Al primo diventa G.
 export const GRID_0003 = [
   "0000",
-  "0000",
-  "0000",
-  "0000",
+  "0HH0",
+  "0HH0",
+  "0HH0",
   "0000",
 ] as const;

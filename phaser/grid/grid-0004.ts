@@ -1,11 +1,8 @@
-//* . buco   0 pezzo
-//* G terreno 1   H terreno 2, al colpo diventa G
-//* I ghiaccio 1   J ghiaccio 2, al colpo diventa I
-//* L catena   R roccia   V rovo   X muro
+//* Livello 5. Ghiaccio semplice (I). Il pezzo resta fermo finché non si libera.
 export const GRID_0004 = [
   "00000",
-  "00000",
-  "00000",
-  "00000",
+  "00I00",
+  "0III0",
+  "00I00",
   "00000",
 ] as const;

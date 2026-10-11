@@ -386,7 +386,7 @@ export class GameManager extends Phaser.Scene {
     return this.obstacles[row]?.[col] != null;
   }
 
-  //* Il pezzo si può scambiare: niente muro, roccia, rovo, ghiaccio o catena.
+  //* Il pezzo si può scambiare: niente cassa, muro, roccia, rovo, ghiaccio o catena.
   private allowsSwap(row: number, col: number): boolean {
     const cell = this.obstacles[row]?.[col];
 
@@ -963,7 +963,7 @@ export class GameManager extends Phaser.Scene {
     this.syncArt();
   }
 
-  //* Toglie l'arte degli ostacoli distrutti e scala J in I, H in G.
+  //* Toglie l'arte degli ostacoli distrutti e scala J in I, H in G, D in C, C in B.
   private peelArt(): FadeArt[] {
     const fading: FadeArt[] = [];
 

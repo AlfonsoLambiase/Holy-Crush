@@ -2,7 +2,8 @@
 // Versione di progetto: 1.0 — 30/09/2026
 // Questo documento descrive regole proposte, non funzionalità già implementate.
 // I numeri degli esempi devono essere bilanciati con partite e test.
-// Il parser attuale supporta soltanto 0 e .: va ampliato per gli altri simboli.
+// Il parser accetta . 0 B C D G H I J L R V X.
+// N, S, E e P non sono nel gioco: sono segnati con //* No.
 //
 // ============================================================================
 // 1. LEGENDA DEL TABELLONE
@@ -18,9 +19,9 @@
 // L = Catena: 1 combinazione con il pezzo o 1 potenziamento per liberarlo.
 //
 // OSTACOLI CHE OCCUPANO LA CELLA
-// B = Cassa semplice: 1 colpo adiacente o da potenziamento.                       //* No
-// C = Cassa con doppio sigillo: 2 colpi.                                          //* No
-// D = Cassa rinforzata: 3 colpi.                                                  //* No
+// B = Cassa semplice: 1 colpo adiacente o da potenziamento.                       
+// C = Cassa con doppio sigillo: 2 colpi.                                          
+// D = Cassa rinforzata: 3 colpi.                                                  
 // R = Roccia: si distrugge soltanto con i potenziamenti, 1 colpo.
 // X = Muro permanente: non si distrugge.
 //
