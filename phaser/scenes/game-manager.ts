@@ -3,6 +3,7 @@
 import * as Phaser from "phaser";
 
 import {getCurrentLanguage, t} from "@/language";
+import type {BoosterId} from "@/settings/boosters";
 import {getPieceKeysForStageLevel} from "@/settings/level-pieces";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 
@@ -18,7 +19,10 @@ import {
   EMPTY,
   ROCKET_H,
   ROCKET_V,
+  areaBlastCells,
   collectBlasts,
+  crossBlastCells,
+  spiralBlastCells,
   findMatchRuns,
   findHintMove,
   generatePlayableBoard,
@@ -60,6 +64,9 @@ const BOMB_RIPPLE_MS = 60;
 const ROCKET_ZOOM_MS = 200;
 const MISSILE_AUDIO_DELAY_MS = 0;
 const ROCKET_FLY_CELL_MS = 70;
+const MEGA_RADIUS = 2;
+const MEGA_SPREAD = 2;
+const SPIRAL_STEP_MS = 48;
 const HINT_IDLE_MS = 10000;
 const HINT_PULSE_MS = 420;
 const HINT_PULSE_SCALE = 1.12;
@@ -122,6 +129,8 @@ export class GameManager extends Phaser.Scene {
   }
 
   create() {
+    this.#resetMatchInput();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.#onShutdown, this);
     console.log(`Gioco caricato ${gameName}`);
     const selected = Number(this.registry.get("level"));
     const level = Number.isFinite(selected) && selected > 0 ? selected : getUnlockedCount();
@@ -142,6 +151,7 @@ export class GameManager extends Phaser.Scene {
       (min, max) => this.gameScene.setDynamicValueBasedOnScale(min, max),
       (x, y) => this.cellAtWorld(x, y),
       this.gameScene,
+      (id, cell) => this.tryDropBooster(id, cell),
     );
     this.#itemsBar.create();
     this.layoutGrid();
@@ -246,8 +256,24 @@ export class GameManager extends Phaser.Scene {
     piece.setScale(this.pieceScale).setAlpha(1).setVisible(true);
   }
 
-  private bindSwipe(): void {
-    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+  //* La scena Phaser viene riusata. Senza reset, una vittoria col booster lascia isBusy e il livello dopo non riceve gli swipe.
+  #resetMatchInput(): void {
+    this.isBusy = false;
+    this.isGameOver = false;
+    this.canShoot = false;
+    this.swipeStart = null;
+    this.swipeLocked = false;
+
+    if (this.scene.isPaused()) this.scene.resume();
+  }
+
+  #onShutdown = (): void => {
+    this.isBusy = false;
+    this.swipeStart = null;
+    this.swipeLocked = false;
+  };
+
+  #onSwipeDown = (pointer: Phaser.Input.Pointer): void => {
       this.restartHintTimer();
       if (this.#itemsBar?.isOnBar(pointer) || this.#itemsBar?.isBlocking()) return;
       if (!this.canPlay()) return;
@@ -259,9 +285,9 @@ export class GameManager extends Phaser.Scene {
 
       this.swipeStart = {cell, x: local.x, y: local.y};
       this.swipeLocked = false;
-    });
+  };
 
-    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+  #onSwipeMove = (pointer: Phaser.Input.Pointer): void => {
       if (this.#itemsBar?.isBlocking()) return;
       if (!this.canPlay() || !this.swipeStart || this.swipeLocked) return;
 
@@ -279,12 +305,24 @@ export class GameManager extends Phaser.Scene {
 
       this.swipeLocked = true;
       void this.trySwap(this.swipeStart.cell, neighbor);
-    });
+  };
 
-    this.input.on("pointerup", () => {
-      this.swipeStart = null;
-      this.swipeLocked = false;
-    });
+  #onSwipeUp = (): void => {
+    this.swipeStart = null;
+    this.swipeLocked = false;
+  };
+
+  #unbindSwipe(): void {
+    this.input.off("pointerdown", this.#onSwipeDown);
+    this.input.off("pointermove", this.#onSwipeMove);
+    this.input.off("pointerup", this.#onSwipeUp);
+  }
+
+  private bindSwipe(): void {
+    this.#unbindSwipe();
+    this.input.on("pointerdown", this.#onSwipeDown);
+    this.input.on("pointermove", this.#onSwipeMove);
+    this.input.on("pointerup", this.#onSwipeUp);
   }
 
   private canPlay(): boolean {
@@ -406,6 +444,179 @@ export class GameManager extends Phaser.Scene {
 
   private inBounds(cell: Cell): boolean {
     return cell.r >= 0 && cell.c >= 0 && cell.r < this.gridRows && cell.c < this.gridCols;
+  }
+
+  public tryDropBooster(id: BoosterId, cell: Cell): boolean {
+    if (!this.canPlay() || !this.inBounds(cell) || !this.isOpen(cell.r, cell.c)) return false;
+
+    this.isBusy = true;
+    this.stopHintTimer();
+    this.clearHint();
+    void this.runBooster(id, cell).finally(() => {
+      this.isBusy = false;
+      this.swipeStart = null;
+      this.swipeLocked = false;
+
+      if (this.isGameOver || !this.scene?.isActive()) return;
+
+      this.restartHintTimer();
+    });
+
+    return true;
+  }
+
+  private boosterCells(id: BoosterId, origin: Cell): Cell[] {
+    if (id === "mega") return areaBlastCells(this.board, origin, MEGA_RADIUS);
+    if (id === "super") return crossBlastCells(this.board, origin);
+
+    return spiralBlastCells(this.gridRows, this.gridCols, origin, (row, col) => {
+      const cell = this.obstacles[row]?.[col];
+
+      return !!cell && cell.blocker !== "wall";
+    });
+  }
+
+  //* La cella del drop perde subito pezzo, lucchetto e ostacolo. Il muro resta.
+  private releaseOrigin(origin: Cell, pop: Cell[]): void {
+    const obs = this.obstacles[origin.r]?.[origin.c];
+
+    if (obs && obs.blocker !== "wall") {
+      obs.blocker = null;
+      obs.blockerLayers = 0;
+      obs.lock = null;
+      obs.lockLayers = 0;
+    }
+
+    if (this.board[origin.r][origin.c] === EMPTY) return;
+    if (pop.some((cell) => cell.r === origin.r && cell.c === origin.c)) return;
+
+    pop.unshift(origin);
+  }
+
+  private async runBooster(id: BoosterId, origin: Cell): Promise<void> {
+    const pattern = this.boosterCells(id, origin);
+    const chained =
+      id === "ultra"
+        ? []
+        : collectBlasts(
+            this.board,
+            pattern.filter((cell) => isSpecial(this.board[cell.r][cell.c])),
+          );
+    const {pop, thornDamaged} = applyWave(
+      this.board,
+      this.obstacles,
+      [],
+      [pattern, ...chained],
+      new Set(),
+    );
+
+    this.releaseOrigin(origin, pop);
+
+    const isOrigin = (cell: Cell) => cell.r === origin.r && cell.c === origin.c;
+    const bombCenters = pop.filter((cell) => this.board[cell.r][cell.c] === BOMB && !isOrigin(cell));
+    const rocketCenters = this.rocketOrigins(pop).filter((rocket) => !isOrigin(rocket.cell));
+    const spiralDelay = new Map<string, number>();
+
+    if (id === "ultra") {
+      pattern.forEach((cell, index) => {
+        spiralDelay.set(`${cell.r},${cell.c}`, index * SPIRAL_STEP_MS);
+      });
+    }
+
+    this.playBoosterFx(id, origin, bombCenters.length > 0, rocketCenters.length > 0);
+
+    const flies =
+      id === "super"
+        ? [this.playRocketFly(origin, ROCKET_H), this.playRocketFly(origin, ROCKET_V)]
+        : [];
+
+    await Promise.all([
+      this.destroyMatches(
+        pop,
+        bombCenters,
+        rocketCenters,
+        this.peelArt(),
+        (cell) => this.boosterDelay(id, origin, cell, bombCenters, rocketCenters, spiralDelay),
+        origin,
+      ),
+      ...flies,
+    ]);
+
+    this.syncArt();
+    this.stackSprites();
+    this.gameScene.uiManager.updateScore(pop.length);
+    this.gameScene.audioManager.playAudio(assetConf.audio.success);
+
+    if (this.gameScene.uiManager.score >= this.gameScene.uiManager.maxScore) {
+      this.canShoot = false;
+      await this.collapseAndFill();
+      await this.delay(400);
+      this.gameScene.gameOver();
+
+      return;
+    }
+
+    await this.collapseAndFill();
+    await this.resolveBoard([], undefined, !thornDamaged);
+  }
+
+  private playBoosterFx(id: BoosterId, origin: Cell, hasBomb: boolean, hasRocket: boolean): void {
+    if (id === "mega") {
+      this.playBombShockwave(origin, MEGA_SPREAD);
+
+      if (!hasBomb) {
+        this.cameras.main.shake(140, 0.005);
+        this.gameScene.audioManager.playAudio(
+          assetConf.audio.explosion,
+          EXPLOSION_AUDIO_MS,
+          AUDIO_FADE_MS,
+        );
+      }
+    }
+
+    if (id === "super" && !hasRocket) {
+      this.time.delayedCall(MISSILE_AUDIO_DELAY_MS, () => {
+        this.gameScene.audioManager.playAudio(assetConf.audio.missile, undefined, AUDIO_FADE_MS);
+      });
+    }
+
+    if (id === "ultra") {
+      this.cameras.main.shake(180, 0.004);
+      this.gameScene.audioManager.playAudio(
+        assetConf.audio.explosion,
+        EXPLOSION_AUDIO_MS,
+        AUDIO_FADE_MS,
+      );
+    }
+  }
+
+  private boosterDelay(
+    id: BoosterId,
+    origin: Cell,
+    cell: Cell,
+    bombCenters: Cell[],
+    rocketCenters: RocketOrigin[],
+    spiralDelay: Map<string, number>,
+  ): number {
+    if (cell.r === origin.r && cell.c === origin.c) return 0;
+
+    if (id === "ultra") return spiralDelay.get(`${cell.r},${cell.c}`) ?? 0;
+
+    if (id === "mega") return this.destroyDelay(cell, [origin, ...bombCenters], rocketCenters);
+
+    const onCross = cell.r === origin.r || cell.c === origin.c;
+    const cross = onCross
+      ? Math.max(Math.abs(cell.r - origin.r), Math.abs(cell.c - origin.c)) * ROCKET_FLY_CELL_MS
+      : null;
+    const chained =
+      bombCenters.length || rocketCenters.length
+        ? this.destroyDelay(cell, bombCenters, rocketCenters)
+        : null;
+
+    if (cross === null) return chained ?? 0;
+    if (chained === null) return cross;
+
+    return Math.min(cross, chained);
   }
 
   private async trySwap(a: Cell, b: Cell): Promise<void> {
@@ -585,6 +796,8 @@ export class GameManager extends Phaser.Scene {
     bombCenters: Cell[] = [],
     rocketCenters: RocketOrigin[] = [],
     fades: FadeArt[] = [],
+    delayFor?: (cell: Cell) => number,
+    instant?: Cell,
   ): Promise<void> {
     for (const bomb of bombCenters) {
       this.playBombShockwave(bomb);
@@ -626,8 +839,10 @@ export class GameManager extends Phaser.Scene {
 
         if (!piece || !piece.active) return Promise.resolve();
 
-        const delay = this.destroyDelay(cell, bombCenters, rocketCenters);
-        const isCenter = bombCenters.some((bomb) => bomb.r === cell.r && bomb.c === cell.c);
+        const delay = delayFor ? delayFor(cell) : this.destroyDelay(cell, bombCenters, rocketCenters);
+        const isCenter =
+          (instant != null && instant.r === cell.r && instant.c === cell.c) ||
+          bombCenters.some((bomb) => bomb.r === cell.r && bomb.c === cell.c);
         const starScale = starBase * (isCenter ? 2.2 : 1);
 
         return new Promise<void>((resolve) => {
@@ -674,11 +889,19 @@ export class GameManager extends Phaser.Scene {
       });
 
     const fadeTweens = fades.map(({cell, image}) => {
-      const delay = this.destroyDelay(cell, bombCenters, rocketCenters);
+      const delay = delayFor ? delayFor(cell) : this.destroyDelay(cell, bombCenters, rocketCenters);
+      const isInstant = instant != null && instant.r === cell.r && instant.c === cell.c;
 
       return new Promise<void>((resolve) => {
         const pop = () => {
           if (!image.active) {
+            resolve();
+
+            return;
+          }
+
+          if (isInstant) {
+            image.destroy();
             resolve();
 
             return;
@@ -835,7 +1058,7 @@ export class GameManager extends Phaser.Scene {
     await Promise.all([fly(a, endA), fly(b, endB)]);
   }
 
-  private playBombShockwave(cell: Cell): void {
+  private playBombShockwave(cell: Cell, spread = 1): void {
     const {x, y} = this.cellPos(cell);
     const radius = Math.min(this.cellW, this.cellH) * 0.38;
     const flash = this.add.circle(x, y, radius, 0xffffff, 0.8);
@@ -853,7 +1076,7 @@ export class GameManager extends Phaser.Scene {
 
     this.tweens.add({
       targets: flash,
-      scale: 3.4,
+      scale: 3.4 * spread,
       alpha: 0,
       duration: BOMB_SHOCK_MS,
       ease: "Cubic.easeOut",
@@ -862,7 +1085,7 @@ export class GameManager extends Phaser.Scene {
 
     this.tweens.add({
       targets: boom,
-      scale: boomScale * 3,
+      scale: boomScale * 3 * spread,
       alpha: 0,
       duration: BOMB_SHOCK_MS,
       ease: "Cubic.easeOut",

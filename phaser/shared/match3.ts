@@ -290,10 +290,75 @@ export function blastCells(board: number[][], cell: Cell, type: number): Cell[] 
     return cells;
   }
 
-  if (type === BOMB) {
-    for (let r = cell.r - 1; r <= cell.r + 1; r++) {
-      for (let c = cell.c - 1; c <= cell.c + 1; c++) {
-        if (inBounds(board, r, c)) cells.push({r, c});
+  if (type === BOMB) return areaBlastCells(board, cell, 1);
+
+  return cells;
+}
+
+//* Quadrato centrato. La bomba di board è raggio 1. Mega usa raggio 2: una fila in più per lato.
+export function areaBlastCells(board: number[][], cell: Cell, radius: number): Cell[] {
+  const cells: Cell[] = [];
+
+  for (let r = cell.r - radius; r <= cell.r + radius; r++) {
+    for (let c = cell.c - radius; c <= cell.c + radius; c++) {
+      if (inBounds(board, r, c)) cells.push({r, c});
+    }
+  }
+
+  return cells;
+}
+
+//* Riga e colonna intere, come razzo orizzontale e verticale insieme. Il centro è una volta sola.
+export function crossBlastCells(board: number[][], cell: Cell): Cell[] {
+  const rows = board.length;
+  const cols = board[0].length;
+  const cells: Cell[] = [];
+
+  for (let c = 0; c < cols; c++) cells.push({r: cell.r, c});
+
+  for (let r = 0; r < rows; r++) {
+    if (r !== cell.r) cells.push({r, c: cell.c});
+  }
+
+  return cells;
+}
+
+//* Dal centro, poi ogni anello in senso orario: lato alto verso destra, poi giù, sinistra, su.
+export function spiralBlastCells(
+  rows: number,
+  cols: number,
+  origin: Cell,
+  accept: (r: number, c: number) => boolean = () => true,
+): Cell[] {
+  const cells: Cell[] = [];
+
+  const push = (r: number, c: number) => {
+    if (r < 0 || c < 0 || r >= rows || c >= cols || !accept(r, c)) return;
+
+    cells.push({r, c});
+  };
+
+  if (origin.r >= 0 && origin.c >= 0 && origin.r < rows && origin.c < cols) {
+    cells.push({r: origin.r, c: origin.c});
+  }
+
+  const maxRadius = Math.max(origin.r, origin.c, rows - 1 - origin.r, cols - 1 - origin.c);
+
+  for (let radius = 1; radius <= maxRadius; radius++) {
+    let r = origin.r - radius;
+    let c = origin.c - radius;
+    const sides: ReadonlyArray<readonly [number, number]> = [
+      [0, 1],
+      [1, 0],
+      [0, -1],
+      [-1, 0],
+    ];
+
+    for (const [dr, dc] of sides) {
+      for (let step = 0; step < radius * 2; step++) {
+        push(r, c);
+        r += dr;
+        c += dc;
       }
     }
   }

@@ -13,6 +13,7 @@ import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
 import {playClick, playMega, playNoTouch, playSuper, playUltra} from "@/settings/click";
 import {getCellSize, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import type {Cell} from "../shared/match3";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
 import {addCountBadge, type CountBadge} from "../shared/count-badge";
 import {addMaskedImageFill, tweenRemainingSync, type FillPair} from "../shared/fill-pair";
@@ -86,8 +87,9 @@ export class ItemsBar {
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly scaleOf: (min: number, max: number) => number,
-    private readonly cellAtWorld: (x: number, y: number) => unknown,
+    private readonly cellAtWorld: (x: number, y: number) => Cell | null,
     private readonly gameScene: Game,
+    private readonly onDrop: (id: BoosterId, cell: Cell) => boolean,
   ) {}
 
   get top(): number {
@@ -95,6 +97,8 @@ export class ItemsBar {
   }
 
   isOnBar(pointer: Phaser.Input.Pointer): boolean {
+    if (this.#slots.length === 0) return false;
+
     return pointer.y >= this.#top;
   }
 
@@ -325,12 +329,12 @@ export class ItemsBar {
   }
 
   #drop(id: BoosterId, pointer: Phaser.Input.Pointer) {
-    const onGrid = this.cellAtWorld(pointer.worldX, pointer.worldY);
+    const cell = this.cellAtWorld(pointer.worldX, pointer.worldY);
 
     this.#ghost?.destroy();
     this.#ghost = null;
 
-    if (!onGrid || !spendBooster(id)) return;
+    if (!cell || getBoosterCount(id) <= 0 || !this.onDrop(id, cell) || !spendBooster(id)) return;
 
     DROP_SFX[id]();
 

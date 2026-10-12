@@ -50,7 +50,7 @@ export const addBooster = (id: BoosterId): boolean => {
   return true;
 };
 
-//* Per ora si consuma solo al drop in griglia. I ruoli in board arrivano dopo.
+//* Si consuma solo se il drop in griglia parte davvero.
 export const spendBooster = (id: BoosterId): boolean => {
   const stock = readStock();
 

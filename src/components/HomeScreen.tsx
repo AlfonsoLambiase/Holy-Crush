@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 
 import {
   CLOUD_CURTAIN_HOLD_MS,
@@ -396,6 +396,7 @@ export function HomeScreen() {
   const [isNewTestamentPressed, setIsNewTestamentPressed] = useState(false);
   const [curtainPhase, setCurtainPhase] = useState<CloudCurtainPhase>("idle");
   const [showWorld, setShowWorld] = useState(false);
+  const homeShellRef = useRef<HTMLDivElement>(null);
   const [phaserBootStart, setPhaserBootStart] = useState<BootStartScene>("default");
   const [testStageIndex, setTestStageIndex] = useState(0);
   const [testStartMode, setTestStartMode] = useState<TestStageStartMode>("map");
@@ -477,7 +478,8 @@ export function HomeScreen() {
     <div className="relative h-dvh w-full overflow-hidden">
       {!isPlaying && (
       <div
-        aria-hidden={showWorld}
+        ref={homeShellRef}
+        inert={showWorld ? true : undefined}
         className={`absolute inset-0 overflow-hidden bg-[url('/images/ui_home/background.png')] bg-cover bg-center bg-no-repeat ${
           showWorld ? "home-shell-suspended invisible pointer-events-none" : ""
         }`}
