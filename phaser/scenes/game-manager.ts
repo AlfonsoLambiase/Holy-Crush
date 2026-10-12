@@ -585,11 +585,13 @@ export class GameManager extends Phaser.Scene {
   }
 
   private playBoosterFx(id: BoosterId, origin: Cell, hasBomb: boolean, hasRocket: boolean): void {
-    if (id === "mega" || id === "maxi") {
-      this.playBombShockwave(origin, MEGA_SPREAD);
+    if (id === "maxi") {
+      const spread = Math.max(MEGA_SPREAD, Math.max(this.gridRows, this.gridCols) / 2);
+
+      this.playBombShockwave(origin, spread);
 
       if (!hasBomb) {
-        this.cameras.main.shake(140, 0.005);
+        this.cameras.main.shake(180, 0.006);
         this.gameScene.audioManager.playAudio(
           assetConf.audio.explosion,
           EXPLOSION_AUDIO_MS,
