@@ -2,6 +2,7 @@
 
 import {useState} from "react";
 
+import {GoldTitle} from "@/components/GoldTitle";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick, playNoTouch} from "@/settings/click";
 import {resolveGameShareUrl} from "@/settings/share-link";
@@ -153,9 +154,9 @@ export function SharePanel() {
 
   return (
     <div className="flex w-full flex-col items-center">
-      <p className={PANEL_SECTION_TITLE_CLASS} style={PANEL_TITLE_STYLE}>
+      <GoldTitle titleClassName={PANEL_SECTION_TITLE_CLASS} titleStyle={PANEL_TITLE_STYLE}>
         {t("share")}
-      </p>
+      </GoldTitle>
 
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3 max-[700px]:mt-3 sm:mt-6 sm:gap-5">
         <button

@@ -3,6 +3,7 @@ import * as Phaser from "phaser";
 import {getCurrentLanguage, t} from "@/language";
 import {layoutScaleForViewport} from "@/settings/app-header-layout";
 import {playClick} from "@/settings/click";
+import {getShopAdProgress, SHOP_AD_COST, watchShopAd, type ShopAdId} from "@/settings/shop-ads";
 import {CandyCrushAssetConf} from "./config/asset-conf.const";
 import {APP_FONT} from "./config/font.const";
 import {animatePopupClose, animatePopupOpen} from "./popup-motion";
@@ -14,14 +15,8 @@ const TITLE_FONT_MIN = 64;
 const TITLE_FONT_MAX = 82;
 const BODY_FONT_MIN = 56;
 const BODY_FONT_MAX = 72;
-const BUTTON_FONT_MIN = 52;
-const BUTTON_FONT_MAX = 68;
-const TITLE_Y_RATIO = -0.22;
 const TITLE_BODY_GAP_RATIO = 0.04;
 const BODY_BUTTON_GAP_RATIO = 0.05;
-//* Solo il bottone, un filo più in basso della piastra.
-const BUTTON_DROP_RATIO = 0.035;
-const INNER_EDGE_RATIO = 0.4;
 const BUTTON_WIDTH_RATIO = 0.74;
 
 export type WatchAdPopup = {
@@ -32,7 +27,8 @@ type WatchAdPopupOptions = {
   title: string;
   body: string;
   scale: number;
-  /** 1 = booster. Sotto 1 rimpicciolisce testi e bottone insieme. */
+  adId: ShopAdId;
+  /** 1 = booster. Sotto 1 rimpicciolisce testi e cerchio insieme. */
   textScale?: number;
   onWatch: () => void;
   onClose?: () => void;
@@ -66,7 +62,7 @@ export const showWatchAdPopup = (
   const wrap = plate.width * 0.78;
   const popup = scene.add.container(width / 2, height / 2).setDepth(42).setScrollFactor(0);
   const title = scene.add
-    .text(0, plate.height * TITLE_Y_RATIO, options.title, {
+    .text(0, 0, options.title, {
       fontFamily: APP_FONT,
       fontSize: `${fontPx(scene, TITLE_FONT_MIN, TITLE_FONT_MAX) * textScale}px`,
       color: "#ffd76a",
@@ -87,24 +83,17 @@ export const showWatchAdPopup = (
       strokeThickness: 5,
     })
     .setOrigin(0.5);
-  const watch = addWatchVisual(
-    scene,
-    fontPx(scene, BUTTON_FONT_MIN, BUTTON_FONT_MAX) * textScale,
-    plate.width * BUTTON_WIDTH_RATIO * textScale,
-  );
+  const watch = addWatchVisual(scene, options.adId, textScale, plate.width * BUTTON_WIDTH_RATIO);
 
-  body.setY(title.y + title.height / 2 + plate.height * TITLE_BODY_GAP_RATIO + body.height / 2);
+  const titleGap = plate.height * TITLE_BODY_GAP_RATIO;
+  const watchGap = plate.height * BODY_BUTTON_GAP_RATIO;
+  const top = -(title.height + titleGap + body.height + watchGap + watch.height) / 2;
 
-  let watchY = body.y + body.height / 2 + plate.height * BODY_BUTTON_GAP_RATIO + watch.height / 2;
-  const overflow = watchY + watch.height / 2 - plate.height * INNER_EDGE_RATIO;
+  title.setY(top + title.height / 2);
+  body.setY(title.y + title.height / 2 + titleGap + body.height / 2);
 
-  if (overflow > 0) {
-    title.y -= overflow;
-    body.y -= overflow;
-    watchY -= overflow;
-  }
+  const watchY = body.y + body.height / 2 + watchGap + watch.height / 2;
 
-  watchY += plate.height * BUTTON_DROP_RATIO;
   watch.root.setY(watchY);
 
   let consumed = false;
@@ -117,9 +106,9 @@ export const showWatchAdPopup = (
   const watchHit = scene.add
     .rectangle(
       width / 2,
-      height / 2 + watchY * scale,
-      watch.width * scale,
-      watch.height * scale,
+      height / 2 + (watchY + watch.hitOffsetY) * scale,
+      watch.hitSize * scale,
+      watch.hitSize * scale,
       0xffffff,
       0.001,
     )
@@ -130,6 +119,7 @@ export const showWatchAdPopup = (
   const dismissTargets: Phaser.GameObjects.GameObject[] = [popup, overlay, blocker, watchHit];
 
   const destroyAll = () => {
+    watch.stop();
     blocker.off("pointerup", onOutsideUp);
     watchHit.off("pointerdown", onWatchPress);
     for (const target of dismissTargets) target.destroy(true);
@@ -144,22 +134,6 @@ export const showWatchAdPopup = (
     animatePopupClose(scene, popup, scale, [overlay, blocker, watchHit], destroyAll);
   };
 
-  const runWatch = () => {
-    if (consumed) return;
-
-    consumed = true;
-
-    try {
-      options.onWatch();
-    } catch {
-      consumed = false;
-
-      return;
-    }
-
-    close();
-  };
-
   const onWatchPress = (
     _pointer: Phaser.Input.Pointer,
     _x: number,
@@ -167,8 +141,24 @@ export const showWatchAdPopup = (
     event: Phaser.Types.Input.EventData,
   ) => {
     event.stopPropagation();
+
+    if (consumed || closing) return;
+
     playClick();
-    runWatch();
+    watch.advance(
+      () => {
+        if (consumed) return;
+
+        consumed = true;
+
+        try {
+          options.onWatch();
+        } catch {
+          consumed = false;
+        }
+      },
+      () => close(),
+    );
   };
 
   watchHit.on("pointerdown", onWatchPress);
@@ -185,51 +175,154 @@ export const showWatchAdPopup = (
   return {close};
 };
 
+const TV_KEY = "watch-ad-tv";
+const TV_PATH =
+  "M21 6h-7.59l3.29-3.29L16 2l-4 4-4-4-.71.71L10.59 6H3a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8a2 2 0 0 0-2-2m0 14H3V8h18zM9 10v8l7-4z";
+
+const ensureTvTexture = (scene: Phaser.Scene) => {
+  if (scene.textures.exists(TV_KEY)) return;
+
+  const size = 128;
+  const canvas = document.createElement("canvas");
+
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) return;
+
+  ctx.scale(size / 24, size / 24);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill(new Path2D(TV_PATH));
+  scene.textures.addCanvas(TV_KEY, canvas);
+};
+
+const paintClock = (graphics: Phaser.GameObjects.Graphics, radius: number, ratio: number) => {
+  graphics.clear();
+  graphics.fillStyle(0x1a0f08, 1);
+  graphics.fillCircle(0, 0, radius);
+
+  const fill = Math.min(1, Math.max(0, ratio));
+
+  if (fill >= 0.999) {
+    graphics.fillStyle(0x5c3a14, 1);
+    graphics.fillCircle(0, 0, radius);
+  } else if (fill > 0) {
+    const start = -Math.PI / 2;
+
+    graphics.fillStyle(0x5c3a14, 1);
+    graphics.beginPath();
+    graphics.moveTo(0, 0);
+    graphics.arc(0, 0, radius, start, start + Math.PI * 2 * fill, false);
+    graphics.closePath();
+    graphics.fillPath();
+  }
+
+  graphics.lineStyle(Math.max(4, radius * 0.045), 0xe0c36a, 0.55);
+  graphics.strokeCircle(0, 0, radius);
+};
+
 const addWatchVisual = (
   scene: Phaser.Scene,
-  fontSize: number,
+  adId: ShopAdId,
+  textScale: number,
   maxWidth: number,
-): {root: Phaser.GameObjects.Container; width: number; height: number} => {
-  const label = scene.add
-    .text(0, 0, t("watchAd", getCurrentLanguage()), {
+): {
+  root: Phaser.GameObjects.Container;
+  width: number;
+  height: number;
+  hitOffsetY: number;
+  hitSize: number;
+  advance: (onDone: () => void, onFilled: () => void) => void;
+  stop: () => void;
+} => {
+  const language = getCurrentLanguage();
+  const ads = SHOP_AD_COST[adId];
+  const words = ads === 1 ? t("shopAdNeeded", language) : t("shopAdsNeeded", language);
+  let fontSize = fontPx(scene, 44, 58) * textScale;
+  const number = scene.add
+    .text(0, 0, String(ads), {
+      fontFamily: APP_FONT,
+      fontSize: `${fontSize}px`,
+      color: "#ffd76a",
+      stroke: "#3d2614",
+      strokeThickness: 6,
+    })
+    .setOrigin(1, 0.5);
+  const phrase = scene.add
+    .text(0, 0, ` ${words}`, {
       fontFamily: APP_FONT,
       fontSize: `${fontSize}px`,
       color: "#fff8dc",
-      align: "center",
-      stroke: "#2a160c",
+      stroke: "#3d2614",
       strokeThickness: 6,
     })
-    .setOrigin(0.5);
+    .setOrigin(0, 0.5);
 
-  const padX = fontSize * 0.8;
-  let size = fontSize;
-
-  while (label.width + padX * 2 > maxWidth && size > 40) {
-    size -= 2;
-    label.setFontSize(`${size}px`);
+  while (number.width + phrase.width > maxWidth && fontSize > 32) {
+    fontSize -= 2;
+    number.setFontSize(`${fontSize}px`);
+    phrase.setFontSize(`${fontSize}px`);
   }
 
-  const width = maxWidth;
-  const height = Math.max(label.height + size * 0.95, size * 2.4);
-  const radius = Math.round(height * 0.28);
-  const face = scene.add.graphics();
+  const lineWidth = number.width + phrase.width;
 
-  face.fillStyle(0x3d2614, 1);
-  face.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
-  face.lineStyle(5, 0xa67c22, 1);
-  face.strokeRoundedRect(-width / 2, -height / 2, width, height, radius);
-  face.lineStyle(5, 0x2a160c, 0.8);
-  face.strokeRoundedRect(
-    -width / 2 - 7,
-    -height / 2 - 7,
-    width + 14,
-    height + 14,
-    radius + 7,
-  );
+  number.setX(-lineWidth / 2 + number.width);
+  phrase.setX(number.x);
+
+  const radius = Math.round(fontPx(scene, 88, 118) * textScale);
+  const gap = Math.round(radius * 0.22);
+  const blockH = number.height + gap + radius * 2;
+  const labelY = -blockH / 2 + number.height / 2;
+  const circleY = blockH / 2 - radius;
+
+  number.setY(labelY);
+  phrase.setY(labelY);
+
+  const clock = scene.add.graphics();
+
+  clock.setPosition(0, circleY);
+  paintClock(clock, radius, getShopAdProgress()[adId] / ads);
+  ensureTvTexture(scene);
+
+  const icon = scene.textures.exists(TV_KEY)
+    ? scene.add.image(0, circleY, TV_KEY).setDisplaySize(radius * 1.05, radius * 1.05)
+    : null;
+  const state = {ratio: getShopAdProgress()[adId] / ads};
+  let tween: Phaser.Tweens.Tween | null = null;
+  const redraw = (ratio: number) => paintClock(clock, radius, ratio);
+  const advance = (onDone: () => void, onFilled: () => void) => {
+    const from = state.ratio;
+    const done = watchShopAd(adId, ads);
+    const to = done ? 1 : getShopAdProgress()[adId] / ads;
+
+    if (done) onDone();
+
+    tween?.stop();
+    tween = scene.tweens.add({
+      targets: state,
+      ratio: to,
+      duration: from === to ? 0 : 480,
+      ease: "Sine.easeOut",
+      onUpdate: () => redraw(state.ratio),
+      onComplete: () => {
+        redraw(to);
+
+        if (done) onFilled();
+      },
+    });
+  };
+
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => tween?.stop());
 
   return {
-    root: scene.add.container(0, 0, [face, label]),
-    width,
-    height,
+    root: scene.add.container(0, 0, icon ? [clock, icon, number, phrase] : [clock, number, phrase]),
+    width: Math.max(lineWidth, radius * 2),
+    height: blockH,
+    hitOffsetY: circleY,
+    hitSize: radius * 2,
+    advance,
+    stop: () => tween?.stop(),
   };
 };

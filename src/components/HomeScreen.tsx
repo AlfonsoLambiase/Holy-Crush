@@ -10,6 +10,7 @@ import {
 } from "./CloudCurtainTransition";
 
 import {LANGUAGE_LABELS, LANGUAGES} from "@/language";
+import {GoldTitle} from "@/components/GoldTitle";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick, playNoTouch} from "@/settings/click";
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
@@ -191,9 +192,9 @@ function AccessPanel() {
 
   return (
     <div className="flex w-full flex-col items-center">
-      <p className={PANEL_SECTION_TITLE_CLASS} style={PANEL_TITLE_STYLE}>
+      <GoldTitle titleClassName={PANEL_SECTION_TITLE_CLASS} titleStyle={PANEL_TITLE_STYLE}>
         {t("access")}
-      </p>
+      </GoldTitle>
       <div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-3 max-[700px]:mt-3 sm:mt-6 sm:gap-5">
         <div className="flex items-center gap-3 sm:gap-4">
           <button
@@ -623,9 +624,9 @@ export function HomeScreen() {
         >
           {openPanel === "settings" ? (
             <>
-              <p className={PANEL_SECTION_TITLE_CLASS} style={PANEL_TITLE_STYLE}>
+              <GoldTitle titleClassName={PANEL_SECTION_TITLE_CLASS} titleStyle={PANEL_TITLE_STYLE}>
                 {t("music")}
-              </p>
+              </GoldTitle>
               <SettingsSoundToggle
                 isOn={isMusicOn}
                 soundOffLabel={t("off")}
@@ -642,9 +643,13 @@ export function HomeScreen() {
                 }}
               />
 
-              <p className={`mt-4 max-[700px]:mt-3 sm:mt-6 ${PANEL_SECTION_TITLE_CLASS}`} style={PANEL_TITLE_STYLE}>
+              <GoldTitle
+                className="mt-4 max-[700px]:mt-3 sm:mt-6"
+                titleClassName={PANEL_SECTION_TITLE_CLASS}
+                titleStyle={PANEL_TITLE_STYLE}
+              >
                 {t("effects")}
-              </p>
+              </GoldTitle>
               <SettingsSoundToggle
                 isOn={isEffectsOn}
                 soundOffLabel={t("off")}
@@ -659,9 +664,13 @@ export function HomeScreen() {
                 }}
               />
 
-              <p className={`mt-4 max-[700px]:mt-3 sm:mt-6 ${PANEL_SECTION_TITLE_CLASS}`} style={PANEL_TITLE_STYLE}>
+              <GoldTitle
+                className="mt-4 max-[700px]:mt-3 sm:mt-6"
+                titleClassName={PANEL_SECTION_TITLE_CLASS}
+                titleStyle={PANEL_TITLE_STYLE}
+              >
                 {t("language")}
-              </p>
+              </GoldTitle>
               <div className="mt-2 flex items-center justify-center gap-1">
                 <LanguageArrow
                   direction={-1}

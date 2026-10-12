@@ -453,6 +453,8 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
           alt={t("shop")}
           className="fixed inset-0 z-50"
           contentAlign="start"
+          contentClassName="inset-[8%] px-[3%] py-1"
+          panelClassName="w-[min(96vw,42rem,calc(94dvh*863/1152))]"
           onClose={() => setShopOpen(false)}
         >
           <ShopMarket />

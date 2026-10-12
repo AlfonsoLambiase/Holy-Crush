@@ -368,6 +368,7 @@ export class ItemsBar {
     this.#popup = showWatchAdPopup(this.scene, {
       title: t(titleKey, language),
       body: t(bodyKey, language),
+      adId: id,
       scale: popupPlateScale(this.scene, assetConf.image.popupExitGame),
       onClose: () => {
         this.#popup = null;

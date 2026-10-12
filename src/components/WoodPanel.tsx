@@ -12,6 +12,8 @@ type WoodPanelProps = {
   onClose: () => void;
   className?: string;
   contentAlign?: "center" | "start";
+  panelClassName?: string;
+  contentClassName?: string;
 };
 
 export function WoodPanel({
@@ -21,6 +23,8 @@ export function WoodPanel({
   onClose,
   className = "absolute inset-0 z-50",
   contentAlign = "center",
+  panelClassName = "w-[min(88vw,28rem,calc(92dvh*863/1152))]",
+  contentClassName = "inset-[11%] px-[6%] py-1",
 }: WoodPanelProps) {
   const [leaving, setLeaving] = useState(false);
 
@@ -42,7 +46,7 @@ export function WoodPanel({
       onPointerUp={(event) => event.stopPropagation()}
     >
       <div
-        className={`relative aspect-[863/1152] w-[min(88vw,28rem,calc(92dvh*863/1152))] max-h-[92dvh] shrink-0 ${
+        className={`relative aspect-[863/1152] ${panelClassName} max-h-[92dvh] shrink-0 ${
           leaving ? "popup-panel-out" : "popup-panel-in"
         }`}
         onClick={(event) => event.stopPropagation()}
@@ -55,7 +59,7 @@ export function WoodPanel({
           width={863}
         />
         <div
-          className={`absolute inset-[11%] flex min-h-0 flex-col overflow-x-hidden overscroll-y-contain px-[6%] py-1 text-center [-webkit-overflow-scrolling:touch] ${
+          className={`absolute ${contentClassName} flex min-h-0 flex-col overflow-x-hidden overscroll-y-contain text-center [-webkit-overflow-scrolling:touch] ${
             contentAlign === "start"
               ? "items-stretch justify-start overflow-y-auto"
               : "items-center justify-center overflow-y-auto"

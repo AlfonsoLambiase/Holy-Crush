@@ -738,6 +738,7 @@ export class StageMapScene extends Phaser.Scene {
     this.#energyPopup = showWatchAdPopup(this, {
       title: t("energyEmptyTitle", language),
       body: t("energyEmptyBody", language),
+      adId: "energy",
       scale: popupPlateScale(this, assetConf.image.popupExitGame),
       textScale: 0.84,
       onClose: () => {

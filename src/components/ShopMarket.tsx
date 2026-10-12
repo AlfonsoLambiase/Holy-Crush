@@ -1,17 +1,26 @@
 "use client";
 
 import Image from "next/image";
-import {useState} from "react";
+import { useState } from "react";
+import { MdLiveTv } from "react-icons/md";
 
-import {useLanguage} from "@/language/LanguageProvider";
+import { FadeScroll } from "@/components/FadeScroll";
+import { GoldTitle } from "@/components/GoldTitle";
+import { useLanguage } from "@/language/LanguageProvider";
 import {
   addBooster,
+  BOOSTER_MAX,
   getBoosterCount,
   isBoosterFull,
   type BoosterId,
 } from "@/settings/boosters";
-import {playClick} from "@/settings/click";
-import {isHeartEmpty, refillHeart} from "@/settings/heart";
+import { playClick } from "@/settings/click";
+import { isHeartEmpty, refillHeart } from "@/settings/heart";
+import {
+  getShopAdProgress,
+  watchShopAd,
+  type ShopAdId,
+} from "@/settings/shop-ads";
 
 const PANEL_TEXT_GLOW =
   "0 0 8px rgba(255,236,170,0.55), 0 2px 2px rgba(0,0,0,0.45)";
@@ -22,50 +31,113 @@ const PANEL_TITLE_STYLE: React.CSSProperties = {
   paintOrder: "stroke fill",
 };
 
-/** Layout compatto quando il pannello è stretto (<581px), non il viewport (tablet ok). */
 const PANEL_SECTION_TITLE_CLASS =
   "font-display font-bold text-[#ffd76a] text-base sm:text-xl md:text-3xl lg:text-4xl xl:text-[2.75rem]";
 
-const SHOP_ROW_CLASS =
-  "box-border flex w-full max-w-full min-w-0 flex-col gap-2 rounded-xl border-2 border-[#a67c22] bg-[#2a160c]/28 px-2.5 py-2.5 shadow-[0_0_8px_rgba(231,194,122,0.28)] @max-[580px]:text-[0.95rem] @min-[581px]:min-h-0 @min-[581px]:flex-row @min-[581px]:items-center @min-[581px]:gap-3 @min-[581px]:rounded-2xl @min-[581px]:px-3.5 @min-[581px]:py-3.5 md:gap-3.5 md:px-4 md:py-4 lg:gap-4 lg:px-5 lg:py-4";
-
-const SHOP_ROW_HEAD_CLASS =
-  "flex w-full min-w-0 items-center justify-center gap-3 @min-[581px]:contents";
-
-const SHOP_ICON_CLASS =
-  "h-11 w-11 shrink-0 object-contain @min-[581px]:h-14 @min-[581px]:w-14 md:h-[4.35rem] md:w-[4.35rem] lg:h-[4.85rem] lg:w-[4.85rem]";
-
-const SHOP_COUNT_CLASS =
-  "font-display text-2xl font-bold text-[#fff8dc] @min-[581px]:flex-1 @min-[581px]:text-center @min-[581px]:text-3xl md:text-4xl lg:text-[2.75rem]";
-
-const SHOP_AD_BTN_CLASS =
-  "box-border flex min-h-[2.85rem] w-full max-w-full shrink-0 flex-col items-center justify-center rounded-xl border-2 border-[#a67c22] bg-[#3d2614] px-2 py-1 font-display text-[0.62rem] font-bold leading-[1.08] text-[#fff8dc] shadow-[0_0_10px_rgba(255,214,120,0.35)] transition-transform duration-100 active:scale-95 @min-[581px]:min-h-[3.35rem] @min-[581px]:w-auto @min-[581px]:max-w-[45%] @min-[581px]:min-w-[4.25rem] @min-[581px]:rounded-2xl @min-[581px]:py-1.5 @min-[581px]:text-[0.68rem] md:min-h-[3.9rem] md:min-w-[5.5rem] md:px-3 md:py-2 md:text-sm lg:min-h-[4.25rem] lg:min-w-[6rem] lg:text-base";
-
-const SHOP_AD_BTN_LOCKED_CLASS = "pointer-events-none opacity-45 saturate-[0.72]";
-
 const SHOP_ITEMS = [
-  {id: "energy", src: "/images/mode_0/stage_ui/logo_stage_fill.png", labelKey: "shopEnergy"},
-  {id: "super", src: "/images/game_common/power-up/super.png", labelKey: "shopCross", booster: "super" as BoosterId},
-  {id: "mega", src: "/images/game_common/power-up/mega.png", labelKey: "shopStar", booster: "mega" as BoosterId},
-  {id: "ultra", src: "/images/game_common/power-up/ultra.png", labelKey: "shopScythe", booster: "ultra" as BoosterId},
-  {id: "maxi", src: "/images/game_common/power-up/maxi.png", labelKey: "shopMaxi", booster: "maxi" as BoosterId},
+  {
+    id: "energy",
+    ads: 1,
+    src: "/images/mode_0/stage_ui/logo_stage_fill.png",
+    titleKey: "shopEnergy",
+    bodyKey: "shopEnergyBody",
+  },
+  {
+    id: "super",
+    ads: 1,
+    src: "/images/game_common/power-up/super.png",
+    titleKey: "shopCross",
+    bodyKey: "shopCrossBody",
+    booster: "super" as BoosterId,
+  },
+  {
+    id: "mega",
+    ads: 1,
+    src: "/images/game_common/power-up/mega.png",
+    titleKey: "shopStar",
+    bodyKey: "shopStarBody",
+    booster: "mega" as BoosterId,
+  },
+  {
+    id: "ultra",
+    ads: 2,
+    src: "/images/game_common/power-up/ultra.png",
+    titleKey: "shopScythe",
+    bodyKey: "shopScytheBody",
+    booster: "ultra" as BoosterId,
+  },
+  {
+    id: "maxi",
+    ads: 3,
+    src: "/images/game_common/power-up/maxi.png",
+    titleKey: "shopMaxi",
+    bodyKey: "shopMaxiBody",
+    booster: "maxi" as BoosterId,
+  },
 ] as const;
 
-function WatchAdLabel({label}: {label: string}) {
-  const words = label.split(/\s+/).filter(Boolean);
+const CLOCK_TURN = 2 * Math.PI * 9;
+const CLOCK_FILL_MS = 480;
+//* Resta pieno un attimo prima di svuotarsi per il prossimo giro.
+const CLOCK_HOLD_MS = 260;
+
+function AdClock({ ratio, disabled }: { ratio: number; disabled: boolean }) {
+  const turn = disabled ? 0 : Math.min(1, Math.max(0, ratio)) * CLOCK_TURN;
 
   return (
-    <>
-      {words.map((word) => (
-        <span key={word}>{word}</span>
-      ))}
-    </>
+    <svg aria-hidden className="absolute inset-0" viewBox="0 0 36 36">
+      <circle cx="18" cy="18" fill={disabled ? "#8a8079" : "#1a0f08"} r="18" />
+      <circle
+        cx="18"
+        cy="18"
+        fill="none"
+        r="9"
+        stroke="#5c3a14"
+        strokeWidth="18"
+        style={{
+          strokeDasharray: `${turn} ${CLOCK_TURN}`,
+          transition: `stroke-dasharray ${CLOCK_FILL_MS}ms ease-out`,
+        }}
+        transform="rotate(-90 18 18)"
+      />
+      <circle
+        cx="18"
+        cy="18"
+        fill="none"
+        r="17.2"
+        stroke={disabled ? "#c9c0b8" : "#e0c36a"}
+        strokeOpacity={disabled ? "0.7" : "0.55"}
+        strokeWidth="0.8"
+      />
+    </svg>
+  );
+}
+
+const CARD_LABEL_CLASS =
+  "font-display text-[0.68rem] font-bold leading-tight @sm:text-[0.8rem]";
+
+function AdPhrase({ ads, text }: { ads: number; text: string }) {
+  const split = text.indexOf(" ");
+  const head = split < 0 ? text : text.slice(0, split);
+  const tail = split < 0 ? "" : text.slice(split + 1);
+
+  return (
+    <p
+      className={`whitespace-nowrap text-left text-[#f3e6c8] ${CARD_LABEL_CLASS}`}
+    >
+      <span className="text-[#ffd76a]">{ads}</span> {head}
+      {tail ? (
+        <>
+          <br />
+          {tail}
+        </>
+      ) : null}
+    </p>
   );
 }
 
 export function ShopMarket() {
-  const {t} = useLanguage();
-  const watchAdLabel = t("watchAd");
+  const { t } = useLanguage();
   const [counts, setCounts] = useState(() => ({
     super: getBoosterCount("super"),
     mega: getBoosterCount("mega"),
@@ -73,6 +145,22 @@ export function ShopMarket() {
     ultra: getBoosterCount("ultra"),
   }));
   const [energyEmpty, setEnergyEmpty] = useState(isHeartEmpty);
+  const [adProgress, setAdProgress] = useState(getShopAdProgress);
+  const [completing, setCompleting] = useState<
+    Partial<Record<ShopAdId, boolean>>
+  >({});
+  const [clockKeys, setClockKeys] = useState<Partial<Record<ShopAdId, number>>>(
+    {}
+  );
+
+  //* Il remount col key azzera il cerchio senza animarlo all'indietro.
+  const playCompletion = (adId: ShopAdId) => {
+    setCompleting((prev) => ({ ...prev, [adId]: true }));
+    window.setTimeout(() => {
+      setCompleting((prev) => ({ ...prev, [adId]: false }));
+      setClockKeys((prev) => ({ ...prev, [adId]: (prev[adId] ?? 0) + 1 }));
+    }, CLOCK_FILL_MS + CLOCK_HOLD_MS);
+  };
 
   const refreshCounts = () => {
     setCounts({
@@ -82,80 +170,116 @@ export function ShopMarket() {
       ultra: getBoosterCount("ultra"),
     });
     setEnergyEmpty(isHeartEmpty());
+    setAdProgress(getShopAdProgress());
   };
 
   const handleWatchAd = (item: (typeof SHOP_ITEMS)[number]) => {
-    if ("booster" in item) {
-      if (isBoosterFull(item.booster)) return;
+    const adId: ShopAdId = "booster" in item ? item.booster : "energy";
+    const locked =
+      "booster" in item ? isBoosterFull(item.booster) : !isHeartEmpty();
 
-      playClick();
-      addBooster(item.booster);
-      refreshCounts();
-
-      return;
-    }
-
-    if (!isHeartEmpty()) return;
+    if (locked || completing[adId]) return;
 
     playClick();
-    refillHeart();
+
+    if (watchShopAd(adId, item.ads)) {
+      if ("booster" in item) addBooster(item.booster);
+      else refillHeart();
+      playCompletion(adId);
+    }
+
     refreshCounts();
   };
 
   return (
-    <div className="@container shop-market flex w-full max-w-full flex-col items-center self-stretch origin-top @max-[580px]:scale-[0.94] md:scale-100">
-      <p
-        className={`mb-0 shrink-0 md:mb-1 lg:mb-1.5 ${PANEL_SECTION_TITLE_CLASS}`}
-        style={PANEL_TITLE_STYLE}
+    <div
+      className="shop-market @container flex min-h-0 w-full max-w-full flex-1 flex-col items-stretch"
+      data-shop-scroll
+    >
+      <GoldTitle
+        className="shrink-0"
+        titleClassName={PANEL_SECTION_TITLE_CLASS}
+        titleStyle={PANEL_TITLE_STYLE}
       >
         {t("shop")}
-      </p>
+      </GoldTitle>
 
-      <div
-        className="mt-3 flex w-full max-w-full flex-col gap-2 pb-1 @min-[581px]:mt-4 @min-[581px]:gap-2.5 md:mt-5 md:gap-3.5 lg:gap-4"
-        data-shop-scroll
-      >
-        {SHOP_ITEMS.map((item) => {
-          const isEnergy = item.id === "energy";
-          const energyAdLocked = isEnergy && !energyEmpty;
-          const boosterAdLocked =
-            "booster" in item && isBoosterFull(item.booster);
-          const adLocked = energyAdLocked || boosterAdLocked;
+      <FadeScroll className="mt-2 flex-1">
+        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-y-1.5 pb-1">
+          {SHOP_ITEMS.map((item) => {
+            const count =
+              "booster" in item ? counts[item.booster] : energyEmpty ? 0 : 1;
+            const adId: ShopAdId = "booster" in item ? item.booster : "energy";
+            const filling = Boolean(completing[adId]);
+            const adLocked =
+              !filling &&
+              ("booster" in item ? count >= BOOSTER_MAX : count > 0);
+            const fill = filling ? 1 : adProgress[adId] / item.ads;
 
-          return (
-            <div key={item.id} aria-label={t(item.labelKey)} className={SHOP_ROW_CLASS}>
-              <div className={SHOP_ROW_HEAD_CLASS}>
+            return (
+              <div
+                key={item.id}
+                className="col-span-4 grid min-w-0 grid-cols-subgrid items-start gap-x-1.5 rounded-2xl border border-[#3d2614]/50 bg-[#5c3a14]/90 px-1.5 py-2 text-left @sm:gap-x-2 @sm:px-2"
+              >
                 <Image
                   alt=""
-                  className={SHOP_ICON_CLASS}
+                  className="mt-0.5 h-9 w-9 shrink-0 self-center object-contain @sm:h-11 @sm:w-11"
                   draggable={false}
-                  height={96}
+                  height={88}
                   src={item.src}
-                  width={96}
+                  width={88}
                 />
 
-                {!isEnergy ? (
-                  <p className={SHOP_COUNT_CLASS} style={PANEL_TITLE_STYLE}>
-                    {counts[item.booster]}
+                <div className="min-w-0">
+                  <p className={`uppercase text-[#fff8dc] ${CARD_LABEL_CLASS}`}>
+                    {t(item.titleKey)}
                   </p>
-                ) : (
-                  <div aria-hidden className="hidden @min-[581px]:block @min-[581px]:flex-1" />
-                )}
-              </div>
+                  <p className="mt-0.5 font-accent text-[0.58rem] leading-snug text-[#f3e6c8] @sm:text-[0.68rem]">
+                    {t(item.bodyKey)}
+                  </p>
+                </div>
 
-              <button
-                aria-disabled={adLocked}
-                aria-label={watchAdLabel}
-                className={`${SHOP_AD_BTN_CLASS} ${adLocked ? SHOP_AD_BTN_LOCKED_CLASS : ""}`}
-                type="button"
-                onClick={() => handleWatchAd(item)}
-              >
-                <WatchAdLabel label={watchAdLabel} />
-              </button>
-            </div>
-          );
-        })}
-      </div>
+                <button
+                  aria-label={t("watchAd")}
+                  className={`relative mt-0.5 grid h-9 w-9 shrink-0 place-items-center self-center overflow-hidden rounded-full transition-transform duration-100 ${
+                    adLocked
+                      ? "cursor-default text-[#e8e2dc] opacity-70"
+                      : "text-white active:scale-95"
+                  }`}
+                  disabled={adLocked || filling}
+                  type="button"
+                  onClick={() => handleWatchAd(item)}
+                >
+                  <AdClock
+                    key={clockKeys[adId] ?? 0}
+                    disabled={adLocked}
+                    ratio={fill}
+                  />
+                  <MdLiveTv aria-hidden className="relative h-5 w-5" />
+                </button>
+                <div className="flex flex-col items-center gap-1">
+                  <AdPhrase
+                    ads={item.ads}
+                    text={
+                      item.ads === 1 ? t("shopAdNeeded") : t("shopAdsNeeded")
+                    }
+                  />
+                  <span className="inline-flex items-center gap-0.5 rounded-full border border-[#e0c36a] bg-[#fff8e6] px-2 py-0.5 font-display text-[0.72rem] font-bold leading-none text-[#c4922a] @sm:text-sm">
+                    <svg
+                      aria-hidden
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 fill-[#e0b44a]"
+                    >
+                      <path d="m12 2 2.7 6.5L22 9.2l-5 4.4 1.5 6.9L12 17.3 5.5 20.5 7 13.6 2 9.2l7.3-.7L12 2z" />
+                    </svg>
+                    <span className="translate-y-[0.08em]">x{count}</span>
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </FadeScroll>
     </div>
   );
 }

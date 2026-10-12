@@ -293,6 +293,13 @@ export function CloudCurtainTransition({
         } as React.CSSProperties
       }
     >
+      {phase !== "idle" ? (
+        <div
+          className="pointer-events-auto absolute inset-0 touch-none"
+          onClickCapture={(event) => event.stopPropagation()}
+          onPointerDownCapture={(event) => event.stopPropagation()}
+        />
+      ) : null}
       <CloudSide
         isClosed={wingsClosed}
         motion={phase}
