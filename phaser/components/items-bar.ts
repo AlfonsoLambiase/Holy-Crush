@@ -10,7 +10,7 @@ import {
 } from "@/settings/boosters";
 import {phaserImageScale, resolveHeaderMetrics} from "@/settings/app-header-layout";
 import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
-import {playClick, playMega, playNoTouch, playSuper} from "@/settings/click";
+import {playClick, playMega, playNoTouch, playSuper, playUltra} from "@/settings/click";
 import {getCellSize, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
@@ -35,10 +35,23 @@ const DEPTH_ICON_DISABLED = 10;
 const DEPTH_ICON_FILL = 11;
 const DEPTH_BADGE = 12;
 const DEPTH_ZONE = 13;
-const SLOTS: {id: BoosterId; disabled: string; fill: string}[] = [
-  {id: "super", disabled: "super_disabled", fill: "super"},
-  {id: "mega", disabled: "mega_disabled", fill: "mega"},
+const SLOTS: {
+  id: BoosterId;
+  disabled: string;
+  fill: string;
+  titleKey: string;
+  bodyKey: string;
+}[] = [
+  {id: "super", disabled: "super_disabled", fill: "super", titleKey: "shopCross", bodyKey: "shopCrossBody"},
+  {id: "mega", disabled: "mega_disabled", fill: "mega", titleKey: "shopStar", bodyKey: "shopStarBody"},
+  {id: "ultra", disabled: "ultra_disabled", fill: "ultra", titleKey: "shopScythe", bodyKey: "shopScytheBody"},
 ];
+
+const DROP_SFX: Record<BoosterId, () => void> = {
+  super: playSuper,
+  mega: playMega,
+  ultra: playUltra,
+};
 
 type Slot = {
   id: BoosterId;
@@ -138,16 +151,18 @@ export class ItemsBar {
     }
 
     const settingsGap = gap;
+    const slotCount = SLOTS.length;
+    const slotsSpan = frameW * slotCount + gap * Math.max(0, slotCount - 1);
     const availableW = width - sideInset * 2;
-    let rowW = frameW * 2 + gap + (hasSettings ? settingsGap + settingsW : 0);
+    let rowW = slotsSpan + (hasSettings ? settingsGap + settingsW : 0);
 
     if (hasSettings && settingsSrc && rowW > availableW) {
-      const maxSettingsW = Math.max(availableW - (frameW * 2 + gap + settingsGap), 0);
+      const maxSettingsW = Math.max(availableW - (slotsSpan + settingsGap), 0);
 
       if (settingsW > maxSettingsW && settingsW > 0) {
         buttonDisplayH = cornerBtnH * (maxSettingsW / settingsW);
         settingsW = maxSettingsW;
-        rowW = frameW * 2 + gap + settingsGap + settingsW;
+        rowW = slotsSpan + settingsGap + settingsW;
       }
     }
 
@@ -159,13 +174,11 @@ export class ItemsBar {
       );
     const rowLeft = Math.max(sideInset * 0.55, rowRightEdge - rowW);
 
-    const superX = rowLeft + frameW / 2;
-    const megaX = superX + frameW + gap;
-    const settingsX = hasSettings ? megaX + frameW / 2 + settingsGap + settingsW / 2 : 0;
+    const slotX = SLOTS.map((_, index) => rowLeft + frameW / 2 + index * (frameW + gap));
+    const lastSlotX = slotX[slotX.length - 1] ?? rowLeft + frameW / 2;
+    const settingsX = hasSettings ? lastSlotX + frameW / 2 + settingsGap + settingsW / 2 : 0;
 
     this.#top = y - frameH / 2;
-
-    const slotX = [superX, megaX];
 
     SLOTS.forEach((spec, index) => {
       if (!this.scene.textures.exists(spec.disabled) || !this.scene.textures.exists(spec.fill)) return;
@@ -319,16 +332,16 @@ export class ItemsBar {
 
     if (!onGrid || !spendBooster(id)) return;
 
-    if (id === "super") playSuper();
-    else playMega();
+    DROP_SFX[id]();
 
     this.#sync(id);
   }
 
   #askUnlock(id: BoosterId) {
     const language = getCurrentLanguage();
-    const titleKey = id === "super" ? "shopCross" : "shopStar";
-    const bodyKey = id === "super" ? "shopCrossBody" : "shopStarBody";
+    const spec = SLOTS.find((slot) => slot.id === id);
+    const titleKey = spec?.titleKey ?? "shopScythe";
+    const bodyKey = spec?.bodyKey ?? "shopScytheBody";
 
     playClick();
     this.#popup = showWatchAdPopup(this.scene, {

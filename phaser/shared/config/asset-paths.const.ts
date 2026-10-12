@@ -39,28 +39,20 @@ const STAGE_UI_KEYS = new Set([
 
 const HOME_UI_KEYS = new Set(["settingsHome"]);
 
-const STAGE_COMMON_KEYS = new Set([
+const GAME_COMMON = `${IMAGES}/game_common`;
+
+const POWER_UP_KEYS = new Set([
   "bomb",
   "rocket",
-  "obstacle_0",
-  "obstacle_1",
-  "line",
   "super",
   "mega",
+  "ultra",
   "super_disabled",
   "mega_disabled",
-  "B",
-  "C",
-  "D",
-  "G",
-  "H",
-  "I",
-  "J",
-  "L",
-  "R",
-  "V",
-  "X",
+  "ultra_disabled",
 ]);
+
+const OBJECTIVE_KEYS = new Set(["B", "C", "D", "G", "H", "I", "J", "L", "R", "V", "X"]);
 
 //* Il file su disco non coincide col nome logico usato in gioco
 const FILE_NAME: Record<string, string> = {
@@ -73,7 +65,9 @@ const folderFor = (key: string): string => {
   if (key === "starsEffect" || key === "sparklingStars") return `${IMAGES}/effects`;
   if (HOME_UI_KEYS.has(key)) return `${IMAGES}/ui_home`;
   if (UI_GAME_KEYS.has(key)) return `${IMAGES}/ui_game`;
-  if (STAGE_COMMON_KEYS.has(key)) return `${IMAGES}/mode_0/stage_common`;
+  if (POWER_UP_KEYS.has(key)) return `${GAME_COMMON}/power-up`;
+  if (OBJECTIVE_KEYS.has(key) || key.startsWith("obstacle_")) return `${GAME_COMMON}/objectives`;
+  if (key === "line") return `${GAME_COMMON}/ui`;
   if (key.startsWith("endWin") || key === "endFailed") return `${IMAGES}/mode_0/stage_end`;
   if (key.startsWith("obj_")) return `${IMAGES}/mode_0/stage_obj`;
   if (key.startsWith("op_")) return `${IMAGES}/mode_0/stage_opening`;

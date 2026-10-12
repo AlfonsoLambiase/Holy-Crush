@@ -102,6 +102,20 @@ const UI_TEXTS: TextEntry[] = [
     fr: "Brise plus de blocs proches.",
   },
   {
+    key: "shopScythe",
+    it: "Falce dorata",
+    en: "Golden sickle",
+    es: "Hoz dorada",
+    fr: "Faucille dorée",
+  },
+  {
+    key: "shopScytheBody",
+    it: "Il potere speciale più forte.",
+    en: "The strongest special power.",
+    es: "El poder especial más fuerte.",
+    fr: "Le pouvoir spécial le plus fort.",
+  },
+  {
     key: "info",
     it: "Info",
     en: "Info",

@@ -1,11 +1,11 @@
-export type BoosterId = "super" | "mega";
+export type BoosterId = "super" | "mega" | "ultra";
 
 export const BOOSTER_MAX = 5;
 const STORAGE_KEY = "holy-crush-boosters";
 
 type Stock = Record<BoosterId, number>;
 
-const emptyStock = (): Stock => ({super: 0, mega: 0});
+const emptyStock = (): Stock => ({super: 0, mega: 0, ultra: 0});
 
 const clampCount = (value: number) => Math.min(BOOSTER_MAX, Math.max(0, Math.floor(value)));
 
@@ -22,6 +22,7 @@ const readStock = (): Stock => {
     return {
       super: clampCount(Number(parsed.super) || 0),
       mega: clampCount(Number(parsed.mega) || 0),
+      ultra: clampCount(Number(parsed.ultra) || 0),
     };
   } catch {
     return emptyStock();

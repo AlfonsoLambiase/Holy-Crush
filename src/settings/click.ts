@@ -59,6 +59,9 @@ export const playSuper = () => playSfx("/sounds/super.mp3");
 
 export const playMega = () => playSfx("/sounds/mega.mp3");
 
+//* Stesso file di mega finché non c'è un audio dedicato.
+export const playUltra = () => playSfx("/sounds/mega.mp3");
+
 export const playCloudOn = () => {
   if (typeof window === "undefined" || !isEffectsEnabled()) return;
 
