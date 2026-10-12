@@ -28,6 +28,8 @@ export const CandyCrushAssetConf = {
     endWin: "endWin",
     endWin_bg: "endWin_bg",
     endWin_fill: "endWin_fill",
+    endLose_bg: "endLose_bg",
+    endLose_fill: "endLose_fill",
     endFailed: "endFailed",
     endBackground: "endBackground",
 

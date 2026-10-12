@@ -12,6 +12,7 @@ import {loadOutroAssets, purgeGameSessionResources} from "../shared/utils/load-a
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
 const WIN_FILL_MS = 1150;
+const LOSE_FADE_MS = 2000;
 const WIN_SOUND_START_VOLUME = 0.04;
 const WIN_SOUND_PEAK_VOLUME = 1;
 const WIN_SOUND_RISE_MS = 2400;
@@ -105,7 +106,11 @@ export class Outro extends Phaser.Scene {
 
     this.#playResultSound();
 
-    if (this.imageKey === assetConf.image.endWin) this.#addWinRainbow(width, height);
+    if (this.imageKey === assetConf.image.endWin) {
+      this.#addResultFill(width, height, assetConf.image.endWin_bg, assetConf.image.endWin_fill);
+    } else {
+      this.#addLoseFade(width, height);
+    }
 
     // Immagine principale con origine in basso al centro
     const foreground = this.add.image(width / 2, height, this.imageKey).setOrigin(0.5, 1).setDepth(3);
@@ -151,11 +156,38 @@ export class Outro extends Phaser.Scene {
     });
   }
 
-  #addWinRainbow(width: number, height: number) {
-    const bgKey = assetConf.image.endWin_bg;
-    const fillKey = assetConf.image.endWin_fill;
+  //* La nuvola parte spenta e sfuma in quella accesa. Niente spicchio.
+  #addLoseFade(width: number, height: number) {
+    const bgKey = assetConf.image.endLose_bg;
+    const fillKey = assetConf.image.endLose_fill;
 
-    if (!this.textures.exists(bgKey)) return;
+    if (!this.textures.exists(bgKey) || !this.textures.exists(fillKey)) return;
+
+    const src = this.textures.get(bgKey).getSourceImage() as {width: number};
+    const scale = (width * RAINBOW_WIDTH) / src.width;
+    const x = width / 2;
+    const y = height * RAINBOW_Y;
+
+    this.add.image(x, y, bgKey).setOrigin(0.5).setScale(scale).setDepth(1).setScrollFactor(0);
+
+    const fill = this.add
+      .image(x, y, fillKey)
+      .setOrigin(0.5)
+      .setScale(scale)
+      .setDepth(2)
+      .setScrollFactor(0)
+      .setAlpha(0);
+
+    this.tweens.add({
+      targets: fill,
+      alpha: 1,
+      duration: LOSE_FADE_MS,
+      ease: "Sine.easeInOut",
+    });
+  }
+
+  #addResultFill(width: number, height: number, bgKey: string, fillKey: string) {
+    if (!this.textures.exists(bgKey) || !this.textures.exists(fillKey)) return;
 
     const src = this.textures.get(bgKey).getSourceImage() as {width: number};
     const pair = addFillPair(

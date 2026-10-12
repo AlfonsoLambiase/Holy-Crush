@@ -135,13 +135,15 @@ export class Game extends Phaser.Scene {
       }
 
       this.time.delayedCall(delay, () => {
-        if (this.theme) this.theme.stop();
-        this.scene.stop(assetConf.scene.gameManager);
-        this.scene.stop(assetConf.scene.timerManager);
-        this.scene.start(assetConf.scene.outro, {
-          resultStatus: this.uiManager.score >= this.uiManager.maxScore ? "Win" : "Failed",
-        });
+        this.#openOutro(this.uiManager.score >= this.uiManager.maxScore ? "Win" : "Failed");
       });
     }
+  }
+
+  #openOutro(resultStatus: "Failed" | "Win"): void {
+    if (this.theme) this.theme.stop();
+    this.scene.stop(assetConf.scene.gameManager);
+    this.scene.stop(assetConf.scene.timerManager);
+    this.scene.start(assetConf.scene.outro, {resultStatus});
   }
 }

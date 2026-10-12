@@ -70,6 +70,8 @@ const OUTRO_IMAGES: ImageKey[] = [
   "endWin",
   "endWin_bg",
   "endWin_fill",
+  "endLose_bg",
+  "endLose_fill",
   "endFailed",
 ];
 

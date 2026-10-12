@@ -70,7 +70,9 @@ const folderFor = (key: string): string => {
   if (POWER_UP_KEYS.has(key)) return `${GAME_COMMON}/power-up`;
   if (OBJECTIVE_KEYS.has(key) || key.startsWith("obstacle_")) return `${GAME_COMMON}/objectives`;
   if (key === "line") return `${GAME_COMMON}/ui`;
-  if (key.startsWith("endWin") || key === "endFailed") return `${IMAGES}/mode_0/stage_end`;
+  if (key.startsWith("endWin") || key.startsWith("endLose") || key === "endFailed") {
+    return `${IMAGES}/mode_0/stage_end`;
+  }
   if (key.startsWith("obj_")) return `${IMAGES}/mode_0/stage_obj`;
   if (key.startsWith("op_")) return `${IMAGES}/mode_0/stage_opening`;
   if (STAGE_UI_KEYS.has(key)) return `${IMAGES}/mode_0/stage_ui`;
