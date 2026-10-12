@@ -46,9 +46,11 @@ const POWER_UP_KEYS = new Set([
   "rocket",
   "super",
   "mega",
+  "maxi",
   "ultra",
   "super_disabled",
   "mega_disabled",
+  "maxi_disabled",
   "ultra_disabled",
 ]);
 

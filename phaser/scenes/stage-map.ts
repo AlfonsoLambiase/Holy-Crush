@@ -739,6 +739,7 @@ export class StageMapScene extends Phaser.Scene {
       title: t("energyEmptyTitle", language),
       body: t("energyEmptyBody", language),
       scale: popupPlateScale(this, assetConf.image.popupExitGame),
+      textScale: 0.84,
       onClose: () => {
         this.#energyPopup = null;
       },

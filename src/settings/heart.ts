@@ -1,12 +1,12 @@
 import {getClearedCount} from "./progress";
 
-const FILL_STEP = 0.2;
+const FILL_STEP = 0.1;
 const HEART_KEY = "holy-crush-heart";
 const HEART_CREDIT_KEY = "holy-crush-heart-credit";
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
-//* 0.2 in serie fa 0.19999999999999996: lo riallineo allo spicchio
+//* 0.1 in serie sborda sul float: lo riallineo allo spicchio
 const roundStep = (value: number) => Math.round(clamp01(value) / FILL_STEP) * FILL_STEP;
 
 const readCredit = (): number => {

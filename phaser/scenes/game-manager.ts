@@ -465,15 +465,39 @@ export class GameManager extends Phaser.Scene {
     return true;
   }
 
+  //* Tutta la griglia giocabile. I muri restano, come nello scoppio di mega.
+  private allOpenCells(): Cell[] {
+    const cells: Cell[] = [];
+
+    for (let r = 0; r < this.gridRows; r++) {
+      for (let c = 0; c < this.gridCols; c++) {
+        const cell = this.obstacles[r]?.[c];
+
+        if (!cell || cell.blocker === "wall") continue;
+
+        cells.push({r, c});
+      }
+    }
+
+    return cells;
+  }
+
   private boosterCells(id: BoosterId, origin: Cell): Cell[] {
     if (id === "mega") return areaBlastCells(this.board, origin, MEGA_RADIUS);
+    if (id === "maxi") return this.allOpenCells();
     if (id === "super") return crossBlastCells(this.board, origin);
 
-    return spiralBlastCells(this.gridRows, this.gridCols, origin, (row, col) => {
-      const cell = this.obstacles[row]?.[col];
+    return spiralBlastCells(
+      this.gridRows,
+      this.gridCols,
+      origin,
+      (row, col) => {
+        const cell = this.obstacles[row]?.[col];
 
-      return !!cell && cell.blocker !== "wall";
-    });
+        return !!cell && cell.blocker !== "wall";
+      },
+      MEGA_RADIUS,
+    );
   }
 
   //* La cella del drop perde subito pezzo, lucchetto e ostacolo. Il muro resta.
@@ -561,7 +585,7 @@ export class GameManager extends Phaser.Scene {
   }
 
   private playBoosterFx(id: BoosterId, origin: Cell, hasBomb: boolean, hasRocket: boolean): void {
-    if (id === "mega") {
+    if (id === "mega" || id === "maxi") {
       this.playBombShockwave(origin, MEGA_SPREAD);
 
       if (!hasBomb) {
@@ -602,7 +626,7 @@ export class GameManager extends Phaser.Scene {
 
     if (id === "ultra") return spiralDelay.get(`${cell.r},${cell.c}`) ?? 0;
 
-    if (id === "mega") return this.destroyDelay(cell, [origin, ...bombCenters], rocketCenters);
+    if (id === "mega" || id === "maxi") return this.destroyDelay(cell, [origin, ...bombCenters], rocketCenters);
 
     const onCross = cell.r === origin.r || cell.c === origin.c;
     const cross = onCross

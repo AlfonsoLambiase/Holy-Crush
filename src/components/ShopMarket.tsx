@@ -48,6 +48,7 @@ const SHOP_ITEMS = [
   {id: "super", src: "/images/game_common/power-up/super.png", labelKey: "shopCross", booster: "super" as BoosterId},
   {id: "mega", src: "/images/game_common/power-up/mega.png", labelKey: "shopStar", booster: "mega" as BoosterId},
   {id: "ultra", src: "/images/game_common/power-up/ultra.png", labelKey: "shopScythe", booster: "ultra" as BoosterId},
+  {id: "maxi", src: "/images/game_common/power-up/maxi.png", labelKey: "shopMaxi", booster: "maxi" as BoosterId},
 ] as const;
 
 function WatchAdLabel({label}: {label: string}) {
@@ -68,6 +69,7 @@ export function ShopMarket() {
   const [counts, setCounts] = useState(() => ({
     super: getBoosterCount("super"),
     mega: getBoosterCount("mega"),
+    maxi: getBoosterCount("maxi"),
     ultra: getBoosterCount("ultra"),
   }));
   const [energyEmpty, setEnergyEmpty] = useState(isHeartEmpty);
@@ -76,6 +78,7 @@ export function ShopMarket() {
     setCounts({
       super: getBoosterCount("super"),
       mega: getBoosterCount("mega"),
+      maxi: getBoosterCount("maxi"),
       ultra: getBoosterCount("ultra"),
     });
     setEnergyEmpty(isHeartEmpty());

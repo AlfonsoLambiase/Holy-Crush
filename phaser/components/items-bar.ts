@@ -10,7 +10,7 @@ import {
 } from "@/settings/boosters";
 import {phaserImageScale, resolveHeaderMetrics} from "@/settings/app-header-layout";
 import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
-import {playClick, playMega, playNoTouch, playSuper, playUltra} from "@/settings/click";
+import {playClick, playMaxi, playMega, playNoTouch, playSuper, playUltra} from "@/settings/click";
 import {getCellSize, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import type {Cell} from "../shared/match3";
@@ -43,14 +43,17 @@ const SLOTS: {
   titleKey: string;
   bodyKey: string;
 }[] = [
-  {id: "super", disabled: "super_disabled", fill: "super", titleKey: "shopCross", bodyKey: "shopCrossBody"},
-  {id: "mega", disabled: "mega_disabled", fill: "mega", titleKey: "shopStar", bodyKey: "shopStarBody"},
+  //* Da sinistra a destra. Il bottone impostazioni sta a destra, quindi l'ordine letto da lì è super, mega, ultra, maxi.
+  {id: "maxi", disabled: "maxi_disabled", fill: "maxi", titleKey: "shopMaxi", bodyKey: "shopMaxiBody"},
   {id: "ultra", disabled: "ultra_disabled", fill: "ultra", titleKey: "shopScythe", bodyKey: "shopScytheBody"},
+  {id: "mega", disabled: "mega_disabled", fill: "mega", titleKey: "shopStar", bodyKey: "shopStarBody"},
+  {id: "super", disabled: "super_disabled", fill: "super", titleKey: "shopCross", bodyKey: "shopCrossBody"},
 ];
 
 const DROP_SFX: Record<BoosterId, () => void> = {
   super: playSuper,
   mega: playMega,
+  maxi: playMaxi,
   ultra: playUltra,
 };
 
@@ -113,20 +116,20 @@ export class ItemsBar {
 
   create(): number {
     const {width, height} = this.scene.scale;
-    const frameKey = assetConf.image.containerItems;
-    const fillKey = assetConf.image.containerItems_bg;
+    const frameKey = assetConf.image.containerItems_bg;
+    const fillKey = assetConf.image.containerItems;
 
     if (!this.scene.textures.exists(frameKey) || !this.scene.textures.exists(fillKey)) return height;
 
-    const iconSize = getCellSize(width) * GRID_PIECE_FIT;
+    let iconSize = getCellSize(width) * GRID_PIECE_FIT;
     const frameSrc = this.scene.textures.get(frameKey).getSourceImage() as {width: number; height: number};
-    const frameScale = iconSize / frameSrc.height;
-    const frameW = frameSrc.width * frameScale;
-    const frameH = frameSrc.height * frameScale;
-    const gap = frameW * 0.14;
+    let frameScale = iconSize / frameSrc.height;
+    let frameW = frameSrc.width * frameScale;
+    let frameH = frameSrc.height * frameScale;
+    let gap = frameW * 0.14;
     const bottomMargin = this.scaleOf(16, 36);
     const sideInset = this.scaleOf(HEADER_INSET_MIN, HEADER_INSET_MAX);
-    const y = height - bottomMargin - frameH / 2;
+    let y = height - bottomMargin - frameH / 2;
 
     const safeTop = Number(this.scene.registry.get("safeTop")) || 0;
     const cornerBtnH = resolveHeaderMetrics(
@@ -156,8 +159,22 @@ export class ItemsBar {
 
     const settingsGap = gap;
     const slotCount = SLOTS.length;
-    const slotsSpan = frameW * slotCount + gap * Math.max(0, slotCount - 1);
+    let slotsSpan = frameW * slotCount + gap * Math.max(0, slotCount - 1);
     const availableW = width - sideInset * 2;
+    const rowBudget = availableW - (hasSettings ? settingsGap + settingsW * 0.72 : 0);
+
+    if (slotsSpan > rowBudget && rowBudget > 0) {
+      const fit = rowBudget / slotsSpan;
+
+      frameW *= fit;
+      frameH *= fit;
+      frameScale *= fit;
+      iconSize *= fit;
+      gap = frameW * 0.14;
+      slotsSpan = frameW * slotCount + gap * Math.max(0, slotCount - 1);
+      y = height - bottomMargin - frameH / 2;
+    }
+
     let rowW = slotsSpan + (hasSettings ? settingsGap + settingsW : 0);
 
     if (hasSettings && settingsSrc && rowW > availableW) {

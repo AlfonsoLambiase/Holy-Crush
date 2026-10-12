@@ -102,6 +102,20 @@ const UI_TEXTS: TextEntry[] = [
     fr: "Brise plus de blocs proches.",
   },
   {
+    key: "shopMaxi",
+    it: "Croce maxi",
+    en: "Maxi cross",
+    es: "Cruz maxi",
+    fr: "Croix maxi",
+  },
+  {
+    key: "shopMaxiBody",
+    it: "Fa esplodere tutti i blocchi.",
+    en: "Blows up every block.",
+    es: "Hace explotar todos los bloques.",
+    fr: "Fait exploser tous les blocs.",
+  },
+  {
     key: "shopScythe",
     it: "Falce dorata",
     en: "Golden sickle",

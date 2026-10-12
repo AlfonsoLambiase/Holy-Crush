@@ -324,11 +324,13 @@ export function crossBlastCells(board: number[][], cell: Cell): Cell[] {
 }
 
 //* Dal centro, poi ogni anello in senso orario: lato alto verso destra, poi giù, sinistra, su.
+//* radius limita il quadrato. Ultra usa lo stesso raggio di mega.
 export function spiralBlastCells(
   rows: number,
   cols: number,
   origin: Cell,
   accept: (r: number, c: number) => boolean = () => true,
+  radiusLimit = Number.POSITIVE_INFINITY,
 ): Cell[] {
   const cells: Cell[] = [];
 
@@ -342,7 +344,8 @@ export function spiralBlastCells(
     cells.push({r: origin.r, c: origin.c});
   }
 
-  const maxRadius = Math.max(origin.r, origin.c, rows - 1 - origin.r, cols - 1 - origin.c);
+  const boardRadius = Math.max(origin.r, origin.c, rows - 1 - origin.r, cols - 1 - origin.c);
+  const maxRadius = Math.min(boardRadius, radiusLimit);
 
   for (let radius = 1; radius <= maxRadius; radius++) {
     let r = origin.r - radius;
