@@ -1,7 +1,9 @@
-import {getStageMap, normalizeStageIndex, STAGE_COUNT} from "./stage-map";
-import {getWorldStageRange, WORLD_COUNT} from "./world-map";
+import {getModeConfig} from "./game-mode";
+import {getStageCount, getStageMap, normalizeStageIndex} from "./stage-map";
+import {getWorldCount, getWorldStageRange} from "./world-map";
 
-const STORAGE_KEY = "holy-crush-cleared";
+//* Ogni modalità ha il suo progresso
+export const progressStorageKey = (): string => getModeConfig().progressKey;
 
 type Progress = {
   stage: number;
@@ -13,7 +15,7 @@ const emptyProgress = (): Progress => ({stage: 0, cleared: 0});
 const readProgress = (): Progress => {
   if (typeof window === "undefined") return emptyProgress();
 
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = localStorage.getItem(progressStorageKey());
 
   if (!raw) return emptyProgress();
 
@@ -46,7 +48,7 @@ const readProgress = (): Progress => {
 };
 
 const writeProgress = (progress: Progress) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  localStorage.setItem(progressStorageKey(), JSON.stringify(progress));
 };
 
 //* Indice file opening: op_0 …; scenery: stage-scenery-assets.ts
@@ -65,7 +67,7 @@ export const getClearedCount = (): number => readProgress().cleared;
 export const shouldPlayStageOpening = (): boolean => getClearedCount() === 0;
 
 export const isWorldComplete = (worldIndex: number): boolean => {
-  if (worldIndex < 0 || worldIndex >= WORLD_COUNT) return false;
+  if (worldIndex < 0 || worldIndex >= getWorldCount()) return false;
 
   const {last} = getWorldStageRange(worldIndex);
 
@@ -104,7 +106,7 @@ export const registerWin = (level?: number): RegisterWinResult => {
     const nextStage = progress.stage + 1;
 
     writeProgress({
-      stage: nextStage >= STAGE_COUNT ? 0 : nextStage,
+      stage: nextStage >= getStageCount() ? 0 : nextStage,
       cleared: 0,
     });
 

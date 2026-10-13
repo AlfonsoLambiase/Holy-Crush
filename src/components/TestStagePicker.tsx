@@ -2,7 +2,7 @@
 
 import {useEffect, useId, useRef, useState} from "react";
 
-import {normalizeStageIndex, STAGE_COUNT} from "@/settings/stage-map";
+import {getStageCount, normalizeStageIndex} from "@/settings/stage-map";
 
 const TRIGGER_CLASS =
   "flex w-full items-center justify-between gap-2 rounded-lg border border-amber-700/60 bg-[#2a1810] px-2 py-1.5 text-left text-sm text-[#fde8a0] outline-none";
@@ -58,7 +58,7 @@ export function TestStagePicker({stageIndex, onStageIndexChange}: TestStagePicke
       </button>
       {open ? (
         <ul id={listId} role="listbox" aria-label="Stage" className={LIST_CLASS}>
-          {Array.from({length: STAGE_COUNT}, (_, index) => (
+          {Array.from({length: getStageCount()}, (_, index) => (
             <li key={index} role="option" aria-selected={index === stageIndex}>
               <button
                 type="button"

@@ -1,6 +1,7 @@
 import * as Phaser from "phaser";
 
 import {getCurrentLanguage, t} from "@/language";
+import {getModeConfig} from "@/settings/game-mode";
 import {getVerseByStageAndLevel} from "../components/verse";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
@@ -31,6 +32,12 @@ export class VerseScene extends Phaser.Scene {
   }
 
   create() {
+    if (!getModeConfig().showVerses) {
+      this.scene.start(assetConf.scene.game);
+
+      return;
+    }
+
     const {width, height} = this.scale;
     const stage = Number(this.registry.get("stage")) || DEFAULT_STAGE;
     const level = Number(this.registry.get("level")) || 1;

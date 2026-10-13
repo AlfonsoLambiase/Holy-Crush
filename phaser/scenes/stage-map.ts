@@ -18,7 +18,7 @@ import {addStageHeart, type StageHeart} from "../shared/stage-heart";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
 import {popupPlateScale} from "../shared/popup-plate-scale";
 import {dynamicValueForViewport} from "../shared/viewport-scale";
-import {ROAD_TILES, stackedLevelPointsFallback, stackedLevelPointsFromImage} from "../shared/road-path";
+import {roadTilesFor, stackedLevelPointsFallback, stackedLevelPointsFromImage} from "../shared/road-path";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 import {loadStageMapBootAssets, purgeIdleMapTextures} from "../shared/utils/load-assets";
@@ -221,7 +221,8 @@ export class StageMapScene extends Phaser.Scene {
     const frameH = source?.height || 1600;
     const dispW = width;
     const dispH = frameH * (dispW / frameW);
-    const stackH = dispH * ROAD_TILES;
+    const tiles = roadTilesFor(levels);
+    const stackH = dispH * tiles;
     const roadTopBase = Math.max(0, bandTop - dispH * ROAD_START_OFFSET_TILE);
     const roadScrollTopPad =
       Math.max(0, bandTop - roadTopBase) + dispH * ROAD_SCROLL_TOP_TILE;
@@ -237,7 +238,7 @@ export class StageMapScene extends Phaser.Scene {
       y: roadTop + point.y * stackH,
     }));
 
-    return {worldH, roadTop, dispW, dispH, stackH, stops};
+    return {worldH, roadTop, dispW, dispH, stackH, stops, tiles};
   }
 
   #roadSource(key: string) {
@@ -256,7 +257,7 @@ export class StageMapScene extends Phaser.Scene {
 
   #addRoad(
     width: number,
-    placed: {roadTop: number; dispW: number; dispH: number},
+    placed: {roadTop: number; dispW: number; dispH: number; tiles: number},
   ) {
     const key = assetConf.image.road;
 
@@ -267,7 +268,7 @@ export class StageMapScene extends Phaser.Scene {
     this.#roadMask.fillStyle(0xffffff);
     const mask = this.#roadMask.createGeometryMask();
 
-    for (let tile = 0; tile < ROAD_TILES; tile += 1) {
+    for (let tile = 0; tile < placed.tiles; tile += 1) {
       this.add
         .image(width / 2, placed.roadTop + tile * placed.dispH, key)
         .setOrigin(0.5, 0)

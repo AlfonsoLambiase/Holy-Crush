@@ -1,5 +1,5 @@
 import {isMusicEnabled} from "./music";
-import {getWorldIndexForStage, WORLD_COUNT} from "./world-map";
+import {getWorld, getWorldIndexForStage} from "./world-map";
 
 const TRACKS = {
   home: {src: "/sounds/ost_0.mp3", volume: 0.65},
@@ -12,8 +12,6 @@ const TRACKS = {
 } as const;
 
 export type MusicTrack = keyof typeof TRACKS;
-
-const WORLD_TRACKS: MusicTrack[] = ["world0", "world1", "world2", "world3", "world4"];
 
 let audio: HTMLAudioElement | null = null;
 let current: MusicTrack | null = null;
@@ -64,12 +62,8 @@ const applyResumePosition = (el: HTMLAudioElement, track: MusicTrack): void => {
 
 export const getMusicTrack = (): MusicTrack | null => current;
 
-/** OST del mondo (world_0 → ost_1 … world_4 → ost_3). */
-export const worldMusicTrack = (worldIndex: number): MusicTrack => {
-  const safe = Math.min(Math.max(Math.floor(worldIndex), 0), WORLD_COUNT - 1);
-
-  return WORLD_TRACKS[safe] ?? "world0";
-};
+/** OST del mondo, decisa dalla modalità (game-mode.ts). */
+export const worldMusicTrack = (worldIndex: number): MusicTrack => getWorld(worldIndex).track;
 
 export const playWorldTrack = (worldIndex: number): void => {
   playTrack(worldMusicTrack(worldIndex));

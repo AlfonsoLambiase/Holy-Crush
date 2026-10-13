@@ -312,6 +312,13 @@ const UI_TEXTS: TextEntry[] = [
     fr: "TOUCHE POUR CONTINUER",
   },
   {
+    key: "openingOldTestament",
+    it: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    en: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    es: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    fr: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+  },
+  {
     key: "noMovesShuffle",
     it: "Nessuna mossa disponibile\nRimescolo la griglia",
     en: "No moves available\nShuffling the board",

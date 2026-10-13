@@ -11,8 +11,8 @@ import {playClick, playNoTouch, playSwitch} from "@/settings/click";
 import {computeStageHudMetrics, type StageHudMetrics} from "@/settings/stage-hud-layout";
 import {getStageIndex, isWorldUnlocked} from "@/settings/progress";
 import {
+  getWorldCount,
   getWorldIndexForStage,
-  WORLD_COUNT,
   worldBackgroundPath,
   worldImagePath,
 } from "@/settings/world-map";
@@ -95,6 +95,7 @@ const defaultHudMetrics = (): StageHudMetrics => ({
 
 export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const {t} = useLanguage();
+  const [worldCount] = useState(getWorldCount);
   const [scrollY, setScrollY] = useState(0);
   const [viewportH, setViewportH] = useState(0);
   const [shopOpen, setShopOpen] = useState(false);
@@ -145,7 +146,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
     return () => window.removeEventListener("resize", sync);
   }, []);
 
-  const maxScroll = Math.max(0, (WORLD_COUNT - 1) * viewportH);
+  const maxScroll = Math.max(0, (worldCount - 1) * viewportH);
 
   const clampScroll = useCallback(
     (value: number) => Math.min(maxScroll, Math.max(0, value)),
@@ -172,7 +173,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const snapToWorld = useCallback(
     (worldIndex: number) => {
       const h = viewportH || 1;
-      const nextWorld = Math.min(WORLD_COUNT - 1, Math.max(0, worldIndex));
+      const nextWorld = Math.min(worldCount - 1, Math.max(0, worldIndex));
       const currentWorld = Math.round(scrollRef.current / h);
 
       if (nextWorld !== currentWorld) {
@@ -198,7 +199,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
 
       snapFrame.current = requestAnimationFrame(step);
     },
-    [setScroll, viewportH],
+    [setScroll, viewportH, worldCount],
   );
 
   useEffect(
@@ -265,7 +266,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   );
 
   const segment = viewportH || 1;
-  const phase = Math.min(Math.max(scrollY / segment, 0), WORLD_COUNT - 1);
+  const phase = Math.min(Math.max(scrollY / segment, 0), worldCount - 1);
   const nearIndex = Math.floor(phase);
   const nearBlend = phase - nearIndex;
 
@@ -273,13 +274,13 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
     nearBlend < CLICKABLE_SCROLL_MAX && isWorldUnlocked(nearIndex);
 
   const bgFrom = Math.floor(phase);
-  const bgTo = Math.min(bgFrom + 1, WORLD_COUNT - 1);
+  const bgTo = Math.min(bgFrom + 1, worldCount - 1);
   const bgMix = bgTo === bgFrom ? 0 : phase - bgFrom;
   const bgFadeOut = 1 - bgMix;
   const bgFadeIn = bgMix;
 
   const visibleWorldFrom = Math.max(0, nearIndex - 1);
-  const visibleWorldTo = Math.min(WORLD_COUNT - 1, nearIndex + 2);
+  const visibleWorldTo = Math.min(worldCount - 1, nearIndex + 2);
 
   const handleNearWorldClick = () => {
     if (!isWorldUnlocked(nearIndex)) {
@@ -305,7 +306,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
       locked?: boolean;
     },
   ) => {
-    if (index < 0 || index >= WORLD_COUNT) return null;
+    if (index < 0 || index >= worldCount) return null;
 
     const locked = style.locked ?? !isWorldUnlocked(index);
 

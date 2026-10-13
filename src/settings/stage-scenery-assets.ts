@@ -1,4 +1,4 @@
-import {normalizeStageIndex, STAGE_COUNT} from "./stage-map";
+import {normalizeStageIndex} from "./stage-map";
 
 /** Set condiviso: bg_* / block_* / road_* (stesso slug). */
 export const STAGE_SCENERY_THEMES = [
@@ -59,11 +59,7 @@ export const sceneryRoadPath = (theme: StageSceneryTheme): string =>
 
 /** Tema usato da almeno uno stage (per preload batch futuro). */
 export const uniqueSceneryThemes = (): StageSceneryTheme[] => {
-  const used = new Set<StageSceneryTheme>();
-
-  for (let i = 0; i < STAGE_COUNT; i++) {
-    used.add(SCENERY_THEME_BY_STAGE[i] ?? SCENERY_THEME_BY_STAGE[0]);
-  }
+  const used = new Set<StageSceneryTheme>(SCENERY_THEME_BY_STAGE);
 
   return STAGE_SCENERY_THEMES.filter((theme) => used.has(theme));
 };

@@ -2,6 +2,7 @@ import * as Phaser from "phaser";
 
 import {getCurrentLanguage, openingTextKey, t} from "@/language";
 import {cappedDevicePixelRatio} from "@/settings/app-header-layout";
+import {getModeConfig} from "@/settings/game-mode";
 import {getStageIndex} from "@/settings/progress";
 import {playStageTrack} from "@/settings/soundtrack";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
@@ -47,7 +48,7 @@ export class OpeningScene extends Phaser.Scene {
     const {width, height} = this.scale;
     const stage = Number(this.registry.get("stage")) || DEFAULT_STAGE;
     const language = getCurrentLanguage();
-    const key = openingTextKey(stage);
+    const key = getModeConfig().openingTextKey ?? openingTextKey(stage);
     const translated = t(key, language);
     const copy = translated === key ? t("opening_0", language) : translated;
     const dpr = cappedDevicePixelRatio();

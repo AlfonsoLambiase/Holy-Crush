@@ -5,7 +5,8 @@ import {
   sceneryRoadPath,
   stageSceneryTheme,
 } from "@/settings/stage-scenery-assets";
-import {STAGE_COUNT} from "@/settings/stage-map";
+import {type FixedSceneryKey, getModeConfig} from "@/settings/game-mode";
+import {getStageCount} from "@/settings/stage-map";
 
 //* Mappa i nomi logici degli asset sulle cartelle reali dentro /public/images
 export const DEFAULT_STAGE = 1;
@@ -63,6 +64,9 @@ const FILE_NAME: Record<string, string> = {
   settingsHome: "settings",
 };
 
+//* Cartella della modalità attiva (mode_0 / mode_1)
+const modeFolder = (): string => `${IMAGES}/${getModeConfig().folder}`;
+
 const folderFor = (key: string): string => {
   if (key === "starsEffect" || key === "sparklingStars") return `${IMAGES}/effects`;
   if (HOME_UI_KEYS.has(key)) return `${IMAGES}/ui_home`;
@@ -70,11 +74,11 @@ const folderFor = (key: string): string => {
   if (POWER_UP_KEYS.has(key)) return `${GAME_COMMON}/power-up`;
   if (OBJECTIVE_KEYS.has(key) || key.startsWith("obstacle_")) return `${GAME_COMMON}/objectives`;
   if (key === "line") return `${GAME_COMMON}/ui`;
-  if (key.startsWith("endWin") || key.startsWith("endLose") || key === "endFailed") {
-    return `${IMAGES}/mode_0/stage_end`;
-  }
-  if (key.startsWith("obj_")) return `${IMAGES}/mode_0/stage_obj`;
-  if (key.startsWith("op_")) return `${IMAGES}/mode_0/stage_opening`;
+  //* Arcobaleno e nuvola (bg/fill) restano quelli di mode_0 in ogni modalità
+  if (key === "endWin" || key === "endFailed") return `${modeFolder()}/stage_end`;
+  if (key.startsWith("endWin") || key.startsWith("endLose")) return `${IMAGES}/mode_0/stage_end`;
+  if (key.startsWith("obj_")) return `${modeFolder()}/stage_obj`;
+  if (key.startsWith("op_")) return `${modeFolder()}/stage_opening`;
   if (STAGE_UI_KEYS.has(key)) return `${IMAGES}/mode_0/stage_ui`;
 
   return `${IMAGES}/mode_0/stage_ui`;
@@ -83,18 +87,19 @@ const folderFor = (key: string): string => {
 //* I png degli stage partono da 0, lo stage di gioco da 1
 export const stageFileIndex = (stage: number = DEFAULT_STAGE): number => {
   const index = Math.max(0, Math.floor(stage) - 1);
+  const count = getStageCount();
 
-  if (STAGE_COUNT <= 0) return 0;
+  if (count <= 0) return 0;
 
-  return Math.min(index, STAGE_COUNT - 1);
+  return Math.min(index, count - 1);
 };
 
 const STAGE_FILE: Record<string, (fileIndex: number) => string> = {
-  opening: (index) => `${IMAGES}/mode_0/stage_opening/op_${index}.png`,
-  stageMascot: (index) => `${IMAGES}/mode_0/stage_thumbnail/thumbnail_${index}.png`,
+  opening: (index) => `${modeFolder()}/stage_opening/op_${index}.png`,
+  stageMascot: (index) => `${modeFolder()}/stage_thumbnail/thumbnail_${index}.png`,
 };
 
-const SCENERY_PATH: Record<string, (theme: StageSceneryTheme) => string> =
+const SCENERY_PATH: Record<FixedSceneryKey, (theme: StageSceneryTheme) => string> =
   {
     backgroundStage: sceneryBackgroundPath,
     backgroundGame: sceneryBackgroundPath,
@@ -105,9 +110,11 @@ const SCENERY_PATH: Record<string, (theme: StageSceneryTheme) => string> =
 
 export const AssetPaths = {
   image: (key: string, stage: number = DEFAULT_STAGE) => {
-    const sceneryPath = SCENERY_PATH[key];
+    const sceneryPath = SCENERY_PATH[key as FixedSceneryKey];
 
-    if (sceneryPath) return sceneryPath(stageSceneryTheme(stage));
+    if (sceneryPath) {
+      return getModeConfig().scenery?.[key as FixedSceneryKey] ?? sceneryPath(stageSceneryTheme(stage));
+    }
 
     const staged = STAGE_FILE[key];
 

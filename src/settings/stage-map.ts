@@ -1,3 +1,5 @@
+import {getModeConfig, getStageCount} from "./game-mode";
+
 //* Qui decidi la mappa di ogni stage.
 
 //* numberColor colora il numero sul pulsante del livello.
@@ -12,11 +14,10 @@
 
 export const DRAIN_FILL_IN_CIRCLE = true;
 
-export const STAGE_LEVELS = 20;
+//* Livelli e numero di stage dipendono dalla modalità (game-mode.ts)
+export const getStageLevels = (): number => getModeConfig().stageLevels;
 
-//* Stage di contenuto (op_0 … op_19 + set scenery tematici)
-
-export const STAGE_COUNT = 20;
+export {getStageCount};
 
 export type StageMapConfig = {
   levels: number;
@@ -62,31 +63,27 @@ const PATH_COLORS = [
   "#9370db",
 ] as const;
 
-export const STAGE_MAPS: StageMapConfig[] = Array.from(
-  { length: STAGE_COUNT },
-  (_, index) => ({
-    levels: STAGE_LEVELS,
-
-    numberColor: PATH_COLORS[index] ?? PATH_COLORS[0],
-  }),
-);
-
 export const normalizeStageIndex = (stageIndex: number): number => {
-  if (STAGE_COUNT <= 0) return 0;
+  const count = getStageCount();
 
-  return ((Math.floor(stageIndex) % STAGE_COUNT) + STAGE_COUNT) % STAGE_COUNT;
+  if (count <= 0) return 0;
+
+  return ((Math.floor(stageIndex) % count) + count) % count;
 };
 
-export const getStageMap = (stageIndex: number): StageMapConfig =>
-  STAGE_MAPS[normalizeStageIndex(stageIndex)];
+export const getStageMap = (stageIndex: number): StageMapConfig => ({
+  levels: getStageLevels(),
 
-//* 1-20 sul primo stage, 21-40 sul secondo, e così via
+  numberColor: PATH_COLORS[normalizeStageIndex(stageIndex)] ?? PATH_COLORS[0],
+});
+
+//* 1-20 sul primo stage, 21-40 sul secondo, e così via (50 per stage nell'Antico Testamento)
 
 export const getStageLevelNumber = (
   stageIndex: number,
   localIndex: number,
 ): number =>
-  Math.max(0, normalizeStageIndex(stageIndex)) * STAGE_LEVELS + localIndex + 1;
+  Math.max(0, normalizeStageIndex(stageIndex)) * getStageLevels() + localIndex + 1;
 
 export const hexToInt = (hex: string): number => {
   const value = Number.parseInt(hex.trim().replace("#", ""), 16);

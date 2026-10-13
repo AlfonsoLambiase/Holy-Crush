@@ -1,7 +1,4 @@
-export const WORLD_COUNT = 5;
-
-/** Stage per mondo (totale 20): 4 + 3 + 6 + 5 + 2. */
-export const WORLD_STAGE_COUNTS = [4, 3, 6, 5, 2] as const;
+import {getModeConfig, type ModeWorld} from "./game-mode";
 
 export type WorldStageRange = {
   first: number;
@@ -9,39 +6,43 @@ export type WorldStageRange = {
   count: number;
 };
 
+const worlds = (): readonly ModeWorld[] => getModeConfig().worlds;
+
+export const getWorldCount = (): number => worlds().length;
+
+const clampWorld = (index: number): number => Math.min(Math.max(Math.floor(index), 0), getWorldCount() - 1);
+
 export function getWorldStageRange(worldIndex: number): WorldStageRange {
-  const safe = Math.min(Math.max(worldIndex, 0), WORLD_COUNT - 1);
+  const list = worlds();
+  const safe = clampWorld(worldIndex);
   let first = 0;
 
   for (let w = 0; w < safe; w++) {
-    first += WORLD_STAGE_COUNTS[w] ?? 0;
+    first += list[w]?.stages ?? 0;
   }
 
-  const count = WORLD_STAGE_COUNTS[safe] ?? 0;
+  const count = list[safe]?.stages ?? 0;
 
   return {first, last: first + Math.max(count, 1) - 1, count};
 }
 
 export function getWorldIndexForStage(stageIndex: number): number {
+  const list = worlds();
   let acc = 0;
 
-  for (let w = 0; w < WORLD_COUNT; w++) {
-    const count = WORLD_STAGE_COUNTS[w] ?? 0;
+  for (let w = 0; w < list.length; w++) {
+    const count = list[w].stages;
 
     if (stageIndex < acc + count) return w;
 
     acc += count;
   }
 
-  return WORLD_COUNT - 1;
+  return list.length - 1;
 }
 
-export function worldImagePath(index: number): string {
-  return `/images/world/world_${index}.png`;
-}
+export const getWorld = (index: number): ModeWorld => worlds()[clampWorld(index)];
 
-export function worldBackgroundPath(index: number): string {
-  const safe = Math.min(Math.max(Math.floor(index), 0), WORLD_COUNT - 1);
+export const worldImagePath = (index: number): string => getWorld(index).image;
 
-  return `/images/world/world_bg_${safe}.png`;
-}
+export const worldBackgroundPath = (index: number): string => getWorld(index).background;

@@ -14,6 +14,7 @@ import {GoldTitle} from "@/components/GoldTitle";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick, playNoTouch} from "@/settings/click";
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
+import {type GameModeId, getGameMode, setGameMode} from "@/settings/game-mode";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
 import {getStageIndex, prepareEnterWorld} from "@/settings/progress";
 import {playStageTrack, playTrack, stopTrack} from "@/settings/soundtrack";
@@ -104,6 +105,14 @@ type TestamentCardProps = {
   isPressed?: boolean;
   onClick: () => void;
 };
+
+const TESTAMENTS: readonly {mode: GameModeId; label: string; src: string}[] = [
+  {mode: 0, label: "newTestament", src: "/images/ui_game/mode_0.png"},
+  {mode: 1, label: "oldTestament", src: "/images/ui_game/mode_1.png"},
+];
+
+//* Il picker di test lavora sugli stage del Nuovo Testamento
+const isTestStageMode = (): boolean => isStageStartTestEnabled() && getGameMode() === 0;
 
 function TestamentCard({
   label,
@@ -394,7 +403,7 @@ export function HomeScreen() {
   const [isIntroDone, setIsIntroDone] = useState(false);
   const [isStartPressed, setIsStartPressed] = useState(false);
   const [isTestamentOpen, setIsTestamentOpen] = useState(false);
-  const [isNewTestamentPressed, setIsNewTestamentPressed] = useState(false);
+  const [pressedMode, setPressedMode] = useState<GameModeId | null>(null);
   const [curtainPhase, setCurtainPhase] = useState<CloudCurtainPhase>("idle");
   const [showWorld, setShowWorld] = useState(false);
   const homeShellRef = useRef<HTMLDivElement>(null);
@@ -434,7 +443,7 @@ export function HomeScreen() {
   }, [isStartPressed]);
 
   useEffect(() => {
-    if (!isNewTestamentPressed) return;
+    if (pressedMode === null) return;
 
     const timer = window.setTimeout(() => {
       playStageTrack(getStageIndex());
@@ -443,7 +452,7 @@ export function HomeScreen() {
     }, PRESS_MS);
 
     return () => window.clearTimeout(timer);
-  }, [isNewTestamentPressed]);
+  }, [pressedMode]);
 
   useEffect(() => {
     if (curtainPhase !== "open") return;
@@ -469,6 +478,7 @@ export function HomeScreen() {
   }, [pressedPanel]);
 
   const launchTestStage = () => {
+    setGameMode(0);
     applyTestStageForStart(testStageIndex, testStartMode);
     playStageTrack(testStageIndex);
     setPhaserBootStart(bootStartForTestMode(testStartMode));
@@ -582,35 +592,33 @@ export function HomeScreen() {
           className="absolute inset-0 z-20"
           src="/images/ui_home/gameContainer.png"
           onClose={() => {
-            if (isNewTestamentPressed) return;
+            if (pressedMode !== null) return;
 
             setIsTestamentOpen(false);
           }}
         >
           <div className="flex h-full w-full flex-col gap-1">
-            <TestamentCard
-              label={t("newTestament")}
-              src="/images/ui_game/mode_0.png"
-              isPressed={isNewTestamentPressed}
-              onClick={() => {
-                if (isNewTestamentPressed) return;
+            {TESTAMENTS.map(({mode, label, src}, index) => (
+              <TestamentCard
+                key={mode}
+                className={index > 0 ? "mt-1" : ""}
+                label={t(label)}
+                src={src}
+                isPressed={pressedMode === mode}
+                onClick={() => {
+                  if (pressedMode !== null) return;
 
-                playClick();
+                  playClick();
+                  setGameMode(mode);
 
-                if (isStageStartTestEnabled()) {
-                  applyTestStageForStart(testStageIndex, testStartMode);
-                }
+                  if (isTestStageMode()) {
+                    applyTestStageForStart(testStageIndex, testStartMode);
+                  }
 
-                setIsNewTestamentPressed(true);
-              }}
-            />
-            <TestamentCard
-              className="mt-1"
-              disabled
-              label={t("oldTestament")}
-              src="/images/ui_game/mode_1.png"
-              onClick={() => playNoTouch()}
-            />
+                  setPressedMode(mode);
+                }}
+              />
+            ))}
           </div>
         </WoodPanel>
       )}
@@ -710,7 +718,7 @@ export function HomeScreen() {
         }}
         onOpeningComplete={() => {
           setCurtainPhase("idle");
-          setIsNewTestamentPressed(false);
+          setPressedMode(null);
         }}
       />
 
@@ -719,11 +727,11 @@ export function HomeScreen() {
           <WorldScreen
             onBack={() => {
               setShowWorld(false);
-              setIsNewTestamentPressed(false);
+              setPressedMode(null);
               setCurtainPhase("idle");
             }}
             onEnter={(worldIndex) => {
-              if (isStageStartTestEnabled()) {
+              if (isTestStageMode()) {
                 applyTestStageForStart(testStageIndex, testStartMode);
               } else {
                 prepareEnterWorld(worldIndex);
@@ -748,7 +756,7 @@ export function HomeScreen() {
               setIsPlaying(false);
               setIsStartPressed(false);
               setIsTestamentOpen(false);
-              setIsNewTestamentPressed(false);
+              setPressedMode(null);
               setShowWorld(false);
               setPhaserBootStart("default");
             }}

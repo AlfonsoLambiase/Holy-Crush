@@ -89,8 +89,12 @@ export function getCellSize(gameWidth: number): number {
   return usableWidth / GRID_LIMITS.maxCols;
 }
 
+const LEVEL_GRID_COUNT = Object.keys(LEVEL_GRIDS).length;
+
+//* Oltre il 20 (stage da 50 livelli) i disegni ripartono dal primo
 export function getGridForLevel(level: number): GridShape {
-  const id = LEVEL_GRIDS[level as keyof typeof LEVEL_GRIDS] ?? "grid-0019";
+  const cycled = ((Math.max(1, Math.floor(level)) - 1) % LEVEL_GRID_COUNT) + 1;
+  const id = LEVEL_GRIDS[cycled as keyof typeof LEVEL_GRIDS] ?? "grid-0019";
   const shape = GRIDS[id];
   const {minCols, maxCols, minRows, maxRows} = GRID_LIMITS;
   const colsOk = shape.cols >= minCols && shape.cols <= maxCols;

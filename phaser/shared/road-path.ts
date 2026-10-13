@@ -208,7 +208,6 @@ const traceCenter = (grid: Uint8Array, width: number, height: number): Array<[nu
 
 //* Sette tacche: ingresso in basso, cinque gomiti, uscita in alto. L'ultima road ne tiene sei.
 export const LEVELS_PER_ROAD = 7;
-export const ROAD_TILES = 3;
 const BEND_COUNT = 5;
 const END_INSET_CELLS = 18;
 
@@ -465,7 +464,20 @@ export const roadLayoutOnImage = (
   return layout;
 };
 
-//* Tre road impilate: dal basso (livelli 1–7) verso l'alto (15–20 con 6 tacche).
+//* Quante road impilare: 20 livelli → 3, 50 livelli → 8
+export const roadTilesFor = (totalLevels: number): number =>
+  Math.max(1, Math.ceil(totalLevels / LEVELS_PER_ROAD));
+
+//* Livelli per road dal basso: le tacche in più vanno alle road basse (20 → 7, 7, 6)
+const levelsPerTile = (totalLevels: number): number[] => {
+  const tiles = roadTilesFor(totalLevels);
+  const base = Math.floor(totalLevels / tiles);
+  const extra = totalLevels % tiles;
+
+  return Array.from({length: tiles}, (_, index) => base + (index < extra ? 1 : 0));
+};
+
+//* Road impilate: dal basso (livelli 1–7) verso l'alto.
 export const buildStackedLevelPoints = (
   marks7: RoadPoint[],
   totalLevels: number,
@@ -473,18 +485,20 @@ export const buildStackedLevelPoints = (
   exit: RoadPoint,
 ): RoadPoint[] => {
   const points: RoadPoint[] = [];
+  const counts = levelsPerTile(totalLevels);
+  const tiles = counts.length;
 
-  for (let stack = ROAD_TILES - 1; stack >= 0; stack -= 1) {
-    const count = stack === 0 ? totalLevels - 2 * LEVELS_PER_ROAD : LEVELS_PER_ROAD;
+  counts.forEach((count, fromBottom) => {
+    const stack = tiles - 1 - fromBottom;
     const tileMarks = count === LEVELS_PER_ROAD ? marks7 : trimRoadMarks(marks7, count);
 
     for (const mark of tileMarks) {
       points.push({
         x: mark.x,
-        y: (stack + mark.y) / ROAD_TILES,
+        y: (stack + mark.y) / tiles,
       });
     }
-  }
+  });
 
   if (points.length === totalLevels) {
     points[0] = {

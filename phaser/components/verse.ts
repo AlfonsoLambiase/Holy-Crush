@@ -1,6 +1,6 @@
 import type {Language} from "@/language";
 import {getCurrentLanguage} from "@/language";
-import {getStageLevelNumber, STAGE_LEVELS} from "@/settings/stage-map";
+import {getStageLevelNumber, getStageLevels} from "@/settings/stage-map";
 import {resolveLocalizedVerse, type LocalizedVerseFields} from "@/settings/stage-verse-i18n";
 import {STAGE_VERSE_TRANSLATIONS} from "@/settings/stage-verse-translations.generated";
 import {STAGE_VERSE_SETS, type LevelVerse} from "@/settings/stage-verses";
@@ -53,7 +53,7 @@ export const getVerseByStageAndLevel = (
   language: Language = getCurrentLanguage(),
 ): Verse => {
   const stageNum = Math.max(1, Math.floor(stage));
-  const local = Math.max(1, Math.min(STAGE_LEVELS, Math.floor(localLevel)));
+  const local = Math.max(1, Math.min(getStageLevels(), Math.floor(localLevel)));
   const globalLevel = getStageLevelNumber(stageNum - 1, local - 1);
   const entry = findVerseEntry(stageNum, local);
 

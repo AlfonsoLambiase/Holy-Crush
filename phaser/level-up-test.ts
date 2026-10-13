@@ -2,10 +2,10 @@ import {Capacitor} from "@capacitor/core";
 import {createElement, type ReactNode} from "react";
 
 import {TestStagePicker} from "@/components/TestStagePicker";
+import {progressStorageKey} from "@/settings/progress";
 import {normalizeStageIndex} from "@/settings/stage-map";
 import type {BootStartScene} from "./scenes/boot";
 
-const PROGRESS_KEY = "holy-crush-cleared";
 const SESSION_STAGE_KEY = "holy-crush-test-stage";
 const SESSION_MODE_KEY = "holy-crush-test-start-mode";
 
@@ -51,7 +51,7 @@ export const applyTestStageForStart = (
 
   const stage = normalizeStageIndex(stageIndex);
 
-  localStorage.setItem(PROGRESS_KEY, JSON.stringify({stage, cleared: 0}));
+  localStorage.setItem(progressStorageKey(), JSON.stringify({stage, cleared: 0}));
 };
 
 export const bootStartForTestMode = (mode: TestStageStartMode): BootStartScene =>
