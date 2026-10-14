@@ -20,15 +20,17 @@ import {GRID_0017} from "../../grid/grid-0017";
 import {GRID_0018} from "../../grid/grid-0018";
 import {GRID_0019} from "../../grid/grid-0019";
 
-//* Generazioni della griglia e limiti. La cella è quadrata e si blocca sulla larghezza.
+//* Limiti della griglia e dimensione del blocco. Si cambia solo qui.
 export const GRID_LIMITS = {
   minCols: 1,
-  maxCols: 6,
+  maxCols: 8,
   minRows: 1,
-  maxRows: 9,
+  maxRows: 10,
+  //* Quanti blocchi entrano nella larghezza. 8 più grandi, 9 più piccoli.
+  blockSizeColumns: 8,
 } as const;
 
-//* 5% per lato: la cella è la larghezza utile divisa per il massimo di colonne.
+//* 5% per lato.
 export const GRID_SIDE_MARGIN = 0.05;
 
 //* L'obj sta nel block e scala insieme a lui.
@@ -86,7 +88,7 @@ export const LEVEL_GRIDS = {
 export function getCellSize(gameWidth: number): number {
   const usableWidth = gameWidth * (1 - GRID_SIDE_MARGIN * 2);
 
-  return usableWidth / GRID_LIMITS.maxCols;
+  return usableWidth / GRID_LIMITS.blockSizeColumns;
 }
 
 const LEVEL_GRID_COUNT = Object.keys(LEVEL_GRIDS).length;

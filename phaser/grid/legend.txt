@@ -296,7 +296,7 @@
 // - Con 9 righe, l'altezza è 1,35 volte gameWidth, prima di eventuali spaziature.
 // - Verificare spazio sotto obiettivi e mosse; adattare la cella anche all'altezza.
 // - Verificare righe uniformi, simboli ammessi, almeno 1 cella utilizzabile
-//   e limiti attuali: 1-6 colonne, 1-9 righe.
+//   e limiti attuali: 1-8 colonne, 1-10 righe.
 // - Validare coordinate, sovrapposizioni consentite e numero di strati.
 // - Validare percorsi di refill, uscite raggiungibili e collegamenti dei portali.
 // - Verificare che il livello contenga o generi abbastanza bersagli per l'obiettivo.

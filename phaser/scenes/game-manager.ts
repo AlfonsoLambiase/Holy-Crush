@@ -1450,7 +1450,7 @@ export class GameManager extends Phaser.Scene {
     });
   }
 
-  //* Scopo: Cella quadrata fissa sulla larghezza. 1 o 6 colonne usano la stessa misura.
+  //* Scopo: Cella quadrata fissa sulla larghezza. La misura sta in GRID_LIMITS.blockSizeColumns.
   private applyGridMetrics(): void {
     const cell = getCellSize(this.gameWidth);
 
