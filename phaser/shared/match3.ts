@@ -45,6 +45,10 @@ function wouldMatchAt(board: number[][], r: number, c: number, type: number): bo
   return false;
 }
 
+export function sameCell(a: Cell, b: Cell): boolean {
+  return a.r === b.r && a.c === b.c;
+}
+
 export function isAdjacent(a: Cell, b: Cell): boolean {
   return Math.abs(a.r - b.r) + Math.abs(a.c - b.c) === 1;
 }

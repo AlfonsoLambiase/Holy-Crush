@@ -10,6 +10,15 @@ import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 import {AudioManager} from "../components/audioManager";
 import {ItemsBar} from "../components/items-bar";
 import {StarsEffectManager} from "../components/starsEffectManager";
+import {
+  centerFirst,
+  findComboSetup,
+  isSameFamily,
+  runFirstLevelScript,
+  type GuidedMove,
+} from "../tutorial/first-level-script";
+import {shouldShowTutorial, TutorialScreen} from "../tutorial/tutorial";
+import {TUTORIAL_GRID} from "../tutorial/tutorial-grid";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {getCellSize, getGridForLevel, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
@@ -31,6 +40,7 @@ import {
   isAdjacent,
   isPiece,
   isSpecial,
+  sameCell,
   shuffleBoard,
   specialsFromRuns,
   swapCells,
@@ -70,6 +80,9 @@ const SPIRAL_STEP_MS = 48;
 const HINT_IDLE_MS = 10000;
 const HINT_PULSE_MS = 420;
 const HINT_PULSE_SCALE = 1.12;
+//* Nel tutorial lo zoom deve essere ovvio: +42% contro il +12% del suggerimento.
+const GUIDE_PULSE_SCALE = 1.42;
+const GUIDE_PULSE_MS = 480;
 
 type RocketOrigin = {cell: Cell; type: number};
 type FadeArt = {cell: Cell; image: Phaser.GameObjects.Image};
@@ -117,6 +130,8 @@ export class GameManager extends Phaser.Scene {
   private hintCells: Cell[] = [];
   #itemsBar: ItemsBar | null = null;
   #pieceKeys: readonly string[] = [];
+  #scripted = false;
+  #guide: {from: Cell; to?: Cell; done: () => void} | null = null;
 
   constructor() {
     super({key: assetConf.scene.gameManager});
@@ -135,7 +150,8 @@ export class GameManager extends Phaser.Scene {
     const selected = Number(this.registry.get("level"));
     const level = Number.isFinite(selected) && selected > 0 ? selected : getUnlockedCount();
     this.#pieceKeys = getPieceKeysForStageLevel(level, getStageIndex());
-    const shape = getGridForLevel(level);
+    const tutorial = shouldShowTutorial(level);
+    const shape = tutorial ? TUTORIAL_GRID : getGridForLevel(level);
 
     this.obstacles = shape.cells.map((row) =>
       row.map((symbol) => (symbol === "." ? null : obstacleFromSymbol(symbol))),
@@ -157,10 +173,146 @@ export class GameManager extends Phaser.Scene {
     this.layoutGrid();
 
     this.time.delayedCall(50, () => {
-      this.canShoot = true;
       this.isGameOver = false;
+
+      if (tutorial) void this.#runTutorial();
+      else this.#startPlay();
+    });
+  }
+
+  #startPlay(): void {
+    this.canShoot = true;
+    this.restartHintTimer();
+  }
+
+  //* Primo livello del primo stage, prima volta: si muove solo il pezzo che pulsa e la vittoria è sospesa.
+  //* Finito lo script, questa partita ha i booster infiniti.
+  async #runTutorial(): Promise<void> {
+    const screen = new TutorialScreen(this);
+
+    this.#scripted = true;
+
+    await runFirstLevelScript({
+      page: async (index, options = {}) => {
+        this.canShoot = false;
+        await screen.page(index, options);
+
+        if (!options.keepDark) await screen.close();
+      },
+      rig: (type) => this.#rigCombo(type),
+      guide: (from, to) => this.#guideMove(from, to),
+      ensureSpecial: (type) => this.#ensureSpecial(type),
+      showcaseItems: (on) => {
+        if (on) this.#itemsBar?.setUnlimited();
+
+        this.#itemsBar?.showcase(on);
+      },
+      yourTurn: () => screen.yourTurn(),
+    });
+
+    if (!this.scene.isActive()) return;
+
+    screen.finish();
+    this.#scripted = false;
+    this.gameScene.uiManager.resetScore();
+    this.#startPlay();
+    await screen.close();
+  }
+
+  #rigCombo(type: number): GuidedMove | null {
+    const canMatch = (row: number, col: number) => this.canMatch(row, col);
+    const setup = findComboSetup(
+      this.board,
+      this.#pieceKeys.length,
+      type,
+      (row, col) => this.allowsSwap(row, col) && canMatch(row, col),
+      canMatch,
+    );
+
+    if (!setup) return null;
+
+    for (const {cell, type: piece} of setup.cells) {
+      this.board[cell.r][cell.c] = piece;
+
+      const image = this.pieces[cell.r][cell.c];
+
+      if (image) {
+        this.applyPieceLook(image, piece);
+        this.#popIn(image);
+      }
+    }
+
+    return setup;
+  }
+
+  #popIn(image: Phaser.GameObjects.Image): void {
+    const scale = image.scale;
+
+    this.tweens.killTweensOf(image);
+    image.setScale(0);
+    this.tweens.add({targets: image, scale, duration: 360, ease: "Back.easeOut"});
+  }
+
+  #guideMove(from: Cell, to?: Cell): Promise<void> {
+    return new Promise((done) => {
+      this.#guide = {from, to, done};
+      this.canShoot = true;
       this.restartHintTimer();
     });
+  }
+
+  //* Chiude la mossa guidata. Lo script riprende e il gioco resta fermo fino alla prossima pagina.
+  #finishGuide(): boolean {
+    const guide = this.#guide;
+
+    if (!guide) return false;
+
+    this.#guide = null;
+    this.canShoot = false;
+    guide.done();
+
+    return true;
+  }
+
+  #hasSwapNeighbor(cell: Cell): boolean {
+    return [
+      {r: cell.r - 1, c: cell.c},
+      {r: cell.r + 1, c: cell.c},
+      {r: cell.r, c: cell.c - 1},
+      {r: cell.r, c: cell.c + 1},
+    ].some((next) => this.inBounds(next) && this.canMove(next));
+  }
+
+  //* Usa il power-up già in griglia, altrimenti lo fa comparire sulla cella libera più centrale.
+  #ensureSpecial(type: number): Cell | null {
+    const cells: Cell[] = [];
+
+    for (let r = 0; r < this.gridRows; r++) {
+      for (let c = 0; c < this.gridCols; c++) {
+        if (this.canMove({r, c}) && this.#hasSwapNeighbor({r, c})) cells.push({r, c});
+      }
+    }
+
+    const ordered = centerFirst(cells, this.gridRows, this.gridCols);
+    const found = ordered.find((cell) => isSameFamily(this.board[cell.r][cell.c], type));
+
+    if (found) return found;
+
+    const cell = ordered.find((next) => !isSpecial(this.board[next.r][next.c]));
+
+    if (!cell) return null;
+
+    this.placeSpecial(cell, type);
+
+    const piece = this.pieces[cell.r][cell.c];
+
+    if (piece) this.#popIn(piece);
+
+    return cell;
+  }
+
+  #goalReached(): boolean {
+    return !this.#scripted && this.gameScene.uiManager.score >= this.gameScene.uiManager.maxScore;
   }
 
   //* Scopo: Crea i block (colonne x righe). Lo sfondo griglia resta, ma spento.
@@ -251,7 +403,8 @@ export class GameManager extends Phaser.Scene {
 
   private applyPieceLook(piece: Phaser.GameObjects.Image, type: number): void {
     piece.setTexture(this.textureKey(type));
-    piece.setAngle(type === ROCKET_V ? 90 : 0);
+    //* Il png punta in su: in piedi = colonna, di lato = riga.
+    piece.setAngle(type === ROCKET_H ? 90 : 0);
     this.pieceScale = this.fitScale(piece);
     piece.setScale(this.pieceScale).setAlpha(1).setVisible(true);
   }
@@ -263,6 +416,8 @@ export class GameManager extends Phaser.Scene {
     this.canShoot = false;
     this.swipeStart = null;
     this.swipeLocked = false;
+    this.#scripted = false;
+    this.#guide = null;
 
     if (this.scene.isPaused()) this.scene.resume();
   }
@@ -282,6 +437,7 @@ export class GameManager extends Phaser.Scene {
       const cell = this.getCellAt(local.x, local.y);
 
       if (!cell || !this.canMove(cell)) return;
+      if (this.#guide && !sameCell(cell, this.#guide.from)) return;
 
       this.swipeStart = {cell, x: local.x, y: local.y};
       this.swipeLocked = false;
@@ -304,6 +460,9 @@ export class GameManager extends Phaser.Scene {
           : {r: this.swipeStart.cell.r + (dy > 0 ? 1 : -1), c: this.swipeStart.cell.c};
 
       this.swipeLocked = true;
+
+      if (this.#guide?.to && !sameCell(neighbor, this.#guide.to)) return;
+
       void this.trySwap(this.swipeStart.cell, neighbor);
   };
 
@@ -333,6 +492,12 @@ export class GameManager extends Phaser.Scene {
     this.stopHintTimer();
     this.clearHint();
     if (!this.canPlay()) return;
+
+    if (this.#guide) {
+      this.pulseCells([this.#guide.from], GUIDE_PULSE_SCALE, GUIDE_PULSE_MS);
+
+      return;
+    }
 
     this.hintTimer = this.time.addEvent({
       delay: HINT_IDLE_MS,
@@ -366,7 +531,11 @@ export class GameManager extends Phaser.Scene {
 
     if (!move) return;
 
-    this.hintCells = [move.a, move.b];
+    this.pulseCells([move.a, move.b]);
+  }
+
+  private pulseCells(cells: Cell[], zoom = HINT_PULSE_SCALE, duration = HINT_PULSE_MS): void {
+    this.hintCells = cells;
 
     for (const cell of this.hintCells) {
       const piece = this.pieces[cell.r][cell.c];
@@ -380,9 +549,9 @@ export class GameManager extends Phaser.Scene {
 
       this.tweens.add({
         targets: piece,
-        scaleX: scale * HINT_PULSE_SCALE,
-        scaleY: scale * HINT_PULSE_SCALE,
-        duration: HINT_PULSE_MS,
+        scaleX: scale * zoom,
+        scaleY: scale * zoom,
+        duration,
         yoyo: true,
         repeat: -1,
         ease: "Sine.easeInOut",
@@ -447,7 +616,9 @@ export class GameManager extends Phaser.Scene {
   }
 
   public tryDropBooster(id: BoosterId, cell: Cell): boolean {
-    if (!this.canPlay() || !this.inBounds(cell) || !this.isOpen(cell.r, cell.c)) return false;
+    if (this.#scripted || !this.canPlay() || !this.inBounds(cell) || !this.isOpen(cell.r, cell.c)) {
+      return false;
+    }
 
     this.isBusy = true;
     this.stopHintTimer();
@@ -571,7 +742,7 @@ export class GameManager extends Phaser.Scene {
     this.gameScene.uiManager.updateScore(pop.length);
     this.gameScene.audioManager.playAudio(assetConf.audio.success);
 
-    if (this.gameScene.uiManager.score >= this.gameScene.uiManager.maxScore) {
+    if (this.#goalReached()) {
       this.canShoot = false;
       await this.collapseAndFill();
       await this.delay(400);
@@ -678,6 +849,9 @@ export class GameManager extends Phaser.Scene {
 
     await this.resolveBoard(activated, b);
     this.isBusy = false;
+
+    if (this.#finishGuide()) return;
+
     this.restartHintTimer();
   }
 
@@ -750,7 +924,7 @@ export class GameManager extends Phaser.Scene {
       this.gameScene.uiManager.updateScore(pop.length);
       this.gameScene.audioManager.playAudio(assetConf.audio.success);
 
-      if (this.gameScene.uiManager.score >= this.gameScene.uiManager.maxScore) {
+      if (this.#goalReached()) {
         this.canShoot = false;
         await this.collapseAndFill();
         await this.delay(400);
@@ -761,8 +935,7 @@ export class GameManager extends Phaser.Scene {
       await this.collapseAndFill();
     }
 
-    const stillPlaying =
-      !this.isGameOver && this.gameScene.uiManager.score < this.gameScene.uiManager.maxScore;
+    const stillPlaying = !this.isGameOver && !this.#goalReached();
 
     if (growThorns && stillPlaying && !thornDamaged) this.growThorn();
 
@@ -1052,7 +1225,7 @@ export class GameManager extends Phaser.Scene {
     const spawnCopy = () => {
       const copy = this.add.image(x, y, assetConf.image.rocket).setOrigin(0.5);
 
-      copy.setAngle(isH ? 0 : 90);
+      copy.setAngle(isH ? 90 : 0);
       copy.setScale(this.fitScale(copy) * 1.35);
       this.mainContainer.add(copy);
       this.mainContainer.bringToTop(copy);

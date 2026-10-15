@@ -148,6 +148,14 @@ export class UIManager {
     this.scoreText.setStroke("#2a160ccc", Math.max(2, Math.round(size * 0.08)));
   }
 
+  resetScore() {
+    this.score = 0;
+    this.displayedScore = 0;
+    this.scoreText.setText("0");
+    this.#fitScoreText(0);
+    this.scene.registry.set(assetConf.registry.score, 0);
+  }
+
   //* Scopo: Aggiunge punti al punteggio totale senza superare maxScore
   updateScore(points: number) {
     const increment = 1;

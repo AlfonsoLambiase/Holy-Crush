@@ -36,6 +36,10 @@ const DEPTH_ICON_DISABLED = 10;
 const DEPTH_ICON_FILL = 11;
 const DEPTH_BADGE = 12;
 const DEPTH_ZONE = 13;
+//* In vetrina gli slot salgono sopra l'oscuramento del tutorial (60-63).
+const SHOWCASE_DEPTH = 60;
+const SHOWCASE_PULSE_SCALE = 1.1;
+const SHOWCASE_PULSE_MS = 520;
 const SLOTS: {
   id: BoosterId;
   disabled: string;
@@ -65,6 +69,9 @@ type Slot = {
   iconFill: FillPair;
   badge: CountBadge;
   iconDisabled: Phaser.GameObjects.Image;
+  //* Immagini che pulsano in vetrina. Il badge sale ma non pulsa: è disegnato in coordinate assolute.
+  images: Phaser.GameObjects.Image[];
+  layers: (Phaser.GameObjects.Image | Phaser.GameObjects.Graphics | Phaser.GameObjects.Text)[];
   size: number;
   frameW: number;
   x: number;
@@ -86,6 +93,8 @@ export class ItemsBar {
   #ghost: Phaser.GameObjects.Image | null = null;
   #slots: Slot[] = [];
   #settingsMenu: GameSettingsMenu | null = null;
+  #unlimited = false;
+  #showcaseScales = new Map<Phaser.GameObjects.Image, number>();
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -209,7 +218,7 @@ export class ItemsBar {
       const iconSrc = this.scene.textures.get(spec.disabled).getSourceImage() as {height: number};
       const iconScale = (iconSize * 0.72) / iconSrc.height;
 
-      this.scene.add
+      const frame = this.scene.add
         .image(x, y, frameKey)
         .setScrollFactor(0)
         .setDepth(DEPTH_FRAME)
@@ -268,6 +277,8 @@ export class ItemsBar {
         this.#press = {id: spec.id, x: pointer.x, y: pointer.y, dragged: false};
       });
 
+      const images = [frame, ...containerFill.objects, iconDisabled, ...iconFill.objects];
+
       this.#slots.push({
         id: spec.id,
         fillKey: spec.fill,
@@ -276,6 +287,8 @@ export class ItemsBar {
         iconFill,
         badge,
         iconDisabled,
+        images,
+        layers: [...images, ...badge.objects],
         size: iconSize * 0.72,
         frameW,
         x,
@@ -294,13 +307,52 @@ export class ItemsBar {
     return this.#top;
   }
 
+  //* Booster infiniti per tutta la partita: niente consumo e niente annunci.
+  setUnlimited(): void {
+    this.#unlimited = true;
+    this.#slots.forEach((slot) => this.#sync(slot.id));
+  }
+
+  //* Slot sopra l'oscuramento, pieni e pulsanti. Con false tornano al loro posto.
+  showcase(on: boolean): void {
+    const offset = on ? SHOWCASE_DEPTH : -SHOWCASE_DEPTH;
+
+    for (const slot of this.#slots) {
+      slot.layers.forEach((layer) => layer.setDepth(layer.depth + offset));
+
+      for (const image of slot.images) {
+        if (!on) {
+          this.scene.tweens.killTweensOf(image);
+          image.setScale(this.#showcaseScales.get(image) ?? image.scale);
+          continue;
+        }
+
+        this.#showcaseScales.set(image, image.scale);
+        this.scene.tweens.add({
+          targets: image,
+          scale: image.scale * SHOWCASE_PULSE_SCALE,
+          duration: SHOWCASE_PULSE_MS,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+        });
+      }
+    }
+
+    if (!on) this.#showcaseScales.clear();
+  }
+
+  #count(id: BoosterId): number {
+    return this.#unlimited ? Number.POSITIVE_INFINITY : getBoosterCount(id);
+  }
+
   #onMove(pointer: Phaser.Input.Pointer) {
     if (!this.#press || this.#busy || this.#popup) return;
 
     const dist = Phaser.Math.Distance.Between(this.#press.x, this.#press.y, pointer.x, pointer.y);
 
     if (!this.#press.dragged && dist < DRAG_PX) return;
-    if (getBoosterCount(this.#press.id) <= 0) return;
+    if (this.#count(this.#press.id) <= 0) return;
 
     this.#press.dragged = true;
     this.#moveGhost(this.#press.id, pointer);
@@ -318,6 +370,8 @@ export class ItemsBar {
 
       return;
     }
+
+    if (this.#unlimited) return;
 
     if (isBoosterFull(id)) {
       playNoTouch();
@@ -351,7 +405,8 @@ export class ItemsBar {
     this.#ghost?.destroy();
     this.#ghost = null;
 
-    if (!cell || getBoosterCount(id) <= 0 || !this.onDrop(id, cell) || !spendBooster(id)) return;
+    if (!cell || this.#count(id) <= 0 || !this.onDrop(id, cell)) return;
+    if (!this.#unlimited && !spendBooster(id)) return;
 
     DROP_SFX[id]();
 
@@ -406,7 +461,7 @@ export class ItemsBar {
 
     if (!slot) return;
 
-    const count = getBoosterCount(id);
+    const count = this.#count(id);
     const full = count > 0;
 
     slot.badge.setCount(count);

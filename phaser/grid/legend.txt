@@ -38,6 +38,14 @@
 // E = Uscita per gli oggetti da accompagnare in fondo.                            //* No
 // P = Portale: collegato a un altro portale tramite un identificativo.            //* No
 //
+// POWER-UP 
+// Ira Celeste = si ottiene rompendo 4 pezzi in linea. Quello orizzontale spazza la riga, quello verticale la colonna.
+// Cuore sacro = si ottiene rompendo 5 pezzi a L o a T. Esplosione 3x3 centrata sulla sua cella.
+// Super (Ostensorio) = spazza la riga e la colonna della cella scelta.
+// Mega (Stella di David) = esplosione 5x5 centrata sulla cella scelta.
+// Ultra (Falce dorata) =  taglia gli oggetti sulla sua traierroeia a spirale.
+// Maxi (Crocifisso) = elimina tutti gli oggetti presneti sul terreno
+//
 // Ogni simbolo descrive la configurazione iniziale della cella.
 // Tipi di pezzi, obiettivi, mosse e collegamenti dei portali sono configurati
 // separatamente nel livello. La legenda non assegna simboli ai colori dei pezzi.

@@ -2,6 +2,7 @@ import * as Phaser from "phaser";
 
 export type FillPair = {
   setRemaining: (remaining: number) => void;
+  objects: Phaser.GameObjects.Image[];
 };
 
 export type FillShape = "rect" | "rectUp" | "wedge" | "radial";
@@ -81,7 +82,7 @@ export const addFillPair = (
 
   setRemaining(remaining);
 
-  return {setRemaining};
+  return {setRemaining, objects: [bg, fill]};
 };
 
 //* Un solo layer (es. riempimento slot sopra al frame).
@@ -156,7 +157,7 @@ export const addMaskedImageFill = (
 
   setRemaining(remaining);
 
-  return {setRemaining};
+  return {setRemaining, objects: [fill]};
 };
 
 export const tweenRemainingSync = (

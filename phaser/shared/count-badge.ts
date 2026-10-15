@@ -5,10 +5,10 @@ import {APP_FONT} from "./config/font.const";
 export type CountBadge = {
   setCount: (count: number) => void;
   destroy: () => void;
-  objects: Phaser.GameObjects.GameObject[];
+  objects: (Phaser.GameObjects.Graphics | Phaser.GameObjects.Text)[];
 };
 
-//* Pallino in alto a destra del png. Se count è 0 non si vede.
+//* Pallino in alto a destra del png. Se count è 0 non si vede, se è Infinity mostra ∞.
 export const addCountBadge = (
   scene: Phaser.Scene,
   x: number,
@@ -49,7 +49,7 @@ export const addCountBadge = (
     disk.fillCircle(x, y, radius);
     disk.lineStyle(Math.max(3, radius * 0.22), 0x2a160c, 1);
     disk.strokeCircle(x, y, radius);
-    label.setText(`${value}`);
+    label.setText(Number.isFinite(value) ? `${value}` : "∞");
   };
 
   paint(count);

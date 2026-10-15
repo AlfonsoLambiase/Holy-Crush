@@ -1,38 +1,33 @@
 import * as Phaser from "phaser";
 
 import {getCurrentLanguage, openingTextKey, t} from "@/language";
-import {cappedDevicePixelRatio} from "@/settings/app-header-layout";
 import {getModeConfig} from "@/settings/game-mode";
 import {getStageIndex} from "@/settings/progress";
 import {playStageTrack} from "@/settings/soundtrack";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {EventBus, PhaserEvents} from "../shared/event-bus";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
-import {APP_FONT} from "../shared/config/font.const";
+import {
+  addStoryPanel,
+  isTallStoryLayout,
+  STORY_PANEL_ART_RATIO,
+  STORY_PANEL_BOTTOM_MARGIN_RATIO,
+  STORY_PANEL_HEIGHT_RATIO,
+  STORY_PANEL_WIDTH_RATIO,
+  type StoryPanel,
+} from "../shared/story-panel";
 import {loadOpeningBootAssets, purgeOpeningTextures} from "../shared/utils/load-assets";
 
 const assetConf = CandyCrushAssetConf;
 
-const TYPE_SPEED_MS = 55;
 const RAY_COUNT = 9;
 const SKY_TOP = 0x1a4f86;
 const SKY_HORIZON = 0xf3d7a2;
-const GOLD = 0xffd76a;
-const PANEL_HEIGHT_RATIO = 0.3;
-const PANEL_BOTTOM_MARGIN_RATIO = 0.035;
-const PANEL_WIDTH_RATIO = 0.86;
-/** Layout contain + bleed: soglie in px CSS (Phaser scale = fisici × DPR). */
-const OPENING_TABLET_MIN_CSS_SHORT = 640;
-const OPENING_TABLET_MIN_CSS_LONG = 900;
 
 export class OpeningScene extends Phaser.Scene {
-  #body!: Phaser.GameObjects.Text;
-  #footer!: Phaser.GameObjects.Text;
-  #fullText = "";
-  #typeEvent?: Phaser.Time.TimerEvent;
+  #panel: StoryPanel | null = null;
   #rayTweens: Phaser.Tweens.Tween[] = [];
   #rayMasks: Phaser.Display.Masks.GeometryMask[] = [];
-  #isComplete = false;
 
   constructor() {
     super({key: assetConf.scene.opening});
@@ -51,19 +46,8 @@ export class OpeningScene extends Phaser.Scene {
     const key = getModeConfig().openingTextKey ?? openingTextKey(stage);
     const translated = t(key, language);
     const copy = translated === key ? t("opening_0", language) : translated;
-    const dpr = cappedDevicePixelRatio();
-    const cssShort = Math.min(width, height) / dpr;
-    const cssLong = Math.max(width, height) / dpr;
-    const tallOpeningLayout =
-      cssShort >= OPENING_TABLET_MIN_CSS_SHORT && cssLong >= OPENING_TABLET_MIN_CSS_LONG;
-    const aspect = width / Math.max(height, 1);
-    const fontSize = Math.round(
-      tallOpeningLayout
-        ? Phaser.Math.Clamp(Math.min(width * 0.042, height * 0.034), 22, aspect > 0.72 ? 48 : 58)
-        : Phaser.Math.Clamp(width * 0.042, 26, 58),
-    );
+    const tallOpeningLayout = isTallStoryLayout(width, height);
 
-    this.#isComplete = false;
     if (tallOpeningLayout) this.cameras.main.setBackgroundColor(SKY_TOP);
     playStageTrack(getStageIndex());
 
@@ -73,56 +57,29 @@ export class OpeningScene extends Phaser.Scene {
     let art: Phaser.GameObjects.Image;
 
     if (tallOpeningLayout) {
-      panelW = width * PANEL_WIDTH_RATIO;
-      panelH = height * PANEL_HEIGHT_RATIO;
-      panelY = height - height * PANEL_BOTTOM_MARGIN_RATIO - panelH / 2;
+      panelW = width * STORY_PANEL_WIDTH_RATIO;
+      panelH = height * STORY_PANEL_HEIGHT_RATIO;
+      panelY = height - height * STORY_PANEL_BOTTOM_MARGIN_RATIO - panelH / 2;
       art = this.#placeArtTablet(width, height, panelY - panelH / 2);
     } else {
       art = this.#placeArt(width, height);
-      panelW = width * 0.86;
-      panelH = Math.min(height * 0.3, art.displayHeight * 0.36);
+      panelW = width * STORY_PANEL_WIDTH_RATIO;
+      panelH = Math.min(height * STORY_PANEL_HEIGHT_RATIO, art.displayHeight * STORY_PANEL_ART_RATIO);
       panelY = art.y + art.displayHeight / 2 - panelH * 0.62;
     }
 
-    this.add
-      .rectangle(width / 2, panelY, panelW, panelH, 0x140d2d, 0.72)
-      .setStrokeStyle(3, GOLD, 0.85)
-      .setDepth(4);
-
-    this.#body = this.add
-      .text(width / 2, panelY - fontSize * 0.35, copy, {
-        align: "center",
-        color: "#fff8dc",
-        fontFamily: APP_FONT,
-        fontSize: `${fontSize}px`,
-        lineSpacing: Math.round(fontSize * 0.28),
-        wordWrap: {width: panelW * 0.9, useAdvancedWrap: true},
-        stroke: "#1a1208",
-        strokeThickness: 5,
-      })
-      .setOrigin(0.5)
-      .setDepth(5);
-
-    this.#fullText = this.#body.getWrappedText().join("\n");
-    this.#body.setText(this.#fullText);
-    this.#body.setFixedSize(this.#body.width, this.#body.height);
-    this.#body.setText("");
-
-    this.#footer = this.add
-      .text(width / 2, panelY + panelH / 2 - fontSize * 0.7, t("tapToContinue", language), {
-        color: "#ffd76a",
-        fontFamily: APP_FONT,
-        fontSize: `${Math.round(fontSize * 0.48)}px`,
-      })
-      .setOrigin(0.5)
-      .setAlpha(0)
-      .setDepth(5);
-
-    this.#startTyping();
+    this.#panel = addStoryPanel(this, {
+      x: width / 2,
+      y: panelY,
+      width: panelW,
+      height: panelH,
+      text: copy,
+      depth: 4,
+    });
     this.input.on("pointerup", this.#advance, this);
     EventBus.emit(PhaserEvents.OPENING_READY);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.#typeEvent?.remove();
+      this.#panel?.destroy();
       this.#rayTweens.forEach((tween) => tween.remove());
       this.#rayMasks.forEach((mask) => mask.destroy());
       this.input.off("pointerup", this.#advance, this);
@@ -398,33 +355,9 @@ export class OpeningScene extends Phaser.Scene {
     return key;
   }
 
-  #startTyping(): void {
-    let visible = 0;
-
-    this.#typeEvent = this.time.addEvent({
-      delay: TYPE_SPEED_MS,
-      repeat: Math.max(0, this.#fullText.length - 1),
-      callback: () => {
-        visible++;
-        this.#body.setText(this.#fullText.slice(0, visible));
-
-        if (visible >= this.#fullText.length) this.#completeTyping();
-      },
-    });
-  }
-
-  #completeTyping(): void {
-    if (this.#isComplete) return;
-
-    this.#isComplete = true;
-    this.#typeEvent?.remove();
-    this.#body.setText(this.#fullText);
-    this.tweens.add({targets: this.#footer, alpha: 1, duration: 400, ease: "Sine.easeOut"});
-  }
-
   #advance = (): void => {
-    if (!this.#isComplete) {
-      this.#completeTyping();
+    if (!this.#panel?.isComplete()) {
+      this.#panel?.complete();
 
       return;
     }

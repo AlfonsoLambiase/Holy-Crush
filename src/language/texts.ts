@@ -312,6 +312,13 @@ const UI_TEXTS: TextEntry[] = [
     fr: "TOUCHE POUR CONTINUER",
   },
   {
+    key: "yourTurn",
+    it: "TOCCA A TE!",
+    en: "YOUR TURN!",
+    es: "¡TE TOCA!",
+    fr: "À TOI !",
+  },
+  {
     key: "openingOldTestament",
     it: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
     en: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
