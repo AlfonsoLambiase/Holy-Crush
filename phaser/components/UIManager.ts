@@ -9,26 +9,26 @@ import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
-const SCORE_TEXT_SCALE = 1;
-const SCORE_FONT_RATIO = 0.42; // il numero riempie il papiro, che ha la stessa altezza di btnExit
-const SCORE_THREE_DIGIT_SCALE = 0.84; // a 3 cifre il numero si stringe un filo per restare nel papiro
-const SCORE_PULSE_SCALE = 1.25; // ingrandimento momentaneo a ogni punto
+const MOVES_FONT_RATIO = 0.42;
+const MOVES_TEXT_SCALE = 1;
+const MOVES_PULSE_SCALE = 1.25;
+
+export type GoalChip = {icon: string; left: number};
 
 export class UIManager {
   private scene: Phaser.Scene;
   gameScene!: Game;
 
-  public score = 0;
-  public maxScore = 10; //* temporaneo: 10 per le prove, poi torna a 100
-  private displayedScore: number = 0;
-  private scoreFontSize = 48;
-  private scoreText!: Phaser.GameObjects.Text;
   originalScale: number = 1;
   ofssetY: number = 0;
   ofssetX: number = 0;
   scoreContainer!: Phaser.GameObjects.Container;
   headerCenterY = 0;
   private headerBottom = 0;
+  private goalsContainer!: Phaser.GameObjects.Container;
+  private movesContainer!: Phaser.GameObjects.Container;
+  private movesText!: Phaser.GameObjects.Text;
+  private movesFontSize = 48;
 
   helpUsed: number = 0;
   differenceTryLimit: number = 1; // limite massimo tasto aiuto
@@ -45,7 +45,7 @@ export class UIManager {
 
   createUI(): void {
     this.#createBackgroundGame();
-    this.#createContainerScore();
+    this.#createHeader();
     // this.#createIconHelp();
     // Vite disattivate: in questo gioco non si perdono vite
     // this.#createLives();
@@ -80,40 +80,124 @@ export class UIManager {
     );
   }
 
-  #createContainerScore() {
+  #createHeader() {
     const metrics = this.#headerMetrics();
-    const scoreSlotH = metrics.logoHeartPhysical;
+    const slot = metrics.logoHeartPhysical;
 
     this.headerCenterY = metrics.headerCenterY;
-    this.headerBottom = metrics.headerCenterY + scoreSlotH / 2 + metrics.marginTop * 0.35;
+    this.headerBottom = metrics.headerCenterY + slot / 2 + metrics.marginTop * 0.35;
 
-    this.scoreContainer = this.scene.add.container(0, 0);
-    this.scoreContainer.setScrollFactor(0).setDepth(10);
+    this.goalsContainer = this.scene.add.container(this.scene.scale.width / 2, this.headerCenterY);
+    this.goalsContainer.setScrollFactor(0).setDepth(10);
+    this.scoreContainer = this.goalsContainer;
 
-    const scoreBg = this.scene.add.image(0, 0, assetConf.image.containerScore).setOrigin(0.5);
+    this.movesContainer = this.scene.add.container(0, this.headerCenterY);
+    this.movesContainer.setScrollFactor(0).setDepth(10);
 
-    scoreBg.setScale(scoreSlotH / scoreBg.height);
+    const movesBg = this.scene.add.image(0, 0, assetConf.image.containerScore).setOrigin(0.5);
 
-    this.scoreFontSize = Math.round(scoreSlotH * SCORE_FONT_RATIO);
-
-    this.scoreText = this.scene.add
-      .text(0, 0, `${this.score}`, {
+    movesBg.setScale(slot / movesBg.height);
+    this.movesFontSize = Math.round(slot * MOVES_FONT_RATIO);
+    this.movesText = this.scene.add
+      .text(0, 0, "0", {
         fontFamily: APP_FONT,
-        fontSize: `${this.scoreFontSize}px`,
+        fontSize: `${this.movesFontSize}px`,
         color: "#ffd76a",
         stroke: "#2a160ccc",
-        strokeThickness: Math.max(2, Math.round(this.scoreFontSize * 0.08)),
+        strokeThickness: Math.max(2, Math.round(this.movesFontSize * 0.08)),
       })
-      .setOrigin(0.5)
-      .setScale(SCORE_TEXT_SCALE);
+      .setOrigin(0.5);
 
-    this.scoreContainer.add([scoreBg, this.scoreText]);
-    this.scoreContainer.setPosition(this.scene.scale.width / 2, this.headerCenterY);
+    this.movesContainer.add([movesBg, this.movesText]);
+    this.movesContainer.setPosition(
+      this.scene.scale.width - metrics.insetX - movesBg.displayWidth / 2,
+      this.headerCenterY,
+    );
   }
 
   //* La griglia parte sotto l'elemento più basso della testata
   getHeaderBottom(): number {
-    return Math.max(this.headerBottom, this.scoreContainer.getBounds().bottom);
+    return Math.max(
+      this.headerBottom,
+      this.goalsContainer.getBounds().bottom,
+      this.movesContainer.getBounds().bottom,
+    );
+  }
+
+  showMission(goals: GoalChip[], moves: number): void {
+    this.#drawGoals(goals);
+    this.setMoves(moves, false);
+  }
+
+  setMoves(moves: number, pulse = true): void {
+    const value = Math.max(0, moves);
+
+    this.movesText.setText(`${value}`);
+    this.movesText.setScale(MOVES_TEXT_SCALE);
+
+    if (!pulse) return;
+
+    this.scene.tweens.killTweensOf(this.movesText);
+    this.scene.tweens.add({
+      targets: this.movesText,
+      scale: {from: MOVES_TEXT_SCALE, to: MOVES_TEXT_SCALE * MOVES_PULSE_SCALE},
+      duration: 160,
+      ease: "Quad.easeOut",
+      yoyo: true,
+    });
+  }
+
+  #drawGoals(goals: GoalChip[]): void {
+    this.goalsContainer.removeAll(true);
+    this.goalsContainer.setScale(1);
+
+    const metrics = this.#headerMetrics();
+    const slot = metrics.logoHeartPhysical;
+    const iconSize = slot * 0.72;
+    const gap = iconSize * 0.55;
+    const fontSize = Math.round(slot * 0.36);
+    let cursor = 0;
+    const nodes: Phaser.GameObjects.GameObject[] = [];
+
+    for (const goal of goals) {
+      if (this.scene.textures.exists(goal.icon)) {
+        const icon = this.scene.add.image(cursor, 0, goal.icon).setOrigin(0, 0.5);
+        const fit = Math.min(iconSize / icon.width, iconSize / icon.height);
+
+        icon.setScale(fit);
+        nodes.push(icon);
+        cursor += icon.displayWidth + gap * 0.35;
+      }
+
+      const label = this.scene.add
+        .text(cursor, 0, `${goal.left}`, {
+          fontFamily: APP_FONT,
+          fontSize: `${fontSize}px`,
+          color: "#fff8dc",
+          stroke: "#3d2614",
+          strokeThickness: Math.max(2, Math.round(fontSize * 0.08)),
+        })
+        .setOrigin(0, 0.5);
+
+      nodes.push(label);
+      cursor += label.width + gap;
+    }
+
+    const width = Math.max(0, cursor - gap);
+
+    for (const node of nodes) {
+      if ("x" in node && typeof node.x === "number") node.x -= width / 2;
+    }
+
+    this.goalsContainer.add(nodes);
+
+    const movesWidth = this.movesContainer.getBounds().width;
+    const maxWidth = this.scene.scale.width - metrics.insetX * 2 - movesWidth * 2 - gap;
+    const bounds = this.goalsContainer.getBounds();
+
+    if (bounds.width > maxWidth && bounds.width > 0) {
+      this.goalsContainer.setScale(maxWidth / bounds.width);
+    }
   }
 
   #createIconHelp() {
@@ -136,80 +220,6 @@ export class UIManager {
     this.iconHelp = iconHelp;
     this.iconHelp.setPosition(iconHelp.x, iconHelp.y);
     this.helpUsed = this.differenceTryLimit;
-  }
-
-  #fitScoreText(value: number): void {
-    const size =
-      `${value}`.length >= 3
-        ? Math.round(this.scoreFontSize * SCORE_THREE_DIGIT_SCALE)
-        : this.scoreFontSize;
-
-    this.scoreText.setFontSize(size);
-    this.scoreText.setStroke("#2a160ccc", Math.max(2, Math.round(size * 0.08)));
-  }
-
-  resetScore() {
-    this.score = 0;
-    this.displayedScore = 0;
-    this.scoreText.setText("0");
-    this.#fitScoreText(0);
-    this.scene.registry.set(assetConf.registry.score, 0);
-  }
-
-  //* Scopo: Aggiunge punti al punteggio totale senza superare maxScore
-  updateScore(points: number) {
-    const increment = 1;
-    const timeDelay = 50;
-
-    const previousScore = this.score;
-
-    // CLAMP del punteggio finale
-    const finalScore = Math.min(this.score + points, this.maxScore);
-
-    // Punti reali da animare
-    const delta = finalScore - previousScore;
-
-    // Se non ci sono punti da aggiungere, esci
-    if (delta <= 0) return;
-
-    this.score = finalScore;
-
-    let steps = 0;
-
-    this.scene.time.addEvent({
-      delay: timeDelay,
-      repeat: delta - 1,
-      callback: () => {
-        this.displayedScore += increment;
-
-        // Sicurezza extra lato UI
-        if (this.displayedScore > this.maxScore) {
-          this.displayedScore = this.maxScore;
-        }
-
-        this.scoreText.setText(`${this.displayedScore}`);
-        this.#fitScoreText(this.displayedScore);
-
-        this.scoreText.setScale(SCORE_TEXT_SCALE);
-
-        this.scene.tweens.add({
-          targets: this.scoreText,
-          scale: {from: SCORE_TEXT_SCALE, to: SCORE_TEXT_SCALE * SCORE_PULSE_SCALE},
-          duration: timeDelay * 2,
-          ease: "Quad.easeOut",
-          yoyo: true,
-        });
-
-        steps++;
-
-        if (steps >= delta) {
-          // Registry sempre coerente
-          this.scene.registry.set(assetConf.registry.score, this.score);
-
-          this.scoreText.setScale(SCORE_TEXT_SCALE);
-        }
-      },
-    });
   }
 
   // Inizializza le immagini delle vite

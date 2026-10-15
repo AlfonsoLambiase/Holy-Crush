@@ -254,6 +254,7 @@ export class ExitManager extends Phaser.Scene {
 
     game?.theme?.stop();
     this.sound.resumeAll();
+    this.scene.stop(assetConf.scene.outro);
     this.scene.stop(assetConf.scene.gameManager);
     this.scene.stop(assetConf.scene.timerManager);
     this.scene.stop(assetConf.scene.game);
@@ -262,6 +263,7 @@ export class ExitManager extends Phaser.Scene {
 
   #restartMatch() {
     this.sound.resumeAll();
+    this.scene.stop(assetConf.scene.outro);
     this.scene.stop(assetConf.scene.gameManager);
     this.scene.stop(assetConf.scene.timerManager);
     this.scene.stop(assetConf.scene.exitManager);

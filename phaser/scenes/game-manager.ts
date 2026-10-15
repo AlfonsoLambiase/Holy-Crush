@@ -22,6 +22,8 @@ import {TUTORIAL_GRID} from "../tutorial/tutorial-grid";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {getCellSize, getGridForLevel, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
+import type {GridShape} from "../grid/create-grid";
+import {missionForGrid, remainingOf, type MissionGoal} from "../shared/level-mission";
 import {
   BOMB,
   Cell,
@@ -132,6 +134,11 @@ export class GameManager extends Phaser.Scene {
   #pieceKeys: readonly string[] = [];
   #scripted = false;
   #guide: {from: Cell; to?: Cell; done: () => void} | null = null;
+  #shape: GridShape | null = null;
+  #goals: MissionGoal[] = [];
+  #moves = 0;
+  #collectLeft = 0;
+  #moveAdUsed = false;
 
   constructor() {
     super({key: assetConf.scene.gameManager});
@@ -151,8 +158,10 @@ export class GameManager extends Phaser.Scene {
     const level = Number.isFinite(selected) && selected > 0 ? selected : getUnlockedCount();
     this.#pieceKeys = getPieceKeysForStageLevel(level, getStageIndex());
     const tutorial = shouldShowTutorial(level);
-    const shape = tutorial ? TUTORIAL_GRID : getGridForLevel(level);
+    const shape = tutorial ? TUTORIAL_GRID : getGridForLevel(level, getStageIndex());
 
+    this.#shape = shape;
+    this.#armMission(shape);
     this.obstacles = shape.cells.map((row) =>
       row.map((symbol) => (symbol === "." ? null : obstacleFromSymbol(symbol))),
     );
@@ -214,7 +223,10 @@ export class GameManager extends Phaser.Scene {
 
     screen.finish();
     this.#scripted = false;
-    this.gameScene.uiManager.resetScore();
+
+    if (this.#shape) this.#armMission(this.#shape);
+
+    this.presentMission();
     this.#startPlay();
     await screen.close();
   }
@@ -311,8 +323,83 @@ export class GameManager extends Phaser.Scene {
     return cell;
   }
 
+  #armMission(shape: GridShape): void {
+    const pieceIcon = this.#pieceKeys[0] ?? assetConf.image.block;
+    const mission = missionForGrid(shape.cells, pieceIcon);
+
+    this.#goals = mission.goals;
+    this.#moves = mission.moves;
+    this.#collectLeft = mission.collect;
+    this.#moveAdUsed = false;
+  }
+
+  presentMission(): void {
+    this.#pushMission();
+  }
+
+  grantExtraMoves(amount: number): void {
+    this.#moveAdUsed = true;
+    this.#moves += amount;
+    this.isGameOver = false;
+    this.canShoot = true;
+    this.isBusy = false;
+    this.gameScene.uiManager.setMoves(this.#moves);
+    this.restartHintTimer();
+  }
+
+  #goalLeft(goal: MissionGoal): number {
+    return remainingOf(goal.kind, this.obstacles, this.#collectLeft);
+  }
+
+  #pushMission(): void {
+    const ui = this.gameScene?.uiManager;
+
+    if (!ui?.showMission) return;
+
+    ui.showMission(
+      this.#goals.map((goal) => ({icon: goal.icon, left: this.#goalLeft(goal)})),
+      this.#moves,
+    );
+  }
+
+  #notePop(count: number): void {
+    if (this.#scripted || count <= 0) return;
+
+    if (this.#goals.some((goal) => goal.kind === "collect")) {
+      this.#collectLeft = Math.max(0, this.#collectLeft - count);
+    }
+
+    this.#pushMission();
+  }
+
+  #spendMove(): void {
+    this.#moves = Math.max(0, this.#moves - 1);
+    this.gameScene.uiManager.setMoves(this.#moves);
+  }
+
   #goalReached(): boolean {
-    return !this.#scripted && this.gameScene.uiManager.score >= this.gameScene.uiManager.maxScore;
+    return !this.#scripted && this.#goals.length > 0 && this.#goals.every((goal) => this.#goalLeft(goal) <= 0);
+  }
+
+  async #finishMatch(won: boolean): Promise<void> {
+    if (won) {
+      this.canShoot = false;
+      await this.collapseAndFill();
+      await this.delay(400);
+      this.gameScene.gameOver(true);
+
+      return;
+    }
+
+    this.canShoot = false;
+
+    if (this.#moveAdUsed) {
+      this.gameScene.gameOver(false);
+
+      return;
+    }
+
+    this.gameScene.offerMoveAd();
   }
 
   //* Scopo: Crea i block (colonne x righe). Lo sfondo griglia resta, ma spento.
@@ -739,14 +826,11 @@ export class GameManager extends Phaser.Scene {
 
     this.syncArt();
     this.stackSprites();
-    this.gameScene.uiManager.updateScore(pop.length);
+    this.#notePop(pop.length);
     this.gameScene.audioManager.playAudio(assetConf.audio.success);
 
     if (this.#goalReached()) {
-      this.canShoot = false;
-      await this.collapseAndFill();
-      await this.delay(400);
-      this.gameScene.gameOver();
+      await this.#finishMatch(true);
 
       return;
     }
@@ -847,10 +931,24 @@ export class GameManager extends Phaser.Scene {
       return;
     }
 
+    if (!this.#scripted) this.#spendMove();
+
     await this.resolveBoard(activated, b);
     this.isBusy = false;
 
-    if (this.#finishGuide()) return;
+    if (this.isGameOver || this.#finishGuide() || this.#scripted) return;
+
+    if (this.#goalReached()) {
+      await this.#finishMatch(true);
+
+      return;
+    }
+
+    if (this.#moves <= 0) {
+      await this.#finishMatch(false);
+
+      return;
+    }
 
     this.restartHintTimer();
   }
@@ -921,14 +1019,11 @@ export class GameManager extends Phaser.Scene {
       for (const spawn of spawns) this.placeSpecial(spawn.cell, spawn.type);
 
       this.stackSprites();
-      this.gameScene.uiManager.updateScore(pop.length);
+      this.#notePop(pop.length);
       this.gameScene.audioManager.playAudio(assetConf.audio.success);
 
       if (this.#goalReached()) {
-        this.canShoot = false;
-        await this.collapseAndFill();
-        await this.delay(400);
-        this.gameScene.gameOver();
+        await this.#finishMatch(true);
         break;
       }
 
@@ -937,7 +1032,10 @@ export class GameManager extends Phaser.Scene {
 
     const stillPlaying = !this.isGameOver && !this.#goalReached();
 
-    if (growThorns && stillPlaying && !thornDamaged) this.growThorn();
+    if (growThorns && stillPlaying && !thornDamaged) {
+      this.growThorn();
+      this.#pushMission();
+    }
 
     if (stillPlaying && !hasValidMove(this.board, allowsSwap, canMatch)) {
       await this.warnAndShuffle();
@@ -1656,16 +1754,21 @@ export class GameManager extends Phaser.Scene {
     return this.mainContainer.x - (gridW / 2) * this.mainContainer.scaleX;
   }
 
-  //* Scopo: Centra la griglia nell'area di gioco. La scala della cella non cambia.
+  //* Scopo: Centra la griglia sotto le missioni. Se non ci sta, si rimpicciolisce.
   public layoutGrid(): void {
     if (!this.mainContainer) return;
 
     const padY = this.gameHeight * GRID_VERTICAL_PAD;
     const top = this.getPlayAreaTop() + padY;
     const footer = this.#itemsBar?.top ?? this.gameHeight;
-    const bottom = footer - padY;
+    const bottom = Math.max(top + 1, footer - padY);
+    const availableH = bottom - top;
+    const availableW = this.gameWidth * 0.96;
+    const gridH = Math.max(1, this.gridRows * this.cellH);
+    const gridW = Math.max(1, this.gridCols * this.cellW);
+    const fit = Math.min(1, availableH / gridH, availableW / gridW);
 
-    this.mainContainer.setScale(1);
+    this.mainContainer.setScale(fit);
     this.mainContainer.setPosition(this.gameWidth / 2, (top + bottom) / 2);
   }
 
@@ -1685,7 +1788,7 @@ export class GameManager extends Phaser.Scene {
       this.canShoot = false;
 
       this.scene.pause();
-      this.gameScene.gameOver();
+      this.gameScene.gameOver(false);
     }
   }
 }

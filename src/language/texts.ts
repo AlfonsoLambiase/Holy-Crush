@@ -74,6 +74,20 @@ const UI_TEXTS: TextEntry[] = [
     fr: "Regarde une annonce pour la recharger et continuer à jouer",
   },
   {
+    key: "movesOutTitle",
+    it: "MOSSE FINITE",
+    en: "OUT OF MOVES",
+    es: "SIN MOVIMIENTOS",
+    fr: "PLUS DE COUPS",
+  },
+  {
+    key: "movesOutBody",
+    it: "Guarda un annuncio per ottenere 10 mosse e continuare",
+    en: "Watch an ad to get 10 extra moves and keep playing",
+    es: "Mira un anuncio para conseguir 10 movimientos y seguir",
+    fr: "Regarde une annonce pour obtenir 10 coups et continuer",
+  },
+  {
     key: "shopEnergy",
     it: "Energia",
     en: "Energy",

@@ -1,9 +1,10 @@
 import type {BoosterId} from "@/settings/boosters";
 
-export type ShopAdId = "energy" | BoosterId;
+export type ShopAdId = "energy" | "moves" | BoosterId;
 
 export const SHOP_AD_COST: Record<ShopAdId, number> = {
   energy: 1,
+  moves: 1,
   super: 1,
   mega: 1,
   ultra: 2,
@@ -16,6 +17,7 @@ type Progress = Record<ShopAdId, number>;
 
 const emptyProgress = (): Progress => ({
   energy: 0,
+  moves: 0,
   super: 0,
   mega: 0,
   ultra: 0,

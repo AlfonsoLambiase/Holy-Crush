@@ -2,12 +2,15 @@
 /* eslint-disable no-console */
 import * as Phaser from "phaser";
 
+import {getCurrentLanguage, t} from "@/language";
 import {isEffectsEnabled} from "@/settings/effects";
 import {getStageIndex, registerWin, type RegisterWinResult} from "@/settings/progress";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {AssetPaths, DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 import {addFillPair} from "../shared/fill-pair";
+import {popupPlateScale} from "../shared/popup-plate-scale";
 import {loadOutroAssets, purgeGameSessionResources} from "../shared/utils/load-assets";
+import {showWatchAdPopup} from "../shared/watch-ad-popup";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
@@ -22,15 +25,18 @@ const RAINBOW_Y = 0.3; // centro pagina, sopra Gesù
 export class Outro extends Phaser.Scene {
   imageKey: string = "endFailed"; // di default è endFailed
   #won = false;
+  #canContinue = false;
+  #continued = false;
   #winResult: RegisterWinResult = "none";
 
   constructor() {
     super({key: assetConf.scene.outro});
   }
 
-  init({resultStatus}: {resultStatus: "Failed" | "Win"}) {
+  init({resultStatus, canContinue}: {resultStatus: "Failed" | "Win"; canContinue?: boolean}) {
     this.#won = resultStatus === "Win";
-
+    this.#canContinue = !this.#won && !!canContinue;
+    this.#continued = false;
     this.imageKey = this.#won ? "endWin" : "endFailed";
 
     const played = Number(this.registry.get("level"));
@@ -48,6 +54,8 @@ export class Outro extends Phaser.Scene {
     //* Prima via gli sprite, poi le texture: altrimenti il renderer legge glTexture null
     this.sound.stopAll();
     this.children.removeAll(true);
+    this.scene.stop(assetConf.scene.gameManager);
+    this.scene.stop(assetConf.scene.game);
     purgeGameSessionResources(this);
 
     if (winResult !== "stage") {
@@ -90,7 +98,9 @@ export class Outro extends Phaser.Scene {
   }
 
   create() {
-    this.time.delayedCall(3000, () => this.#leave(this.#winResult));
+    if (!this.#canContinue) {
+      this.time.delayedCall(3000, () => this.#leave(this.#winResult));
+    }
 
     //this.imageKey = `endFailed`; //* solo per test
     //this.imageKey = `endWin`; //* solo per test
@@ -120,7 +130,36 @@ export class Outro extends Phaser.Scene {
 
     foreground.setScale(scale);
 
-    //console.log("registry.score: ", this.registry.get(assetConf.registry.score));
+    if (this.#canContinue) this.#offerContinue();
+  }
+
+  #offerContinue(): void {
+    const language = getCurrentLanguage();
+    const popup = showWatchAdPopup(this, {
+      title: t("movesOutTitle", language),
+      body: t("movesOutBody", language),
+      scale: popupPlateScale(this, assetConf.image.popupExitGame),
+      adId: "moves",
+      onWatch: () => {
+        this.#continued = true;
+      },
+      onClose: () => {
+        this.time.delayedCall(0, () => {
+          if (this.#continued) this.#resumeMatch();
+          else this.#leave("none");
+        });
+      },
+    });
+
+    if (!popup) this.#leave("none");
+  }
+
+  #resumeMatch(): void {
+    const game = this.scene.get(assetConf.scene.game) as {continueAfterAd?: () => void};
+
+    this.sound.stopAll();
+    this.scene.stop();
+    game.continueAfterAd?.();
   }
 
   #playResultSound() {

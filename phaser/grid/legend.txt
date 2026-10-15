@@ -288,7 +288,7 @@
 // Alternare tutorial, livelli semplici, livelli di pratica e livelli impegnativi.
 // Riutilizzare forme cambiando obiettivi, mosse e disposizione degli ostacoli.
 // Aumentare la dimensione non garantisce un aumento della difficoltà.
-// Nel 3x3 iniziale verificare soprattutto il numero di tipi di pezzi.
+// La griglia più piccola della curva definitiva è 5×5.
 // Nei corridoi larghi 2 celle non esistono match orizzontali di 3: usarli con cura.
 // Valutare la generazione automatica dopo aver misurato e bilanciato il motore.
 // Cercare una meccanica distintiva coerente con il tema di Holy Crush:
@@ -300,11 +300,11 @@
 //
 // - Celle quadrate e griglia centrata.
 // - L'attuale margine laterale è del 5% per lato.
-// - L'attuale cella è la larghezza utile divisa per 6, anche nelle griglie piccole.
+// - L'attuale cella è la larghezza utile divisa per blockSizeColumns.
 // - Con 9 righe, l'altezza è 1,35 volte gameWidth, prima di eventuali spaziature.
 // - Verificare spazio sotto obiettivi e mosse; adattare la cella anche all'altezza.
 // - Verificare righe uniformi, simboli ammessi, almeno 1 cella utilizzabile
-//   e limiti attuali: 1-8 colonne, 1-10 righe.
+//   e limiti attuali: 1-7 colonne, 1-10 righe.
 // - Validare coordinate, sovrapposizioni consentite e numero di strati.
 // - Validare percorsi di refill, uscite raggiungibili e collegamenti dei portali.
 // - Verificare che il livello contenga o generi abbastanza bersagli per l'obiettivo.
@@ -314,3 +314,41 @@
 // - Registrare per livello tentativi, vittorie, mosse residue e uso di aiuti.
 // - Una mossa valida non garantisce che il livello sia completabile: occorrono
 //   partite reali e, quando disponibile, simulazione con più seed.
+//
+// ============================================================================
+// 11. CURVA DEI 400 LIVELLI
+// ============================================================================
+//
+// Venti stage, venti livelli ciascuno: grid-0000 … grid-0399.
+// Lo stage 1 sta in phaser/grid/stage-01 (grid-0000 … grid-0019).
+// Lo stage 2 parte da grid-0020. La numerazione non si azzera.
+// Il gioco sceglie la griglia con lo stage e il livello locale.
+//
+// La difficoltà sale lungo tutti gli stage. Il livello 1 di uno stage
+// successivo è già più duro dell'ultimo livello dello stage precedente.
+// Dentro lo stage i 20 livelli crescono ancora, di poco.
+// La griglia parte da 5×5 e si allarga, senza superare 7 colonne e 10 righe.
+//
+// Si vince completando 1 o 2 obiettivi letti dalla griglia (pezzi, ghiaccio,
+// casse, terreno, catene, rocce, rovi). Le mosse sono limitate: uno scambio
+// valido ne costa una, le cascate no. A zero mosse si perde, con un solo
+// annuncio per ricevere 10 mosse e restare sulla stessa griglia.
+//
+// Stage 1–4
+//   Simboli: . 0 G I B
+//   Pochi ostacoli, griglie piccole.
+//
+// Stage 5–8
+//   Si aggiungono H J C L
+//   Tabelloni un po' più fitti.
+//
+// Stage 9–14
+//   Si aggiungono X R
+//   Corridoi e rocce.
+//
+// Stage 15–20
+//   Si aggiungono V D
+//   Più ostacoli e forme più chiuse.
+//
+// Ogni griglia è diversa. Le forme si rivedono, gli ostacoli no nella stessa disposizione.
+// N, S, E e P restano fuori.

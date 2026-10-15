@@ -10,6 +10,7 @@ import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {layoutScaleForViewport} from "@/settings/app-header-layout";
 import {getViewportGlobalScale} from "../shared/viewport-scale";
 import {StarsEffectManager} from "../components/starsEffectManager";
+import {EXTRA_MOVES} from "../shared/level-mission";
 
 import {TimerManager} from "./timer-manager";
 import {ExitManager} from "./exit-manager";
@@ -30,6 +31,7 @@ export class Game extends Phaser.Scene {
   private globalScale: number = 1;
 
   private isGameOver: boolean = false; // controllo aggiuntivo per eveitare che possa andare 2 volte in gameOver
+  #moveOffer = false;
 
   starsEffectManager!: StarsEffectManager;
 
@@ -53,6 +55,7 @@ export class Game extends Phaser.Scene {
     this.uiManager = new UIManager(this);
     this.uiManager.setGameScene(this);
     this.uiManager.createUI();
+    this.gameManager.presentMission();
     this.gameManager.layoutGrid();
 
     this.audioManager = new AudioManager(this);
@@ -116,28 +119,41 @@ export class Game extends Phaser.Scene {
     return Math.min(maxW / nativeW, maxH / nativeH);
   }
 
-  gameOver(): void {
-    if (!this.isGameOver) {
-      this.isGameOver = true;
-      this.gameManager.isGameOver = true;
-      this.gameManager.canShoot = false;
+  gameOver(won = false): void {
+    if (this.isGameOver) return;
 
-      let delay = 1000;
+    this.isGameOver = true;
+    this.#moveOffer = false;
+    this.gameManager.isGameOver = true;
+    this.gameManager.canShoot = false;
 
-      if (this.uiManager.score >= this.uiManager.maxScore) {
-        console.log("HAI VINTO LA PARTITA COMPLIMENTI!!!");
-        delay = 1200;
-        this.audioManager.playAudio(assetConf.audio.endWin);
-      } else {
-        console.log("HAI PERSO LA PARTITA!!!");
-        delay = 1000;
-        this.audioManager.playAudio(assetConf.audio.endFailed);
-      }
+    const delay = won ? 1200 : 1000;
 
-      this.time.delayedCall(delay, () => {
-        this.#openOutro(this.uiManager.score >= this.uiManager.maxScore ? "Win" : "Failed");
-      });
-    }
+    this.audioManager.playAudio(won ? assetConf.audio.endWin : assetConf.audio.endFailed);
+    this.time.delayedCall(delay, () => {
+      this.#openOutro(won ? "Win" : "Failed");
+    });
+  }
+
+  //* La griglia resta viva sotto la sconfitta. Un solo annuncio, poi si riprende.
+  offerMoveAd(): void {
+    if (this.isGameOver || this.#moveOffer) return;
+
+    this.#moveOffer = true;
+    this.sound.pauseAll();
+    this.scene.launch(assetConf.scene.outro, {resultStatus: "Failed", canContinue: true});
+    this.scene.bringToTop(assetConf.scene.outro);
+    this.scene.bringToTop(assetConf.scene.exitManager);
+    this.scene.pause();
+    this.scene.pause(assetConf.scene.gameManager);
+  }
+
+  continueAfterAd(): void {
+    this.#moveOffer = false;
+    this.scene.resume();
+    this.scene.resume(assetConf.scene.gameManager);
+    this.sound.resumeAll();
+    this.gameManager.grantExtraMoves(EXTRA_MOVES);
   }
 
   #openOutro(resultStatus: "Failed" | "Win"): void {
