@@ -38,7 +38,7 @@ const SHOP_ITEMS = [
   {
     id: "energy",
     ads: 1,
-    src: "/images/mode_0/stage_ui/logo_stage_fill.png",
+    src: "/images/ui_game/logo_stage_fill.png",
     titleKey: "shopEnergy",
     bodyKey: "shopEnergyBody",
   },

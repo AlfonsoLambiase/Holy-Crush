@@ -26,7 +26,8 @@ const UI_GAME_KEYS = new Set([
   "btnNoSound",
   "btnTime",
   "popupExitGame",
-  "containerScore",
+  "logo_stage_bg",
+  "logo_stage_fill",
   "containerItems",
   "containerItems_bg",
 ]);
@@ -34,9 +35,9 @@ const UI_GAME_KEYS = new Set([
 const STAGE_UI_KEYS = new Set([
   "confetti_left",
   "confetti_right",
-  "logo_stage_bg",
-  "logo_stage_fill",
 ]);
+
+const MODE_STAGE_UI_KEYS = new Set(["containerScore"]);
 
 const HOME_UI_KEYS = new Set(["settingsHome"]);
 
@@ -70,6 +71,7 @@ const modeFolder = (): string => `${IMAGES}/${getModeConfig().folder}`;
 const folderFor = (key: string): string => {
   if (key === "starsEffect" || key === "sparklingStars") return `${IMAGES}/effects`;
   if (HOME_UI_KEYS.has(key)) return `${IMAGES}/ui_home`;
+  if (MODE_STAGE_UI_KEYS.has(key)) return `${modeFolder()}/stage_ui`;
   if (UI_GAME_KEYS.has(key)) return `${IMAGES}/ui_game`;
   if (POWER_UP_KEYS.has(key)) return `${GAME_COMMON}/power-up`;
   if (OBJECTIVE_KEYS.has(key) || key.startsWith("obstacle_")) return `${GAME_COMMON}/objectives`;

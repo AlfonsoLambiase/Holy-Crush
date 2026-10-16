@@ -11,10 +11,10 @@ export const TUTORIAL_PAGES: TutorialPage[] = [
   {
     image: "tutorial_0",
     text: {
-      it: "Striscia un elemento verso quello vicino, allineane 3 uguali e falli esplodere!",
-      en: "Swipe an item toward the one next to it, line up 3 matching ones and make them explode!",
-      es: "Desliza un elemento hacia el de al lado, alinea 3 iguales y hazlos explotar.",
-      fr: "Fais glisser un élément vers son voisin, aligne-en 3 identiques et fais-les exploser !",
+      it: "Striscia un elemento verso quello vicino, allineane 3 uguali e falli scoppiare!",
+      en: "Swipe an item toward the one next to it, line up 3 matching ones and make them pop!",
+      es: "Desliza un elemento hacia el de al lado, alinea 3 iguales y hazlos estallar.",
+      fr: "Fais glisser un élément vers son voisin, aligne-en 3 identiques et fais-les éclater !",
     },
   },
   //* L'Ira Celeste è appena nata e pulsa.
@@ -31,20 +31,20 @@ export const TUTORIAL_PAGES: TutorialPage[] = [
   {
     image: "tutorial_1",
     text: {
-      it: "Ecco il Cuore Sacro! Si ottiene rompendo 5 oggetti disposti a forma di L o di T e fa esplodere gli oggetti più vicini nell'area circostante.",
-      en: "Here is the Sacred Heart! You get it by breaking 5 items arranged in an L or T shape, and it explodes the nearest items in the surrounding area.",
-      es: "¡Aquí está el Sagrado Corazón! Se obtiene rompiendo 5 objetos dispuestos en forma de L o de T y hace explotar los objetos más cercanos del área circundante.",
-      fr: "Voici le Sacré-Cœur ! On l'obtient en brisant 5 objets disposés en L ou en T, et il fait exploser les objets les plus proches dans la zone autour de lui.",
+      it: "Ecco il Cuore Sacro! Si ottiene rompendo 5 oggetti disposti a forma angolare e fa scoppiare gli oggetti più vicini nell'area circostante.",
+      en: "Here is the Sacred Heart! You get it by breaking 5 items arranged in an angular shape, and it pops the nearest items in the surrounding area.",
+      es: "¡Aquí está el Sagrado Corazón! Se obtiene rompiendo 5 objetos dispuestos en forma angular y hace estallar los objetos más cercanos del área circundante.",
+      fr: "Voici le Sacré-Cœur ! On l'obtient en brisant 5 objets disposés en forme angulaire, et il fait éclater les objets les plus proches dans la zone autour de lui.",
     },
   },
   //* Sale a centro pagina mentre i super oggetti pulsano in basso.
   {
     image: "tutorial_2",
     text: {
-      it: "Poi ci sono i super oggetti: Ostensorio, Stella di David, Falce dorata e Crocifisso! Ognuno ha effetti devastanti unici. Ottienili guardando diversi annunci, dal mercato o direttamente in partita. Provali tutti!",
-      en: "Then there are the super items: Monstrance, Star of David, Golden Sickle and Crucifix! Each one has unique devastating effects. Get them by watching different ads, from the market or right in the match. Try them all!",
-      es: "Además están los superobjetos: Ostensorio, Estrella de David, Hoz dorada y Crucifijo. Cada uno tiene efectos devastadores únicos. Consíguelos viendo distintos anuncios, en el mercado o directamente en la partida. ¡Pruébalos todos!",
-      fr: "Puis il y a les super objets : Ostensoir, Étoile de David, Faucille dorée et Crucifix ! Chacun a des effets dévastateurs uniques. Obtiens-les en regardant différentes pubs, au marché ou directement en partie. Essaie-les tous !",
+      it: "Poi ci sono i super oggetti! Ognuno di loro ha effetti devastanti. Ottienili guardando gli annunci dal mercato o in partita e provali tutti!",
+      en: "Then there are the super items! Each one has devastating effects. Get them by watching ads from the market or in the match and try them all!",
+      es: "¡Luego están los superobjetos! Cada uno de ellos tiene efectos devastadores. Consíguelos viendo los anuncios en el mercado o en la partida y pruébalos todos!",
+      fr: "Puis il y a les super objets ! Chacun d'eux a des effets dévastateurs. Obtiens-les en regardant les annonces au marché ou en partie et essaie-les tous !",
     },
   },
 ];
