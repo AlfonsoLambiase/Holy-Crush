@@ -19,6 +19,7 @@ import {
 } from "../tutorial/first-level-script";
 import {shouldShowTutorial, TutorialScreen} from "../tutorial/tutorial";
 import {TUTORIAL_GRID} from "../tutorial/tutorial-grid";
+import {createBoardPlate, destroyBoardPlate} from "../shared/board-frame";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {getCellSize, getGridForLevel, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
@@ -109,6 +110,7 @@ export class GameManager extends Phaser.Scene {
 
   private mainContainer!: Phaser.GameObjects.Container;
   private blocks: (Phaser.GameObjects.Image | null)[][] = [];
+  private boardPlate: Phaser.GameObjects.Image | null = null;
   private obstacles: (ObstacleCell | null)[][] = [];
   private covers: (Phaser.GameObjects.Image | null)[][] = [];
   private terrains: (Phaser.GameObjects.Image | null)[][] = [];
@@ -402,11 +404,21 @@ export class GameManager extends Phaser.Scene {
     this.gameScene.offerMoveAd();
   }
 
-  //* Scopo: Crea i block (colonne x righe). Lo sfondo griglia resta, ma spento.
+  //* I block restano creati ma spenti. Sotto i pezzi c'è la placca col bordo dorato.
   private createGrid(): void {
+    this.clearBoardPlate();
     this.mainContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2);
 
     this.applyGridMetrics();
+    this.boardPlate = createBoardPlate(
+      this,
+      this.obstacles.map((row) => row.map((cell) => cell != null)),
+      this.cellW,
+      this.gridLeft,
+      this.gridTop,
+    );
+
+    if (this.boardPlate) this.mainContainer.add(this.boardPlate);
 
     this.board = generatePlayableBoard(
       this.gridRows,
@@ -442,7 +454,8 @@ export class GameManager extends Phaser.Scene {
         const block = this.add
           .image(x, y, assetConf.image.block)
           .setOrigin(0.5)
-          .setDisplaySize(this.cellW, this.cellH);
+          .setDisplaySize(this.cellW, this.cellH)
+          .setVisible(false);
 
         this.mainContainer.add(block);
         rowBlocks.push(block);
@@ -510,6 +523,7 @@ export class GameManager extends Phaser.Scene {
   }
 
   #onShutdown = (): void => {
+    this.clearBoardPlate();
     this.isBusy = false;
     this.swipeStart = null;
     this.swipeLocked = false;
@@ -1580,9 +1594,11 @@ export class GameManager extends Phaser.Scene {
     image.setAlpha(key === "I" || key === "J" ? ICE_ALPHA : 1);
   }
 
-  //* Dal basso: block, terreno, pezzo, copertura.
+  //* Dal basso: placca, block, terreno, pezzo, copertura.
   private stackSprites(): void {
     if (!this.mainContainer) return;
+
+    if (this.boardPlate?.active) this.mainContainer.sendToBack(this.boardPlate);
 
     const raise = (rows: (Phaser.GameObjects.Image | null)[][]) => {
       for (const row of rows) {
@@ -1713,6 +1729,11 @@ export class GameManager extends Phaser.Scene {
         },
       });
     });
+  }
+
+  private clearBoardPlate(): void {
+    destroyBoardPlate(this, this.boardPlate);
+    this.boardPlate = null;
   }
 
   private delay(ms: number): Promise<void> {

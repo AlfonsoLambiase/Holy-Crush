@@ -352,3 +352,18 @@
 //
 // Ogni griglia è diversa. Le forme si rivedono, gli ostacoli no nella stessa disposizione.
 // N, S, E e P restano fuori.
+
+
+//Stage	Simboli ammessi	Quanto è pieno
+//1–4
+//. 0 G I B
+//pochi ostacoli, griglie piccole
+//5–8
+//si aggiungono H J C L
+//un po' più fitti
+//9–14
+//si aggiungono X R
+//corridoi e rocce
+//15–20
+//si aggiungono V D
+//più ostacoli, forme più chiuse
