@@ -2,11 +2,12 @@ import * as Phaser from "phaser";
 
 import {boardContours, type BoardFillet} from "./board-outline";
 
-const PLATE_KEY = "board-plate";
+const FILL_KEY = "board-plate-fill";
+const RIM_KEY = "board-plate-rim";
 const FILL = "#94a8d9";
-const RIM = "#c87b0c";
-const GOLD = "#ffd12a";
-const SHINE = "#ffe98a";
+const RIM = "#b39658";
+const GOLD = "#a4874e";
+const SHINE = "#f4e4bf";
 const RIM_RATIO = 0.1;
 const GOLD_RATIO = 0.062;
 const SHINE_RATIO = 0.024;
@@ -34,12 +35,20 @@ const drawContour = (ctx: CanvasRenderingContext2D, fillets: readonly BoardFille
   ctx.closePath();
 };
 
-const plateCanvas = (
+type PlateDraw = {
+  canvas: HTMLCanvasElement;
+  pad: number;
+  width: number;
+  height: number;
+};
+
+const paintPlate = (
   open: readonly (readonly boolean[])[],
   cell: number,
   gridLeft: number,
   gridTop: number,
-): {canvas: HTMLCanvasElement; pad: number; width: number; height: number} | null => {
+  paint: (ctx: CanvasRenderingContext2D) => void,
+): PlateDraw | null => {
   const cols = open.reduce((max, row) => Math.max(max, row.length), 0);
   const rows = open.length;
   const contours = boardContours(open, cell, gridLeft, gridTop);
@@ -66,46 +75,70 @@ const plateCanvas = (
 
   for (const fillets of contours) drawContour(ctx, fillets);
 
-  ctx.fillStyle = FILL;
-  ctx.fill("evenodd");
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  ctx.strokeStyle = RIM;
-  ctx.lineWidth = rim;
-  ctx.stroke();
-  ctx.strokeStyle = GOLD;
-  ctx.lineWidth = cell * GOLD_RATIO;
-  ctx.stroke();
-  ctx.strokeStyle = SHINE;
-  ctx.lineWidth = cell * SHINE_RATIO;
-  ctx.stroke();
+  paint(ctx);
 
   return {canvas, pad, width, height};
 };
 
-//* Placca sotto i pezzi: fondo celeste e cornice dorata che segue i buchi.
+const placeLayer = (
+  scene: Phaser.Scene,
+  key: string,
+  plate: PlateDraw,
+  gridLeft: number,
+  gridTop: number,
+): Phaser.GameObjects.Image => {
+  if (scene.textures.exists(key)) scene.textures.remove(key);
+
+  scene.textures.addCanvas(key, plate.canvas);
+
+  return scene.add
+    .image(gridLeft - plate.pad, gridTop - plate.pad, key)
+    .setOrigin(0, 0)
+    .setDisplaySize(plate.width, plate.height);
+};
+
+export type BoardPlate = {
+  fill: Phaser.GameObjects.Image;
+  rim: Phaser.GameObjects.Image;
+};
+
+//* Fondo sotto i block, cornice dorata sopra. Stessa forma, così il bordo resta allineato.
 export function createBoardPlate(
   scene: Phaser.Scene,
   open: readonly (readonly boolean[])[],
   cell: number,
   gridLeft: number,
   gridTop: number,
-): Phaser.GameObjects.Image | null {
-  const plate = plateCanvas(open, cell, gridLeft, gridTop);
+): BoardPlate | null {
+  const fill = paintPlate(open, cell, gridLeft, gridTop, (ctx) => {
+    ctx.fillStyle = FILL;
+    ctx.fill("evenodd");
+  });
+  const rim = paintPlate(open, cell, gridLeft, gridTop, (ctx) => {
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.strokeStyle = RIM;
+    ctx.lineWidth = cell * RIM_RATIO;
+    ctx.stroke();
+    ctx.strokeStyle = GOLD;
+    ctx.lineWidth = cell * GOLD_RATIO;
+    ctx.stroke();
+    ctx.strokeStyle = SHINE;
+    ctx.lineWidth = cell * SHINE_RATIO;
+    ctx.stroke();
+  });
 
-  if (!plate) return null;
+  if (!fill || !rim) return null;
 
-  if (scene.textures.exists(PLATE_KEY)) scene.textures.remove(PLATE_KEY);
-
-  scene.textures.addCanvas(PLATE_KEY, plate.canvas);
-
-  return scene.add
-    .image(gridLeft - plate.pad, gridTop - plate.pad, PLATE_KEY)
-    .setOrigin(0, 0)
-    .setDisplaySize(plate.width, plate.height);
+  return {
+    fill: placeLayer(scene, FILL_KEY, fill, gridLeft, gridTop),
+    rim: placeLayer(scene, RIM_KEY, rim, gridLeft, gridTop),
+  };
 }
 
-export function destroyBoardPlate(scene: Phaser.Scene, image: Phaser.GameObjects.Image | null): void {
-  if (image?.active) image.destroy();
-  if (scene.textures.exists(PLATE_KEY)) scene.textures.remove(PLATE_KEY);
+export function destroyBoardPlate(scene: Phaser.Scene, plate: BoardPlate | null): void {
+  if (plate?.fill.active) plate.fill.destroy();
+  if (plate?.rim.active) plate.rim.destroy();
+  if (scene.textures.exists(FILL_KEY)) scene.textures.remove(FILL_KEY);
+  if (scene.textures.exists(RIM_KEY)) scene.textures.remove(RIM_KEY);
 }
