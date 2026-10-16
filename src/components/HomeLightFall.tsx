@@ -16,8 +16,15 @@ type Orb = {
 
 const clamp = (value: number) => Math.max(-1, Math.min(1, value));
 
-export function HomeLightFall() {
+type HomeLightFallProps = {
+  paused?: boolean;
+};
+
+export function HomeLightFall({paused = false}: HomeLightFallProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pausedRef = useRef(paused);
+
+  pausedRef.current = paused;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -123,6 +130,13 @@ export function HomeLightFall() {
     let last = performance.now();
 
     const tick = (now: number) => {
+      if (pausedRef.current) {
+        last = now;
+        frame = requestAnimationFrame(tick);
+
+        return;
+      }
+
       const dt = Math.min(0.05, (now - last) / 1000);
 
       last = now;

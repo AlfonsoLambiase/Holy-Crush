@@ -47,6 +47,25 @@ const deviceMemoryGb = (): number | null => {
   return typeof memory === "number" ? memory : null;
 };
 
+/** Phone/tablet modesti: meno DPR, meno layer DOM, meno VFX in partita. */
+export const isLowEndDevice = (): boolean => {
+  if (typeof window === "undefined") return false;
+
+  const memory = deviceMemoryGb();
+
+  if (memory !== null && memory <= LOW_DEVICE_MEMORY_GB) return true;
+
+  const longSide = Math.max(window.innerWidth, window.innerHeight);
+  const cores = navigator.hardwareConcurrency;
+
+  if (typeof cores === "number" && cores <= 4 && longSide < 920) return true;
+
+  // iOS: deviceMemory assente; DPR 3 + schermo compatto ≈ device recente ma thermals/GPU limitati in WebView.
+  if (memory === null && longSide < 900 && devicePixelRatio() >= 3) return true;
+
+  return false;
+};
+
 /**
  * Framebuffer del canvas di gioco.
  * Phone resta a 2. Schermo largo (lato lungo ≥1000) scende a 1.5, ≥1280 a 1.
@@ -63,6 +82,7 @@ export const cappedDevicePixelRatio = (): number => {
   const memory = deviceMemoryGb();
 
   if (memory !== null && memory <= LOW_DEVICE_MEMORY_GB) cap = 1;
+  else if (isLowEndDevice()) cap = Math.min(cap, 1.5);
 
   return Math.min(dpr, cap);
 };

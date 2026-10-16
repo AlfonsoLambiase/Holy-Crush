@@ -1,3 +1,5 @@
+import * as Phaser from "phaser";
+
 import {allObjTextureKeys, getPieceKeysForStageLevel} from "@/settings/level-pieces";
 import {getUnlockedCount} from "@/settings/progress";
 
@@ -25,6 +27,8 @@ const STAGE_MAP_IMAGES: ImageKey[] = [
   "logo_stage_bg",
   "logo_stage_fill",
   "popupExitGame",
+  "btnConfirm",
+  "btnCancel",
 ];
 
 const GAME_CORE_IMAGES: ImageKey[] = [
@@ -76,9 +80,14 @@ const OUTRO_IMAGES: ImageKey[] = [
 ];
 
 /** Stesse chiavi del pack mappa. Rimuoverle all'uscita lascia glTexture null. */
-const MAP_SHARED_IMAGES = new Set<ImageKey>(["btnExitGame", "popupExitGame"]);
+const MAP_SHARED_IMAGES = new Set<ImageKey>([
+  "btnExitGame",
+  "popupExitGame",
+  "btnConfirm",
+  "btnCancel",
+]);
 
-const GAME_SPRITESHEETS: SpritesheetKey[] = ["starsEffect"];
+const GAME_SPRITESHEETS: SpritesheetKey[] = [];
 
 /** SFX di partita. Win/lose stanno nell'outro. */
 export const GAME_AUDIO_KEYS: AudioKey[] = [
@@ -195,6 +204,25 @@ export const loadGameAssets = (
   queueAudioLoads(scene, GAME_AUDIO_KEYS);
 };
 
+/** Smonta sprite partita e libera texture/audio di sessione (prima degli stop scene). */
+export const releaseGameSessionGpu = (
+  game: Phaser.Game,
+  textureHost: Phaser.Scene,
+  options?: {clearHostDisplay?: boolean},
+): void => {
+  game.sound.stopAll();
+
+  for (const key of [assetConf.scene.gameManager, assetConf.scene.game] as const) {
+    const scene = textureHost.scene.get(key) as Phaser.Scene | undefined;
+
+    scene?.children.removeAll(true);
+  }
+
+  if (options?.clearHostDisplay) textureHost.children.removeAll(true);
+
+  purgeGameSessionResources(textureHost);
+};
+
 /** Libera GPU/RAM del pack partita quando si torna alla mappa (file asset restano on disk). */
 export const purgeGameSessionResources = (scene: Phaser.Scene): void => {
   for (const key of GAME_CORE_IMAGES) {
@@ -218,7 +246,7 @@ export const purgeGameSessionResources = (scene: Phaser.Scene): void => {
     if (scene.textures.exists(key)) scene.textures.remove(key);
   }
 
-  const animKeys = ["animConfettiLeft", "animConfettiRight", assetConf.keyAnim.animStars];
+  const animKeys = ["animConfettiLeft", "animConfettiRight"];
 
   for (const animKey of animKeys) {
     if (scene.anims.exists(animKey)) scene.anims.remove(animKey);

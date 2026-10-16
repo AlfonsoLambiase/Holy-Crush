@@ -497,7 +497,7 @@ export function HomeScreen() {
           showWorld ? "home-shell-suspended invisible pointer-events-none" : ""
         }`}
       >
-      <HomeLightFall />
+      <HomeLightFall paused={showWorld} />
       <HomeDriftingClouds paused={showWorld} visible={isIntroDone} />
       <div
         className="absolute left-1/2 top-0 z-10 w-[82%] max-w-sm ease-out"

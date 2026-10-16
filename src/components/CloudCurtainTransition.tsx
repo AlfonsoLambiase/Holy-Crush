@@ -3,6 +3,7 @@
 import Image from "next/image";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 
+import {isLowEndDevice} from "@/settings/app-header-layout";
 import {playCloudOff, playCloudOn} from "@/settings/click";
 
 export const CLOUD_CURTAIN_GROUP_SRC = "/images/ui_home/clouds_group.png";
@@ -172,12 +173,14 @@ function CloudSide({
   side,
   isClosed,
   motion,
+  stackCount,
   stackHeight,
   onLayerTransitionEnd,
 }: {
   side: "left" | "right";
   isClosed: boolean;
   motion: CloudCurtainPhase;
+  stackCount: number;
   stackHeight: number;
   onLayerTransitionEnd?: (
     event: React.TransitionEvent<HTMLDivElement>,
@@ -192,7 +195,7 @@ function CloudSide({
       className={`cloud-curtain-side cloud-curtain-side--${side}`}
       style={{height: stackHeight, top: stackTop}}
     >
-      {Array.from({length: CLOUD_CURTAIN_STACK_COUNT}, (_, layerIndex) => (
+      {Array.from({length: stackCount}, (_, layerIndex) => (
         <CloudFloat
           key={`${side}-${layerIndex}`}
           isClosed={isClosed}
@@ -246,17 +249,22 @@ export function CloudCurtainTransition({
     [viewportWidth],
   );
 
-  const stackHeight = useMemo(
-    () => CLOUD_CURTAIN_GROUP_HEIGHT + (CLOUD_CURTAIN_STACK_COUNT - 1) * STACK_OVERLAP_PX,
+  const stackCount = useMemo(
+    () => (isLowEndDevice() ? 1 : CLOUD_CURTAIN_STACK_COUNT),
     [],
   );
 
+  const stackHeight = useMemo(
+    () => CLOUD_CURTAIN_GROUP_HEIGHT + (stackCount - 1) * STACK_OVERLAP_PX,
+    [stackCount],
+  );
+
   useEffect(() => {
-    if (hidden) return;
+    if (hidden || phase === "idle") return;
 
     const img = new window.Image();
     img.src = CLOUD_CURTAIN_GROUP_SRC;
-  }, [hidden]);
+  }, [hidden, phase]);
 
   useEffect(() => {
     if (phase === "idle") {
@@ -286,7 +294,7 @@ export function CloudCurtainTransition({
       if (event.target !== event.currentTarget) return;
 
       const current = phaseRef.current;
-      const lastIndex = CLOUD_CURTAIN_STACK_COUNT - 1;
+      const lastIndex = stackCount - 1;
 
       if (current === "closing" && layerIndex === lastIndex) {
         onClosingComplete?.();
@@ -297,7 +305,7 @@ export function CloudCurtainTransition({
         onOpeningComplete?.();
       }
     },
-    [onClosingComplete, onOpeningComplete],
+    [onClosingComplete, onOpeningComplete, stackCount],
   );
 
   if (hidden) return null;
@@ -328,10 +336,17 @@ export function CloudCurtainTransition({
         isClosed={wingsClosed}
         motion={phase}
         side="left"
+        stackCount={stackCount}
         stackHeight={stackHeight}
         onLayerTransitionEnd={handleLayerTransitionEnd}
       />
-      <CloudSide isClosed={wingsClosed} motion={phase} side="right" stackHeight={stackHeight} />
+      <CloudSide
+        isClosed={wingsClosed}
+        motion={phase}
+        side="right"
+        stackCount={stackCount}
+        stackHeight={stackHeight}
+      />
     </div>
   );
 }

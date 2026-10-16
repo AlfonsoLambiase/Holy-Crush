@@ -1,92 +1,103 @@
 import * as Phaser from "phaser";
 
-import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
-import {APP_FONT} from "../shared/config/font.const";
+import {isEffectsEnabled} from "@/settings/effects";
 
-const assetConf = CandyCrushAssetConf; //* Generalizzazione
+const MAX_ACTIVE_STARS = 64;
+
+const RING_MS = 820;
+
+/** Da game-manager: `min(cellW, cellH) / 92`. */
+const CELL_FROM_SCALE = 92;
+
+const paintRing = (
+  graphics: Phaser.GameObjects.Graphics,
+  radius: number,
+  lineWidth: number,
+  alpha: number,
+): void => {
+  graphics.clear();
+  graphics.lineStyle(lineWidth, 0xffffff, alpha);
+  graphics.strokeCircle(0, 0, radius);
+};
 
 export class StarsEffectManager {
   private scene: Phaser.Scene;
-  private frameRate: number = 20;
+  #active = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
   }
 
+  #spawnRing(
+    burst: Phaser.GameObjects.Container,
+    ringRadius: number,
+    ringStroke: number,
+    delayMs: number,
+    maxScale: number,
+  ): void {
+    const ring = this.scene.add.graphics();
+
+    paintRing(ring, ringRadius, ringStroke, 1);
+    burst.add(ring);
+    ring.setScale(0.001);
+    ring.setAlpha(1);
+
+    const repaint = (g: Phaser.GameObjects.Graphics) => {
+      const progress = Math.max(0.001, g.scaleX);
+      const thin = ringStroke * (0.72 + 0.28 / progress);
+
+      paintRing(g, ringRadius, thin, g.alpha);
+    };
+
+    this.scene.tweens.add({
+      targets: ring,
+      scale: {from: 0.001, to: maxScale},
+      duration: RING_MS,
+      ease: "Cubic.easeOut",
+      delay: delayMs,
+      onUpdate: (_tween, target) => repaint(target as Phaser.GameObjects.Graphics),
+    });
+
+    this.scene.tweens.add({
+      targets: ring,
+      alpha: {from: 1, to: 0},
+      duration: RING_MS,
+      ease: "Quad.easeIn",
+      delay: delayMs,
+      onUpdate: (_tween, target) => repaint(target as Phaser.GameObjects.Graphics),
+    });
+  }
+
   playAt(x: number, y: number, parent?: Phaser.GameObjects.Container, scale: number = 0.5): void {
-    const newAnimation = this.#createAnimation(
-      assetConf.keyAnim.animStars,
-      assetConf.spritesheet.starsEffect.key,
-      19,
-      x,
-      y,
-    );
+    if (!isEffectsEnabled()) return;
+    if (this.#active >= MAX_ACTIVE_STARS) return;
+
+    const burst = this.scene.add.container(x, y);
+
+    burst.setDepth(10_000);
+
+    const cell = Math.max(24, scale * CELL_FROM_SCALE);
+    const ringRadius = cell * 0.12;
+    const ringStroke = Math.max(2.5, cell * 0.046);
+
+    const outerPrimary = cell * 0.42;
+    const outerSecondary = cell * 0.37;
+
+    this.#spawnRing(burst, ringRadius, ringStroke, 0, outerPrimary / ringRadius);
+    this.#spawnRing(burst, ringRadius, ringStroke * 0.88, 110, outerSecondary / ringRadius);
 
     if (parent) {
-      parent.add(newAnimation);
-      parent.bringToTop(newAnimation);
+      parent.add(burst);
+      parent.bringToTop(burst);
     }
 
-    newAnimation.setVisible(true);
-    newAnimation.setScale(scale);
-    newAnimation.play(assetConf.keyAnim.animStars);
+    this.#active += 1;
 
-    this.scene.time.delayedCall((19 / this.frameRate) * 1000, () => {
-      if (newAnimation.active) newAnimation.destroy();
+    const lifeMs = RING_MS + 220;
+
+    this.scene.time.delayedCall(lifeMs, () => {
+      if (burst.active) burst.destroy(true);
+      this.#active = Math.max(0, this.#active - 1);
     });
-  }
-
-  // Avvia l'animazione delle stelle nella posizione del frutto
-  starsEffectAnimation(fruit: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image) {
-    const {x, y} = fruit;
-
-    this.playAt(x, y);
-
-    // metodo per creare testo +1 a caduta
-    this.scene.time.delayedCall(500, () => {
-      const text = this.scene.add.text(x, y, "+1", {
-        fontFamily: APP_FONT,
-        fontSize: "60px",
-        color: "#ffffff",
-        stroke: "#000", // imposta colore contorno
-        strokeThickness: 2, // imposta spessore contorno
-      });
-
-      text.setOrigin(0.5);
-      text.setDepth(3); // Depth maggiore per sovrapporlo
-
-      // Effetto "caduta" leggera
-      this.scene.tweens.add({
-        targets: text,
-        y: y + 40,
-        alpha: 0,
-        duration: 1000,
-        ease: "Sine.easeIn",
-        onComplete: () => {
-          text.destroy();
-        },
-      });
-    });
-  }
-
-  // Crea una nuova animazione nella scena alle coordinate date
-  #createAnimation(animKey: string, spriteKey: string, frameEnd: number, x: number, y: number) {
-    // Controlla se l'animazione esiste già, altrimenti la crea
-    if (!this.scene.anims.exists(animKey)) {
-      this.scene.anims.create({
-        key: animKey,
-        frames: this.scene.anims.generateFrameNumbers(spriteKey, {start: 0, end: frameEnd}),
-        frameRate: this.frameRate,
-        repeat: 0,
-      });
-    }
-
-    // Crea una nuova istanza dell'animazione
-    return this.scene.add
-      .sprite(x, y, spriteKey)
-      .setOrigin(0.5)
-      .setVisible(false)
-      .setScale(1)
-      .setDepth(2);
   }
 }

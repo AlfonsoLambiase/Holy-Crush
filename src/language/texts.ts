@@ -298,6 +298,13 @@ const UI_TEXTS: TextEntry[] = [
     fr: "Veux-tu terminer la partie?",
   },
   {
+    key: "exitToMenuTitle",
+    it: "Vuoi tornare al menu principale?",
+    en: "Do you want to return to the main menu?",
+    es: "¿Quieres volver al menú principal?",
+    fr: "Veux-tu revenir au menu principal?",
+  },
+  {
     key: "reloadTitle",
     it: "Vuoi riavviare la partita?",
     en: "Do you want to restart the game?",

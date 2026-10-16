@@ -4,6 +4,8 @@ import * as Phaser from "phaser";
 
 import {getCurrentLanguage, t} from "@/language";
 import type {BoosterId} from "@/settings/boosters";
+import {isLowEndDevice} from "@/settings/app-header-layout";
+import {isEffectsEnabled} from "@/settings/effects";
 import {getPieceKeysForStageLevel} from "@/settings/level-pieces";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 
@@ -905,7 +907,7 @@ export class GameManager extends Phaser.Scene {
       this.playBombShockwave(origin, spread);
 
       if (!hasBomb) {
-        this.cameras.main.shake(180, 0.006);
+        this.#maybeShake(180, 0.006);
         this.gameScene.audioManager.playAudio(
           assetConf.audio.explosion,
           EXPLOSION_AUDIO_MS,
@@ -921,7 +923,7 @@ export class GameManager extends Phaser.Scene {
     }
 
     if (id === "ultra") {
-      this.cameras.main.shake(180, 0.004);
+      this.#maybeShake(180, 0.004);
       this.gameScene.audioManager.playAudio(
         assetConf.audio.explosion,
         EXPLOSION_AUDIO_MS,
@@ -1117,6 +1119,14 @@ export class GameManager extends Phaser.Scene {
     return unique;
   }
 
+  #maybeShake(duration: number, intensity: number): void {
+    if (!isEffectsEnabled()) return;
+
+    const scale = isLowEndDevice() ? 0.55 : 1;
+
+    this.cameras.main.shake(duration, intensity * scale);
+  }
+
   private placeSpecial(cell: Cell, type: number): void {
     this.board[cell.r][cell.c] = type;
 
@@ -1160,7 +1170,7 @@ export class GameManager extends Phaser.Scene {
     }
 
     if (bombCenters.length) {
-      this.cameras.main.shake(140, 0.005);
+      this.#maybeShake(140, 0.005);
       this.gameScene.audioManager.playAudio(
         assetConf.audio.explosion,
         EXPLOSION_AUDIO_MS,
@@ -1184,7 +1194,7 @@ export class GameManager extends Phaser.Scene {
       return this.playRocketLaunch(rocket.cell, rocket.type, piece);
     });
 
-    const starBase = Math.min(this.cellW, this.cellH) / 184;
+    const starBase = Math.min(this.cellW, this.cellH) / 92;
     const tweens = matches
       .filter((cell) => !rocketKeys.has(`${cell.r},${cell.c}`))
       .map((cell) => {
@@ -1199,7 +1209,7 @@ export class GameManager extends Phaser.Scene {
         const isCenter =
           (instant != null && instant.r === cell.r && instant.c === cell.c) ||
           bombCenters.some((bomb) => bomb.r === cell.r && bomb.c === cell.c);
-        const starScale = starBase * (isCenter ? 2.2 : 1);
+        const starScale = starBase * (isCenter ? 1.35 : 1);
 
         return new Promise<void>((resolve) => {
           const pop = () => {
@@ -1257,6 +1267,7 @@ export class GameManager extends Phaser.Scene {
           }
 
           if (isInstant) {
+            this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase);
             image.destroy();
             resolve();
 
@@ -1265,6 +1276,7 @@ export class GameManager extends Phaser.Scene {
 
           this.mainContainer.bringToTop(image);
           this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase);
+
           this.tweens.killTweensOf(image);
           this.tweens.add({
             targets: image,
@@ -1343,7 +1355,7 @@ export class GameManager extends Phaser.Scene {
     piece: Phaser.GameObjects.Image | null,
   ): Promise<void> {
     const {x, y} = this.cellPos(cell);
-    const starScale = (Math.min(this.cellW, this.cellH) / 184) * 1.4;
+    const starScale = (Math.min(this.cellW, this.cellH) / 92) * 1.2;
 
     if (piece?.active) {
       this.tweens.killTweensOf(piece);

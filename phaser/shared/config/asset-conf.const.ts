@@ -95,19 +95,8 @@ export const CandyCrushAssetConf = {
       frameHeight: 177.5,
       key: "confetti_right",
     },
-
-    // for starsEffect
-    starsEffect: {
-      // 20
-      frameWidth: 184,
-      frameHeight: 184,
-      key: "starsEffect",
-    },
   },
-  keyAnim: {
-    // for starsEffect
-    animStars: "animStars",
-  },
+  keyAnim: {},
   font: {
     "CinzelDecorative-Regular": "Cinzel Decorative",
   },

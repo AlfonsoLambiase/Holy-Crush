@@ -264,7 +264,7 @@ const addWatchLabels = (
     phrase.setFontSize(`${fontSize}px`);
   }
 
-  stylePopupTitle(number, fontSize);
+  stylePopupBody(number, fontSize);
   stylePopupBody(phrase, fontSize);
 
   const width = number.width + phrase.width;

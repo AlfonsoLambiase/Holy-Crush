@@ -5,6 +5,11 @@ import {getCurrentLanguage, t} from "@/language";
 import {phaserImageScale, resolveHeaderMetrics} from "@/settings/app-header-layout";
 import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
 import {playClick} from "@/settings/click";
+import {
+  EXIT_POPUP_CHOICE_Y_RATIO,
+  EXIT_POPUP_TITLE_WRAP_RATIO,
+  EXIT_POPUP_TITLE_Y_RATIO,
+} from "@/settings/exit-popup-layout";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {popupPlateScale} from "../shared/popup-plate-scale";
@@ -12,20 +17,24 @@ import {animatePopupClose, animatePopupOpen} from "../shared/popup-motion";
 import {stylePopupTitle} from "../shared/popup-text";
 import {dynamicValueForViewport} from "../shared/viewport-scale";
 
+import {EventBus, PhaserEvents} from "../shared/event-bus";
+import {releaseGameSessionGpu} from "../shared/utils/load-assets";
+
 import {Game} from "./game";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
 const BUTTON_GAP_MIN = 26;
 const BUTTON_GAP_MAX = 48;
-const TITLE_Y_RATIO = -0.22;
+
+const TITLE_Y_RATIO = EXIT_POPUP_TITLE_Y_RATIO;
 const TITLE_FONT_MIN = 64;
 const TITLE_FONT_MAX = 82;
-const CHOICE_ROW_Y_RATIO = 0.16;
+const CHOICE_ROW_Y_RATIO = EXIT_POPUP_CHOICE_Y_RATIO;
 const PRESS_MS = 220; // stessa attesa del premuto sugli altri bottoni
 const PRESS_SCALE = 0.92;
 
-type PopupMode = "exit" | "reload";
+type PopupMode = "exit" | "reload" | "home";
 
 export class ExitManager extends Phaser.Scene {
   private width!: number;
@@ -170,7 +179,7 @@ export class ExitManager extends Phaser.Scene {
       t("exitTitle", language),
       {
         fontSize: titleSize,
-        wordWrapWidth: this.popupPanel.width * 0.78,
+        wordWrapWidth: this.popupPanel.width * EXIT_POPUP_TITLE_WRAP_RATIO,
       },
     );
 
@@ -247,6 +256,14 @@ export class ExitManager extends Phaser.Scene {
         return;
       }
 
+      if (this.#mode === "home") {
+        this.choiceLocked = false;
+        this.scene.stop(assetConf.scene.exitManager);
+        EventBus.emit(PhaserEvents.EXIT_GAME);
+
+        return;
+      }
+
       this.#backToStage();
     });
   }
@@ -255,7 +272,7 @@ export class ExitManager extends Phaser.Scene {
     const game = this.scene.get(assetConf.scene.game) as Game;
 
     game?.theme?.stop();
-    this.sound.resumeAll();
+    releaseGameSessionGpu(this.game, this);
     this.scene.stop(assetConf.scene.outro);
     this.scene.stop(assetConf.scene.gameManager);
     this.scene.stop(assetConf.scene.timerManager);
@@ -301,11 +318,16 @@ export class ExitManager extends Phaser.Scene {
     this.#layoutChoiceButtons();
     const titleSize = this.#scaleOf(TITLE_FONT_MIN, TITLE_FONT_MAX);
 
-    this.titleText?.setText(
-      t(this.#mode === "reload" ? "reloadTitle" : "exitTitle", getCurrentLanguage()),
-    );
+    const titleKey =
+      this.#mode === "reload"
+        ? "reloadTitle"
+        : this.#mode === "home"
+          ? "exitToMenuTitle"
+          : "exitTitle";
+
+    this.titleText?.setText(t(titleKey, getCurrentLanguage()));
     this.titleText?.setFontSize(`${titleSize}px`);
-    this.titleText?.setWordWrapWidth(this.popupPanel.width * 0.78);
+    this.titleText?.setWordWrapWidth(this.popupPanel.width * EXIT_POPUP_TITLE_WRAP_RATIO);
     if (this.titleText) stylePopupTitle(this.titleText, titleSize);
     this.choiceLocked = false;
     this.#dismissReady = false;
@@ -326,8 +348,10 @@ export class ExitManager extends Phaser.Scene {
     const manager = scene.scene.get(assetConf.scene.exitManager) as ExitManager;
     const running = scene.scene.isActive(assetConf.scene.exitManager);
 
-    scene.scene.pause(assetConf.scene.game);
-    scene.sound.pauseAll();
+    if (scene.scene.isActive(assetConf.scene.game)) {
+      scene.scene.pause(assetConf.scene.game);
+      scene.sound.pauseAll();
+    }
 
     if (!running) {
       scene.scene.launch(assetConf.scene.exitManager, {popupMode: mode});

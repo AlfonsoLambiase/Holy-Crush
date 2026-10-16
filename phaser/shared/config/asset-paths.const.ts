@@ -69,7 +69,7 @@ const FILE_NAME: Record<string, string> = {
 const modeFolder = (): string => `${IMAGES}/${getModeConfig().folder}`;
 
 const folderFor = (key: string): string => {
-  if (key === "starsEffect" || key === "sparklingStars") return `${IMAGES}/effects`;
+  if (key === "sparklingStars") return `${IMAGES}/effects`;
   if (HOME_UI_KEYS.has(key)) return `${IMAGES}/ui_home`;
   if (MODE_STAGE_UI_KEYS.has(key)) return `${modeFolder()}/stage_ui`;
   if (UI_GAME_KEYS.has(key)) return `${IMAGES}/ui_game`;

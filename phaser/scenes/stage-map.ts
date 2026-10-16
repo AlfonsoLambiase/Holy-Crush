@@ -23,6 +23,8 @@ import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 import {loadStageMapBootAssets, purgeIdleMapTextures} from "../shared/utils/load-assets";
 
+import {ExitManager} from "./exit-manager";
+
 const assetConf = CandyCrushAssetConf;
 
 const LEVEL_SCALE = 0.11 * 1.2;
@@ -528,7 +530,8 @@ export class StageMapScene extends Phaser.Scene {
       assetConf.image.btnExitGame,
       corners.buttonScale,
       () => {
-        EventBus.emit(PhaserEvents.EXIT_GAME);
+        playClick();
+        (this.scene.get(assetConf.scene.exitManager) as ExitManager).openPopup(this, "home");
       },
     );
 
