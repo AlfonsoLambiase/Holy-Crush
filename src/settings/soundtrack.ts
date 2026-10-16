@@ -2,7 +2,7 @@ import {isMusicEnabled} from "./music";
 import {getWorld, getWorldIndexForStage} from "./world-map";
 
 const TRACKS = {
-  home: {src: "/sounds/ost_0.mp3", volume: 0.65},
+  home: {src: "/sounds/ost_0.mp3", volume: 0.5},
   game: {src: "/sounds/ost_2.mp3", volume: 0.32},
   world0: {src: "/sounds/ost_1.mp3", volume: 0.65},
   world1: {src: "/sounds/ost_4.mp3", volume: 0.65},

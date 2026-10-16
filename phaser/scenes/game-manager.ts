@@ -1219,7 +1219,7 @@ export class GameManager extends Phaser.Scene {
               return;
             }
 
-            this.starsEffect.playAt(piece.x, piece.y, this.mainContainer, starScale);
+            this.starsEffect.playAt(piece.x, piece.y, this.mainContainer, starScale, isCenter);
             this.tweens.killTweensOf(piece);
 
             if (isCenter) {
@@ -1267,7 +1267,7 @@ export class GameManager extends Phaser.Scene {
           }
 
           if (isInstant) {
-            this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase);
+            this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase, true);
             image.destroy();
             resolve();
 
@@ -1275,7 +1275,7 @@ export class GameManager extends Phaser.Scene {
           }
 
           this.mainContainer.bringToTop(image);
-          this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase);
+          this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase, isInstant);
 
           this.tweens.killTweensOf(image);
           this.tweens.add({
@@ -1371,11 +1371,11 @@ export class GameManager extends Phaser.Scene {
         ease: "Back.easeOut",
       });
 
-      this.starsEffect.playAt(piece.x, piece.y, this.mainContainer, starScale);
+      this.starsEffect.playAt(piece.x, piece.y, this.mainContainer, starScale, true);
       piece.destroy();
     } else {
       await this.delay(ROCKET_ZOOM_MS);
-      this.starsEffect.playAt(x, y, this.mainContainer, starScale);
+      this.starsEffect.playAt(x, y, this.mainContainer, starScale, true);
     }
 
     await this.playRocketFly(cell, type);

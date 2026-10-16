@@ -1,103 +1,134 @@
 import * as Phaser from "phaser";
 
+import {isLowEndDevice} from "@/settings/app-header-layout";
 import {isEffectsEnabled} from "@/settings/effects";
 
-const MAX_ACTIVE_STARS = 64;
-
-const RING_MS = 820;
+const RING_MS = 720;
+const POOL_SIZE = 16;
+const RING_TEXTURE_KEY = "burst-pop-ring-v2";
+const RING_TEX_SIZE = 128;
+const RING_TEX_RADIUS = 50;
+const RING_TEX_STROKE = 16;
 
 /** Da game-manager: `min(cellW, cellH) / 92`. */
 const CELL_FROM_SCALE = 92;
 
-const paintRing = (
-  graphics: Phaser.GameObjects.Graphics,
-  radius: number,
-  lineWidth: number,
-  alpha: number,
-): void => {
-  graphics.clear();
-  graphics.lineStyle(lineWidth, 0xffffff, alpha);
-  graphics.strokeCircle(0, 0, radius);
+const maxActiveBursts = (): number => (isLowEndDevice() ? 10 : 16);
+
+const ensureRingTexture = (scene: Phaser.Scene): void => {
+  if (scene.textures.exists(RING_TEXTURE_KEY)) return;
+
+  const canvas = document.createElement("canvas");
+
+  canvas.width = RING_TEX_SIZE;
+  canvas.height = RING_TEX_SIZE;
+
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) return;
+
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = RING_TEX_STROKE;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(RING_TEX_SIZE / 2, RING_TEX_SIZE / 2, RING_TEX_RADIUS, 0, Math.PI * 2);
+  ctx.stroke();
+
+  scene.textures.addCanvas(RING_TEXTURE_KEY, canvas);
+};
+
+type PooledBurst = {
+  container: Phaser.GameObjects.Container;
+  ring: Phaser.GameObjects.Image;
+  busy: boolean;
 };
 
 export class StarsEffectManager {
   private scene: Phaser.Scene;
+  #pool: PooledBurst[] = [];
   #active = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+    ensureRingTexture(scene);
   }
 
-  #spawnRing(
-    burst: Phaser.GameObjects.Container,
-    ringRadius: number,
-    ringStroke: number,
-    delayMs: number,
-    maxScale: number,
-  ): void {
-    const ring = this.scene.add.graphics();
+  #ensurePool(): void {
+    ensureRingTexture(this.scene);
 
-    paintRing(ring, ringRadius, ringStroke, 1);
-    burst.add(ring);
+    while (this.#pool.length < POOL_SIZE) {
+      const container = this.scene.add.container(0, 0).setVisible(false).setDepth(10_000);
+      const ring = this.scene.add.image(0, 0, RING_TEXTURE_KEY).setOrigin(0.5);
+
+      container.add(ring);
+      this.#pool.push({container, ring, busy: false});
+    }
+  }
+
+  #acquire(): PooledBurst | null {
+    this.#ensurePool();
+
+    if (this.#active >= maxActiveBursts()) return null;
+
+    return this.#pool.find((slot) => !slot.busy) ?? null;
+  }
+
+  #release(slot: PooledBurst): void {
+    this.scene.tweens.killTweensOf(slot.ring);
+    slot.ring.setScale(0.001);
+    slot.ring.setAlpha(1);
+    slot.container.setVisible(false);
+    slot.busy = false;
+    this.#active = Math.max(0, this.#active - 1);
+  }
+
+  /**
+   * @param emphasis Su device deboli, se il pool è quasi pieno passa true solo per centri bomba/special.
+   */
+  playAt(
+    x: number,
+    y: number,
+    parent?: Phaser.GameObjects.Container,
+    scale: number = 0.5,
+    emphasis = false,
+  ): void {
+    if (!isEffectsEnabled()) return;
+
+    const cap = maxActiveBursts();
+
+    if (isLowEndDevice() && !emphasis && this.#active >= Math.max(1, cap - 2)) return;
+
+    const slot = this.#acquire();
+
+    if (!slot) return;
+
+    const cell = Math.max(24, scale * CELL_FROM_SCALE);
+    const outer = cell * 0.58;
+    const endScale = (outer * 2) / RING_TEX_SIZE;
+
+    const {container, ring} = slot;
+
+    slot.busy = true;
+    this.#active += 1;
+
     ring.setScale(0.001);
     ring.setAlpha(1);
 
-    const repaint = (g: Phaser.GameObjects.Graphics) => {
-      const progress = Math.max(0.001, g.scaleX);
-      const thin = ringStroke * (0.72 + 0.28 / progress);
-
-      paintRing(g, ringRadius, thin, g.alpha);
-    };
-
-    this.scene.tweens.add({
-      targets: ring,
-      scale: {from: 0.001, to: maxScale},
-      duration: RING_MS,
-      ease: "Cubic.easeOut",
-      delay: delayMs,
-      onUpdate: (_tween, target) => repaint(target as Phaser.GameObjects.Graphics),
-    });
-
-    this.scene.tweens.add({
-      targets: ring,
-      alpha: {from: 1, to: 0},
-      duration: RING_MS,
-      ease: "Quad.easeIn",
-      delay: delayMs,
-      onUpdate: (_tween, target) => repaint(target as Phaser.GameObjects.Graphics),
-    });
-  }
-
-  playAt(x: number, y: number, parent?: Phaser.GameObjects.Container, scale: number = 0.5): void {
-    if (!isEffectsEnabled()) return;
-    if (this.#active >= MAX_ACTIVE_STARS) return;
-
-    const burst = this.scene.add.container(x, y);
-
-    burst.setDepth(10_000);
-
-    const cell = Math.max(24, scale * CELL_FROM_SCALE);
-    const ringRadius = cell * 0.12;
-    const ringStroke = Math.max(2.5, cell * 0.046);
-
-    const outerPrimary = cell * 0.42;
-    const outerSecondary = cell * 0.37;
-
-    this.#spawnRing(burst, ringRadius, ringStroke, 0, outerPrimary / ringRadius);
-    this.#spawnRing(burst, ringRadius, ringStroke * 0.88, 110, outerSecondary / ringRadius);
+    container.setPosition(x, y);
+    container.setVisible(true);
 
     if (parent) {
-      parent.add(burst);
-      parent.bringToTop(burst);
+      if (container.parentContainer !== parent) parent.add(container);
+      parent.bringToTop(container);
     }
 
-    this.#active += 1;
-
-    const lifeMs = RING_MS + 220;
-
-    this.scene.time.delayedCall(lifeMs, () => {
-      if (burst.active) burst.destroy(true);
-      this.#active = Math.max(0, this.#active - 1);
+    this.scene.tweens.add({
+      targets: ring,
+      scale: {from: 0.001, to: endScale},
+      alpha: {from: 1, to: 0},
+      duration: RING_MS,
+      ease: "Cubic.easeOut",
+      onComplete: () => this.#release(slot),
     });
   }
 }
