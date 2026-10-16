@@ -4,16 +4,31 @@ import * as Phaser from "phaser";
 import {Game} from "../scenes/game";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
-import {resolveHeaderMetrics} from "@/settings/app-header-layout";
-import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
+import {addCountBadge} from "../shared/count-badge";
 
 const assetConf = CandyCrushAssetConf; //* Generalizzazione
 
-const MOVES_FONT_RATIO = 0.42;
-const MOVES_TEXT_SCALE = 1;
 const MOVES_PULSE_SCALE = 1.25;
+//* Centro dell'ultimo riquadro nel png 1080×350 (origine in alto a sinistra).
+const MOVES_SLOT = {x: 913, y: 208};
+const MOVES_FONT_ONE = 96;
+const MOVES_FONT_TWO = 62;
+//* Inizio della fascia bianca e fine d'area prima del riquadro mosse.
+const GOAL_WHITE_START = 348;
+const GOAL_WHITE_END = 836;
+const GOAL_ICON = 100;
+const GOAL_GAP = 16;
+const GOAL_TICK_MS = 50;
 
 export type GoalChip = {icon: string; left: number};
+
+type GoalSlot = {
+  icon: string;
+  badge: ReturnType<typeof addCountBadge>;
+  shown: number;
+  target: number;
+  tick?: Phaser.Time.TimerEvent;
+};
 
 export class UIManager {
   private scene: Phaser.Scene;
@@ -26,9 +41,10 @@ export class UIManager {
   headerCenterY = 0;
   private headerBottom = 0;
   private goalsContainer!: Phaser.GameObjects.Container;
-  private movesContainer!: Phaser.GameObjects.Container;
+  private scoreBar!: Phaser.GameObjects.Container;
   private movesText!: Phaser.GameObjects.Text;
-  private movesFontSize = 48;
+  #barW = 1080;
+  #goalSlots: GoalSlot[] = [];
 
   helpUsed: number = 0;
   differenceTryLimit: number = 1; // limite massimo tasto aiuto
@@ -68,64 +84,53 @@ export class UIManager {
       .setDisplaySize(this.scene.scale.width, this.scene.scale.height);
   }
 
-  #headerMetrics() {
-    const safeTop = Number(this.scene.registry.get("safeTop")) || 0;
-
-    return resolveHeaderMetrics(
-      "inGame",
-      this.scene.scale.width,
-      this.scene.scale.height,
-      safeTop,
-      BTN_READ_NATIVE_HEIGHT,
-    );
-  }
-
   #createHeader() {
-    const metrics = this.#headerMetrics();
-    const slot = metrics.logoHeartPhysical;
+    const {width} = this.scene.scale;
+    const bar = this.scene.add.image(0, 0, assetConf.image.containerScore).setOrigin(0.5, 0);
+    const scale = width / bar.width;
 
-    this.headerCenterY = metrics.headerCenterY;
-    this.headerBottom = metrics.headerCenterY + slot / 2 + metrics.marginTop * 0.35;
+    this.scoreBar = this.scene.add.container(width / 2, 0, [bar]);
+    this.scoreBar.setScrollFactor(0).setDepth(9).setScale(scale);
 
-    this.goalsContainer = this.scene.add.container(this.scene.scale.width / 2, this.headerCenterY);
-    this.goalsContainer.setScrollFactor(0).setDepth(10);
+    this.#barW = bar.width;
+    this.headerCenterY = MOVES_SLOT.y * scale;
+    this.headerBottom = bar.height * scale;
+
+    this.goalsContainer = this.scene.add.container(0, 0);
+    this.scoreBar.add(this.goalsContainer);
     this.scoreContainer = this.goalsContainer;
 
-    this.movesContainer = this.scene.add.container(0, this.headerCenterY);
-    this.movesContainer.setScrollFactor(0).setDepth(10);
-
-    const movesBg = this.scene.add.image(0, 0, assetConf.image.containerScore).setOrigin(0.5);
-
-    movesBg.setScale(slot / movesBg.height);
-    this.movesFontSize = Math.round(slot * MOVES_FONT_RATIO);
     this.movesText = this.scene.add
-      .text(0, 0, "0", {
+      .text(MOVES_SLOT.x - bar.width / 2, MOVES_SLOT.y, "0", {
         fontFamily: APP_FONT,
-        fontSize: `${this.movesFontSize}px`,
+        fontSize: `${MOVES_FONT_ONE}px`,
         color: "#ffd76a",
         stroke: "#2a160ccc",
-        strokeThickness: Math.max(2, Math.round(this.movesFontSize * 0.08)),
+        strokeThickness: Math.max(2, Math.round(MOVES_FONT_ONE * 0.08)),
       })
       .setOrigin(0.5);
 
-    this.movesContainer.add([movesBg, this.movesText]);
-    this.movesContainer.setPosition(
-      this.scene.scale.width - metrics.insetX - movesBg.displayWidth / 2,
-      this.headerCenterY,
-    );
+    this.scoreBar.add(this.movesText);
+    this.#fitMoves(0);
   }
 
   //* La griglia parte sotto l'elemento più basso della testata
   getHeaderBottom(): number {
-    return Math.max(
-      this.headerBottom,
-      this.goalsContainer.getBounds().bottom,
-      this.movesContainer.getBounds().bottom,
-    );
+    return Math.max(this.headerBottom, this.goalsContainer.getBounds().bottom);
   }
 
   showMission(goals: GoalChip[], moves: number): void {
-    this.#drawGoals(goals);
+    const same =
+      this.#goalSlots.length > 0 &&
+      this.#goalSlots.length === goals.length &&
+      this.#goalSlots.every((slot, index) => slot.icon === goals[index]?.icon);
+
+    if (same) {
+      goals.forEach((goal, index) => this.#tickGoal(this.#goalSlots[index], goal.left));
+    } else {
+      this.#drawGoals(goals);
+    }
+
     this.setMoves(moves, false);
   }
 
@@ -133,71 +138,93 @@ export class UIManager {
     const value = Math.max(0, moves);
 
     this.movesText.setText(`${value}`);
-    this.movesText.setScale(MOVES_TEXT_SCALE);
+    this.#fitMoves(value);
 
     if (!pulse) return;
 
     this.scene.tweens.killTweensOf(this.movesText);
     this.scene.tweens.add({
       targets: this.movesText,
-      scale: {from: MOVES_TEXT_SCALE, to: MOVES_TEXT_SCALE * MOVES_PULSE_SCALE},
+      scale: {from: 1, to: MOVES_PULSE_SCALE},
       duration: 160,
       ease: "Quad.easeOut",
       yoyo: true,
     });
   }
 
+  #fitMoves(value: number): void {
+    const size = `${value}`.length <= 1 ? MOVES_FONT_ONE : MOVES_FONT_TWO;
+
+    this.movesText.setScale(1);
+    this.movesText.setFontSize(size);
+    this.movesText.setStroke("#2a160ccc", Math.max(2, Math.round(size * 0.08)));
+  }
+
   #drawGoals(goals: GoalChip[]): void {
+    this.#goalSlots.forEach((slot) => slot.tick?.remove(false));
+    this.#goalSlots = [];
     this.goalsContainer.removeAll(true);
     this.goalsContainer.setScale(1);
+    this.goalsContainer.setPosition(GOAL_WHITE_START - this.#barW / 2, 0);
 
-    const metrics = this.#headerMetrics();
-    const slot = metrics.logoHeartPhysical;
-    const iconSize = slot * 0.72;
-    const gap = iconSize * 0.55;
-    const fontSize = Math.round(slot * 0.36);
-    let cursor = 0;
-    const nodes: Phaser.GameObjects.GameObject[] = [];
+    let x = GOAL_ICON / 2;
+    const y = MOVES_SLOT.y;
 
     for (const goal of goals) {
-      if (this.scene.textures.exists(goal.icon)) {
-        const icon = this.scene.add.image(cursor, 0, goal.icon).setOrigin(0, 0.5);
-        const fit = Math.min(iconSize / icon.width, iconSize / icon.height);
+      if (!this.scene.textures.exists(goal.icon)) continue;
 
-        icon.setScale(fit);
-        nodes.push(icon);
-        cursor += icon.displayWidth + gap * 0.35;
-      }
+      const icon = this.scene.add.image(x, y, goal.icon).setOrigin(0.5);
+      const fit = Math.min(GOAL_ICON / icon.width, GOAL_ICON / icon.height);
 
-      const label = this.scene.add
-        .text(cursor, 0, `${goal.left}`, {
-          fontFamily: APP_FONT,
-          fontSize: `${fontSize}px`,
-          color: "#fff8dc",
-          stroke: "#3d2614",
-          strokeThickness: Math.max(2, Math.round(fontSize * 0.08)),
-        })
-        .setOrigin(0, 0.5);
+      icon.setScale(fit);
+      this.goalsContainer.add(icon);
 
-      nodes.push(label);
-      cursor += label.width + gap;
+      const left = Math.max(0, goal.left);
+      const badge = addCountBadge(
+        this.scene,
+        x + icon.displayWidth * 0.38,
+        y + icon.displayHeight * 0.16,
+        left,
+        GOAL_ICON,
+        12,
+        this.goalsContainer,
+        true,
+      );
+
+      badge.objects.forEach((obj) => this.goalsContainer.bringToTop(obj));
+      this.#goalSlots.push({icon: goal.icon, badge, shown: left, target: left});
+      x += GOAL_ICON + GOAL_GAP;
     }
 
-    const width = Math.max(0, cursor - gap);
+    const used = x - GOAL_GAP + GOAL_ICON / 2;
+    const room = GOAL_WHITE_END - GOAL_WHITE_START;
 
-    for (const node of nodes) {
-      if ("x" in node && typeof node.x === "number") node.x -= width / 2;
-    }
+    if (used > room && used > 0) this.goalsContainer.setScale(room / used);
+  }
 
-    this.goalsContainer.add(nodes);
+  #tickGoal(slot: GoalSlot, next: number): void {
+    slot.target = Math.max(0, next);
 
-    const movesWidth = this.movesContainer.getBounds().width;
-    const maxWidth = this.scene.scale.width - metrics.insetX * 2 - movesWidth * 2 - gap;
-    const bounds = this.goalsContainer.getBounds();
+    if (slot.shown === slot.target) return;
+    if (slot.tick) return;
 
-    if (bounds.width > maxWidth && bounds.width > 0) {
-      this.goalsContainer.setScale(maxWidth / bounds.width);
-    }
+    slot.tick = this.scene.time.addEvent({
+      delay: GOAL_TICK_MS,
+      loop: true,
+      callback: () => {
+        if (slot.shown <= slot.target) {
+          slot.shown = slot.target;
+          slot.badge.setCount(slot.shown);
+          slot.tick?.remove(false);
+          slot.tick = undefined;
+
+          return;
+        }
+
+        slot.shown -= 1;
+        slot.badge.setCount(slot.shown);
+      },
+    });
   }
 
   #createIconHelp() {

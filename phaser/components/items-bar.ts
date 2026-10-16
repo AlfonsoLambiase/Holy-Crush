@@ -11,7 +11,7 @@ import {
 import {phaserImageScale, resolveHeaderMetrics} from "@/settings/app-header-layout";
 import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
 import {playClick, playMaxi, playMega, playNoTouch, playSuper, playUltra} from "@/settings/click";
-import {getCellSize, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
+import {getCellSize} from "../shared/config/grid-generation.const";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import type {Cell} from "../shared/match3";
 import {HEADER_INSET_MAX, HEADER_INSET_MIN} from "../shared/config/layout.const";
@@ -40,6 +40,8 @@ const DEPTH_ZONE = 13;
 const SHOWCASE_DEPTH = 60;
 const SHOWCASE_PULSE_SCALE = 1.1;
 const SHOWCASE_PULSE_MS = 520;
+//* Un filo più piccoli degli obj in griglia (0.9).
+const ICON_FIT = 0.72;
 const SLOTS: {
   id: BoosterId;
   disabled: string;
@@ -130,11 +132,12 @@ export class ItemsBar {
 
     if (!this.scene.textures.exists(frameKey) || !this.scene.textures.exists(fillKey)) return height;
 
-    let iconSize = getCellSize(width) * GRID_PIECE_FIT;
+    const cell = getCellSize(width);
+    const pieceSize = cell * ICON_FIT;
     const frameSrc = this.scene.textures.get(frameKey).getSourceImage() as {width: number; height: number};
-    let frameScale = iconSize / frameSrc.height;
-    let frameW = frameSrc.width * frameScale;
-    let frameH = frameSrc.height * frameScale;
+    const frameScale = cell / frameSrc.height;
+    const frameW = frameSrc.width * frameScale;
+    const frameH = frameSrc.height * frameScale;
     let gap = frameW * 0.14;
     const bottomMargin = this.scaleOf(16, 36);
     const sideInset = this.scaleOf(HEADER_INSET_MIN, HEADER_INSET_MAX);
@@ -172,16 +175,9 @@ export class ItemsBar {
     const availableW = width - sideInset * 2;
     const rowBudget = availableW - (hasSettings ? settingsGap + settingsW * 0.72 : 0);
 
-    if (slotsSpan > rowBudget && rowBudget > 0) {
-      const fit = rowBudget / slotsSpan;
-
-      frameW *= fit;
-      frameH *= fit;
-      frameScale *= fit;
-      iconSize *= fit;
-      gap = frameW * 0.14;
-      slotsSpan = frameW * slotCount + gap * Math.max(0, slotCount - 1);
-      y = height - bottomMargin - frameH / 2;
+    if (slotsSpan > rowBudget && rowBudget > 0 && slotCount > 1) {
+      gap = Math.max(frameW * 0.04, gap - (slotsSpan - rowBudget) / (slotCount - 1));
+      slotsSpan = frameW * slotCount + gap * (slotCount - 1);
     }
 
     let rowW = slotsSpan + (hasSettings ? settingsGap + settingsW : 0);
@@ -215,8 +211,11 @@ export class ItemsBar {
 
       const x = slotX[index];
       const count = getBoosterCount(spec.id);
-      const iconSrc = this.scene.textures.get(spec.disabled).getSourceImage() as {height: number};
-      const iconScale = (iconSize * 0.72) / iconSrc.height;
+      const iconSrc = this.scene.textures.get(spec.disabled).getSourceImage() as {
+        width: number;
+        height: number;
+      };
+      const iconScale = Math.min(cell / iconSrc.width, cell / iconSrc.height) * ICON_FIT;
 
       const frame = this.scene.add
         .image(x, y, frameKey)
@@ -289,7 +288,7 @@ export class ItemsBar {
         iconDisabled,
         images,
         layers: [...images, ...badge.objects],
-        size: iconSize * 0.72,
+        size: pieceSize,
         frameW,
         x,
         y,

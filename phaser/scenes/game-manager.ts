@@ -180,6 +180,7 @@ export class GameManager extends Phaser.Scene {
       (id, cell) => this.tryDropBooster(id, cell),
     );
     this.#itemsBar.create();
+    this.presentMission();
     this.layoutGrid();
 
     this.time.delayedCall(50, () => {
@@ -363,13 +364,22 @@ export class GameManager extends Phaser.Scene {
     );
   }
 
-  #notePop(count: number): void {
-    if (this.#scripted || count <= 0) return;
+  #collectHits(cells: Cell[]): number {
+    const icon = this.#goals.find((goal) => goal.kind === "collect")?.icon;
 
-    if (this.#goals.some((goal) => goal.kind === "collect")) {
-      this.#collectLeft = Math.max(0, this.#collectLeft - count);
-    }
+    if (!icon) return 0;
 
+    return cells.reduce((total, cell) => {
+      const type = this.board[cell.r]?.[cell.c];
+
+      return type != null && this.textureKey(type) === icon ? total + 1 : total;
+    }, 0);
+  }
+
+  #notePop(cells: Cell[]): void {
+    if (this.#scripted || cells.length === 0) return;
+
+    this.#collectLeft = Math.max(0, this.#collectLeft - this.#collectHits(cells));
     this.#pushMission();
   }
 
@@ -825,6 +835,8 @@ export class GameManager extends Phaser.Scene {
         ? [this.playRocketFly(origin, ROCKET_H), this.playRocketFly(origin, ROCKET_V)]
         : [];
 
+    this.#notePop(pop);
+
     await Promise.all([
       this.destroyMatches(
         pop,
@@ -839,7 +851,6 @@ export class GameManager extends Phaser.Scene {
 
     this.syncArt();
     this.stackSprites();
-    this.#notePop(pop.length);
     this.gameScene.audioManager.playAudio(assetConf.audio.success);
 
     if (this.#goalReached()) {
@@ -1026,13 +1037,13 @@ export class GameManager extends Phaser.Scene {
 
       preferred = undefined;
 
+      this.#notePop(pop);
       await this.destroyMatches(pop, bombCenters, rocketCenters, this.peelArt());
       this.syncArt();
 
       for (const spawn of spawns) this.placeSpecial(spawn.cell, spawn.type);
 
       this.stackSprites();
-      this.#notePop(pop.length);
       this.gameScene.audioManager.playAudio(assetConf.audio.success);
 
       if (this.#goalReached()) {
