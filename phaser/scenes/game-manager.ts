@@ -18,7 +18,6 @@ import {
   type GuidedMove,
 } from "../tutorial/first-level-script";
 import {shouldShowTutorial, TutorialScreen} from "../tutorial/tutorial";
-import {TUTORIAL_GRID} from "../tutorial/tutorial-grid";
 import {createBoardPlate, destroyBoardPlate} from "../shared/board-frame";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
@@ -160,7 +159,7 @@ export class GameManager extends Phaser.Scene {
     const level = Number.isFinite(selected) && selected > 0 ? selected : getUnlockedCount();
     this.#pieceKeys = getPieceKeysForStageLevel(level, getStageIndex());
     const tutorial = shouldShowTutorial(level);
-    const shape = tutorial ? TUTORIAL_GRID : getGridForLevel(level, getStageIndex());
+    const shape = getGridForLevel(level, getStageIndex());
 
     this.#shape = shape;
     this.#armMission(shape);
