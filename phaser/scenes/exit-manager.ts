@@ -9,6 +9,7 @@ import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
 import {popupPlateScale} from "../shared/popup-plate-scale";
 import {animatePopupClose, animatePopupOpen} from "../shared/popup-motion";
+import {stylePopupTitle} from "../shared/popup-text";
 import {dynamicValueForViewport} from "../shared/viewport-scale";
 
 import {Game} from "./game";
@@ -161,13 +162,14 @@ export class ExitManager extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(101);
 
+    const titleSize = this.#scaleOf(TITLE_FONT_MIN, TITLE_FONT_MAX);
+
     this.titleText = this.#addLabel(
       0,
       this.popupPanel.height * TITLE_Y_RATIO,
       t("exitTitle", language),
       {
-        fontSize: this.#scaleOf(TITLE_FONT_MIN, TITLE_FONT_MAX),
-        color: "#ffd76a",
+        fontSize: titleSize,
         wordWrapWidth: this.popupPanel.width * 0.78,
       },
     );
@@ -275,20 +277,21 @@ export class ExitManager extends Phaser.Scene {
     x: number,
     y: number,
     text: string,
-    {fontSize, color, wordWrapWidth}: {fontSize: number; color: string; wordWrapWidth?: number},
+    {fontSize, wordWrapWidth}: {fontSize: number; wordWrapWidth?: number},
   ) {
-    return this.add
+    const label = this.add
       .text(x, y, text, {
         fontFamily: APP_FONT,
         fontSize: `${fontSize}px`,
-        color,
         align: "center",
         wordWrap: wordWrapWidth ? {width: wordWrapWidth} : undefined,
-        stroke: "#3d2614",
-        strokeThickness: 5,
       })
       .setOrigin(0.5)
       .setDepth(103);
+
+    stylePopupTitle(label, fontSize);
+
+    return label;
   }
 
   showPopup(mode: PopupMode = "exit") {
@@ -296,11 +299,14 @@ export class ExitManager extends Phaser.Scene {
     this.#popupBaseScale = popupPlateScale(this, assetConf.image.popupExitGame);
     this.popupContainer?.setScale(this.#popupBaseScale);
     this.#layoutChoiceButtons();
+    const titleSize = this.#scaleOf(TITLE_FONT_MIN, TITLE_FONT_MAX);
+
     this.titleText?.setText(
       t(this.#mode === "reload" ? "reloadTitle" : "exitTitle", getCurrentLanguage()),
     );
-    this.titleText?.setFontSize(`${this.#scaleOf(TITLE_FONT_MIN, TITLE_FONT_MAX)}px`);
+    this.titleText?.setFontSize(`${titleSize}px`);
     this.titleText?.setWordWrapWidth(this.popupPanel.width * 0.78);
+    if (this.titleText) stylePopupTitle(this.titleText, titleSize);
     this.choiceLocked = false;
     this.#dismissReady = false;
     this.#closing = false;

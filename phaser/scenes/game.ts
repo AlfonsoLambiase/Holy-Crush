@@ -155,6 +155,7 @@ export class Game extends Phaser.Scene {
       scale: popupPlateScale(host, assetConf.image.popupExitGame),
       adId: "moves",
       dim: 0.72,
+      hideAdLabel: true,
       onWatch: () => {
         watched = true;
       },

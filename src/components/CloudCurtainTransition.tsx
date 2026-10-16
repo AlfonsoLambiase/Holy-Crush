@@ -106,6 +106,7 @@ function useViewportWidth(): number {
 export const CLOUD_CURTAIN_TRANSITION_MS = 2200;
 export const CLOUD_CURTAIN_STAGGER_MS = 130;
 export const CLOUD_CURTAIN_HOLD_MS = 500;
+const TOUCH_UNLOCK_EARLY_MS = 800;
 
 export type CloudCurtainPhase = "idle" | "closing" | "open" | "opening";
 
@@ -219,6 +220,7 @@ export function CloudCurtainTransition({
   const wingsClosed = phase === "closing" || phase === "open";
   const phaseRef = useRef(phase);
   const prevPhaseRef = useRef<CloudCurtainPhase>("idle");
+  const [blockTouch, setBlockTouch] = useState(false);
 
   phaseRef.current = phase;
 
@@ -255,6 +257,28 @@ export function CloudCurtainTransition({
     const img = new window.Image();
     img.src = CLOUD_CURTAIN_GROUP_SRC;
   }, [hidden]);
+
+  useEffect(() => {
+    if (phase === "idle") {
+      setBlockTouch(false);
+      return;
+    }
+
+    if (phase !== "opening") {
+      setBlockTouch(true);
+      return;
+    }
+
+    setBlockTouch(true);
+
+    const unlockIn = Math.max(
+      0,
+      CLOUD_CURTAIN_TRANSITION_MS + CLOUD_CURTAIN_STAGGER_MS - TOUCH_UNLOCK_EARLY_MS,
+    );
+    const timer = window.setTimeout(() => setBlockTouch(false), unlockIn);
+
+    return () => window.clearTimeout(timer);
+  }, [phase]);
 
   const handleLayerTransitionEnd = useCallback(
     (event: React.TransitionEvent<HTMLDivElement>, layerIndex: number) => {
@@ -293,7 +317,7 @@ export function CloudCurtainTransition({
         } as React.CSSProperties
       }
     >
-      {phase !== "idle" ? (
+      {blockTouch ? (
         <div
           className="pointer-events-auto absolute inset-0 touch-none"
           onClickCapture={(event) => event.stopPropagation()}

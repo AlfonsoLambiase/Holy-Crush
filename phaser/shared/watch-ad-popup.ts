@@ -7,6 +7,7 @@ import {getShopAdProgress, SHOP_AD_COST, watchShopAd, type ShopAdId} from "@/set
 import {CandyCrushAssetConf} from "./config/asset-conf.const";
 import {APP_FONT} from "./config/font.const";
 import {animatePopupClose, animatePopupOpen} from "./popup-motion";
+import {stylePopupBody, stylePopupTitle} from "./popup-text";
 
 const assetConf = CandyCrushAssetConf;
 
@@ -31,6 +32,7 @@ type WatchAdPopupOptions = {
   /** 1 = booster. Sotto 1 rimpicciolisce testi e cerchio insieme. */
   textScale?: number;
   dim?: number;
+  hideAdLabel?: boolean;
   onWatch: () => void;
   onClose?: () => void;
 };
@@ -62,29 +64,34 @@ export const showWatchAdPopup = (
   const plate = scene.add.image(0, 0, assetConf.image.popupExitGame).setOrigin(0.5);
   const wrap = plate.width * 0.78;
   const popup = scene.add.container(width / 2, height / 2).setDepth(42).setScrollFactor(0);
+  const titleSize = fontPx(scene, TITLE_FONT_MIN, TITLE_FONT_MAX) * textScale;
+  const bodySize = fontPx(scene, BODY_FONT_MIN, BODY_FONT_MAX) * textScale;
   const title = scene.add
     .text(0, 0, options.title, {
       fontFamily: APP_FONT,
-      fontSize: `${fontPx(scene, TITLE_FONT_MIN, TITLE_FONT_MAX) * textScale}px`,
-      color: "#ffd76a",
+      fontSize: `${titleSize}px`,
       align: "center",
       wordWrap: {width: wrap},
-      stroke: "#3d2614",
-      strokeThickness: 5,
     })
     .setOrigin(0.5);
   const body = scene.add
     .text(0, 0, options.body, {
       fontFamily: APP_FONT,
-      fontSize: `${fontPx(scene, BODY_FONT_MIN, BODY_FONT_MAX) * textScale}px`,
-      color: "#fff8dc",
+      fontSize: `${bodySize}px`,
       align: "center",
       wordWrap: {width: wrap},
-      stroke: "#3d2614",
-      strokeThickness: 5,
     })
     .setOrigin(0.5);
-  const watch = addWatchVisual(scene, options.adId, textScale, plate.width * BUTTON_WIDTH_RATIO);
+
+  stylePopupTitle(title, titleSize);
+  stylePopupBody(body, bodySize);
+  const watch = addWatchVisual(
+    scene,
+    options.adId,
+    textScale,
+    plate.width * BUTTON_WIDTH_RATIO,
+    options.hideAdLabel,
+  );
 
   const titleGap = plate.height * TITLE_BODY_GAP_RATIO;
   const watchGap = plate.height * BODY_BUTTON_GAP_RATIO;
@@ -224,40 +231,30 @@ const paintClock = (graphics: Phaser.GameObjects.Graphics, radius: number, ratio
   graphics.strokeCircle(0, 0, radius);
 };
 
-const addWatchVisual = (
+const addWatchLabels = (
   scene: Phaser.Scene,
-  adId: ShopAdId,
+  ads: number,
   textScale: number,
   maxWidth: number,
 ): {
-  root: Phaser.GameObjects.Container;
+  number: Phaser.GameObjects.Text;
+  phrase: Phaser.GameObjects.Text;
   width: number;
   height: number;
-  hitOffsetY: number;
-  hitSize: number;
-  advance: (onDone: () => void, onFilled: () => void) => void;
-  stop: () => void;
 } => {
   const language = getCurrentLanguage();
-  const ads = SHOP_AD_COST[adId];
   const words = ads === 1 ? t("shopAdNeeded", language) : t("shopAdsNeeded", language);
   let fontSize = fontPx(scene, 44, 58) * textScale;
   const number = scene.add
     .text(0, 0, String(ads), {
       fontFamily: APP_FONT,
       fontSize: `${fontSize}px`,
-      color: "#ffd76a",
-      stroke: "#3d2614",
-      strokeThickness: 6,
     })
     .setOrigin(1, 0.5);
   const phrase = scene.add
     .text(0, 0, ` ${words}`, {
       fontFamily: APP_FONT,
       fontSize: `${fontSize}px`,
-      color: "#fff8dc",
-      stroke: "#3d2614",
-      strokeThickness: 6,
     })
     .setOrigin(0, 0.5);
 
@@ -267,19 +264,45 @@ const addWatchVisual = (
     phrase.setFontSize(`${fontSize}px`);
   }
 
-  const lineWidth = number.width + phrase.width;
+  stylePopupTitle(number, fontSize);
+  stylePopupBody(phrase, fontSize);
 
-  number.setX(-lineWidth / 2 + number.width);
+  const width = number.width + phrase.width;
+
+  number.setX(-width / 2 + number.width);
   phrase.setX(number.x);
 
+  return {number, phrase, width, height: number.height};
+};
+
+const addWatchVisual = (
+  scene: Phaser.Scene,
+  adId: ShopAdId,
+  textScale: number,
+  maxWidth: number,
+  hideAdLabel = false,
+): {
+  root: Phaser.GameObjects.Container;
+  width: number;
+  height: number;
+  hitOffsetY: number;
+  hitSize: number;
+  advance: (onDone: () => void, onFilled: () => void) => void;
+  stop: () => void;
+} => {
+  const ads = SHOP_AD_COST[adId];
   const radius = Math.round(fontPx(scene, 88, 118) * textScale);
-  const gap = Math.round(radius * 0.22);
-  const blockH = number.height + gap + radius * 2;
-  const labelY = -blockH / 2 + number.height / 2;
+  const labels = hideAdLabel ? null : addWatchLabels(scene, ads, textScale, maxWidth);
+  const gap = labels ? Math.round(radius * 0.22) : 0;
+  const blockH = (labels?.height ?? 0) + gap + radius * 2;
   const circleY = blockH / 2 - radius;
 
-  number.setY(labelY);
-  phrase.setY(labelY);
+  if (labels) {
+    const labelY = -blockH / 2 + labels.height / 2;
+
+    labels.number.setY(labelY);
+    labels.phrase.setY(labelY);
+  }
 
   const clock = scene.add.graphics();
 
@@ -318,8 +341,12 @@ const addWatchVisual = (
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => tween?.stop());
 
   return {
-    root: scene.add.container(0, 0, icon ? [clock, icon, number, phrase] : [clock, number, phrase]),
-    width: Math.max(lineWidth, radius * 2),
+    root: scene.add.container(
+      0,
+      0,
+      [clock, icon, labels?.number, labels?.phrase].filter(Boolean) as Phaser.GameObjects.GameObject[],
+    ),
+    width: Math.max(labels?.width ?? 0, radius * 2),
     height: blockH,
     hitOffsetY: circleY,
     hitSize: radius * 2,
