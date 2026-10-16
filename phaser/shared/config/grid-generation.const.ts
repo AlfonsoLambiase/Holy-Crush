@@ -59,6 +59,9 @@ const STAGES = [
   STAGE_20,
 ] as const;
 
+const gridId = (stagePos: number, levelsInStage: number, local: number): string =>
+  `grid-${String(stagePos * levelsInStage + local).padStart(4, "0")}`;
+
 export function getCellSize(gameWidth: number): number {
   const usableWidth = gameWidth * (1 - GRID_SIDE_MARGIN * 2);
 
@@ -71,7 +74,7 @@ export function getGridForLevel(level: number, stageIndex = 0): GridShape {
   const stagePos = ((Math.floor(stageIndex) % stageCount) + stageCount) % stageCount;
   const levels = STAGES[stagePos];
   const local = (Math.max(1, Math.floor(level)) - 1) % levels.length;
-  const id = `grid-${String(stagePos * levels.length + local).padStart(4, "0")}`;
+  const id = gridId(stagePos, levels.length, local);
   const shape = createGrid(id, levels[local]);
   const {minCols, maxCols, minRows, maxRows} = GRID_LIMITS;
   const colsOk = shape.cols >= minCols && shape.cols <= maxCols;
@@ -84,4 +87,11 @@ export function getGridForLevel(level: number, stageIndex = 0): GridShape {
   }
 
   return shape;
+}
+
+//* Tutte le griglie, da grid-0000 all'ultima, nello stesso ordine del gioco.
+export function listAllGrids(): GridShape[] {
+  return STAGES.flatMap((levels, stagePos) =>
+    levels.map((pattern, local) => createGrid(gridId(stagePos, levels.length, local), pattern)),
+  );
 }

@@ -63,6 +63,7 @@ export type StageStartTestPanelProps = {
   onStageIndexChange: (stageIndex: number) => void;
   onModeChange: (mode: TestStageStartMode) => void;
   onLaunch: () => void;
+  onBrowseGrids: () => void;
 };
 
 /** Solo dev: scegli stage e salta alla mappa (o opening) dello stage. */
@@ -72,6 +73,7 @@ export function StageStartTestPanel({
   onStageIndexChange,
   onModeChange,
   onLaunch,
+  onBrowseGrids,
 }: StageStartTestPanelProps): ReactNode {
   if (!isStageStartTestEnabled()) return null;
 
@@ -117,6 +119,16 @@ export function StageStartTestPanel({
         onClick: onLaunch,
       },
       "Avvia stage selezionato",
+    ),
+    createElement(
+      "button",
+      {
+        type: "button",
+        className:
+          "rounded-lg border border-amber-500 bg-[#5c3a14] px-3 py-2 text-sm font-bold text-[#fff8dc] active:scale-[0.98]",
+        onClick: onBrowseGrids,
+      },
+      "Vedi griglie",
     ),
   );
 }

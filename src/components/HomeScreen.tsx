@@ -37,6 +37,7 @@ import {
 } from "@game/level-up-test";
 
 import {PhaserGame} from "./PhaserGame";
+import {GridBrowser} from "./GridBrowser";
 import {WorldScreen} from "./WorldScreen";
 
 const INTRO_HOLD_MS = 900; // quanto resta grande al centro prima di salire
@@ -400,6 +401,7 @@ function HomeImageButton({
 export function HomeScreen() {
   const {language, setLanguage, t} = useLanguage();
   const [isPlaying, setIsPlaying] = useState(false);
+  const [gridsOpen, setGridsOpen] = useState(false);
   const [isIntroDone, setIsIntroDone] = useState(false);
   const [isStartPressed, setIsStartPressed] = useState(false);
   const [isTestamentOpen, setIsTestamentOpen] = useState(false);
@@ -526,6 +528,7 @@ export function HomeScreen() {
           <StageStartTestPanel
             mode={testStartMode}
             stageIndex={testStageIndex}
+            onBrowseGrids={() => setGridsOpen(true)}
             onLaunch={launchTestStage}
             onModeChange={(mode) => {
               writeTestStageStartMode(mode);
@@ -763,6 +766,8 @@ export function HomeScreen() {
           />
         </div>
       )}
+
+      {gridsOpen ? <GridBrowser onClose={() => setGridsOpen(false)} /> : null}
     </div>
   );
 }
