@@ -30,6 +30,7 @@ type WatchAdPopupOptions = {
   adId: ShopAdId;
   /** 1 = booster. Sotto 1 rimpicciolisce testi e cerchio insieme. */
   textScale?: number;
+  dim?: number;
   onWatch: () => void;
   onClose?: () => void;
 };
@@ -50,7 +51,7 @@ export const showWatchAdPopup = (
   const scale = options.scale;
   const textScale = options.textScale ?? 1;
   const overlay = scene.add
-    .rectangle(width / 2, height / 2, width, height, 0x000000, 0.55)
+    .rectangle(width / 2, height / 2, width, height, 0x000000, options.dim ?? 0.55)
     .setDepth(40)
     .setScrollFactor(0);
   const blocker = scene.add

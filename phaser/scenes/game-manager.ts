@@ -79,6 +79,7 @@ const ROCKET_FLY_CELL_MS = 70;
 const MEGA_RADIUS = 2;
 const MEGA_SPREAD = 2;
 const SPIRAL_STEP_MS = 48;
+const MOVE_GRANT_TICK_MS = 70;
 const HINT_IDLE_MS = 10000;
 const HINT_PULSE_MS = 420;
 const HINT_PULSE_SCALE = 1.12;
@@ -331,9 +332,17 @@ export class GameManager extends Phaser.Scene {
     const mission = missionForGrid(shape.cells, pieceIcon);
 
     this.#goals = mission.goals;
-    this.#moves = mission.moves;
+    //* Test: 2 mosse sul primo livello. Togli quando hai finito di provare.
+    this.#moves = this.#isFirstLevel() ? 2 : mission.moves;
     this.#collectLeft = mission.collect;
     this.#moveAdUsed = false;
+  }
+
+  #isFirstLevel(): boolean {
+    const selected = Number(this.registry.get("level"));
+    const level = Number.isFinite(selected) && selected > 0 ? selected : getUnlockedCount();
+
+    return level === 1 && getStageIndex() === 0;
   }
 
   presentMission(): void {
@@ -342,12 +351,37 @@ export class GameManager extends Phaser.Scene {
 
   grantExtraMoves(amount: number): void {
     this.#moveAdUsed = true;
-    this.#moves += amount;
     this.isGameOver = false;
-    this.canShoot = true;
-    this.isBusy = false;
-    this.gameScene.uiManager.setMoves(this.#moves);
-    this.restartHintTimer();
+    this.canShoot = false;
+    this.isBusy = true;
+
+    const target = this.#moves + Math.max(0, amount);
+
+    this.gameScene.uiManager.setMoves(this.#moves, false);
+
+    if (this.#moves >= target) {
+      this.canShoot = true;
+      this.isBusy = false;
+      this.restartHintTimer();
+
+      return;
+    }
+
+    const tick = this.time.addEvent({
+      delay: MOVE_GRANT_TICK_MS,
+      loop: true,
+      callback: () => {
+        this.#moves += 1;
+        this.gameScene.uiManager.setMoves(this.#moves);
+
+        if (this.#moves < target) return;
+
+        tick.remove(false);
+        this.canShoot = true;
+        this.isBusy = false;
+        this.restartHintTimer();
+      },
+    });
   }
 
   #goalLeft(goal: MissionGoal): number {

@@ -3,13 +3,17 @@
 
 import * as Phaser from "phaser";
 
+import {getCurrentLanguage, t} from "@/language";
+import {layoutScaleForViewport} from "@/settings/app-header-layout";
+import {playTrack} from "@/settings/soundtrack";
+
 import {UIManager} from "../components/UIManager";
 import {AudioManager} from "../components/audioManager";
-import {playTrack} from "@/settings/soundtrack";
-import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
-import {layoutScaleForViewport} from "@/settings/app-header-layout";
-import {getViewportGlobalScale} from "../shared/viewport-scale";
 import {StarsEffectManager} from "../components/starsEffectManager";
+import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {popupPlateScale} from "../shared/popup-plate-scale";
+import {getViewportGlobalScale} from "../shared/viewport-scale";
+import {showWatchAdPopup} from "../shared/watch-ad-popup";
 import {EXTRA_MOVES} from "../shared/level-mission";
 
 import {TimerManager} from "./timer-manager";
@@ -42,6 +46,7 @@ export class Game extends Phaser.Scene {
   init() {
     console.log("Start Scene Game");
     this.isGameOver = false;
+    this.#moveOffer = false;
   }
 
   create() {
@@ -135,24 +140,35 @@ export class Game extends Phaser.Scene {
     });
   }
 
-  //* La griglia resta viva sotto la sconfitta. Un solo annuncio, poi si riprende.
+  //* Overlay sulla griglia, come i settings. Un solo annuncio a livello.
   offerMoveAd(): void {
     if (this.isGameOver || this.#moveOffer) return;
 
     this.#moveOffer = true;
-    this.sound.pauseAll();
-    this.scene.launch(assetConf.scene.outro, {resultStatus: "Failed", canContinue: true});
-    this.scene.bringToTop(assetConf.scene.outro);
-    this.scene.bringToTop(assetConf.scene.exitManager);
-    this.scene.pause();
-    this.scene.pause(assetConf.scene.gameManager);
+
+    const language = getCurrentLanguage();
+    const host = this.gameManager;
+    let watched = false;
+    const popup = showWatchAdPopup(host, {
+      title: t("movesOutTitle", language),
+      body: t("movesOutBody", language),
+      scale: popupPlateScale(host, assetConf.image.popupExitGame),
+      adId: "moves",
+      dim: 0.72,
+      onWatch: () => {
+        watched = true;
+      },
+      onClose: () => {
+        if (watched) this.continueAfterAd();
+        else this.gameOver(false);
+      },
+    });
+
+    if (!popup) this.gameOver(false);
   }
 
   continueAfterAd(): void {
     this.#moveOffer = false;
-    this.scene.resume();
-    this.scene.resume(assetConf.scene.gameManager);
-    this.sound.resumeAll();
     this.gameManager.grantExtraMoves(EXTRA_MOVES);
   }
 
