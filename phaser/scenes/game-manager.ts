@@ -81,6 +81,13 @@ const ROCKET_FLY_CELL_MS = 70;
 const MEGA_RADIUS = 2;
 const MEGA_SPREAD = 2;
 const SPIRAL_STEP_MS = 48;
+const MAXI_SHOCK_BLUE = 0x7ad7ff;
+const BOOSTER_BURST_TINT: Record<BoosterId, number> = {
+  super: 0x45e06a,
+  mega: 0xffd83d,
+  maxi: MAXI_SHOCK_BLUE,
+  ultra: 0xff2e3a,
+};
 const MOVE_GRANT_TICK_MS = 70;
 const HINT_IDLE_MS = 10000;
 const HINT_PULSE_MS = 420;
@@ -865,7 +872,7 @@ export class GameManager extends Phaser.Scene {
       });
     }
 
-    this.playBoosterFx(id, origin, bombCenters.length > 0, rocketCenters.length > 0);
+    this.playBoosterFx(id, origin, pattern, bombCenters.length > 0, rocketCenters.length > 0);
 
     const flies =
       id === "super"
@@ -882,6 +889,7 @@ export class GameManager extends Phaser.Scene {
         this.peelArt(),
         (cell) => this.boosterDelay(id, origin, cell, bombCenters, rocketCenters, spiralDelay),
         origin,
+        BOOSTER_BURST_TINT[id],
       ),
       ...flies,
     ]);
@@ -900,7 +908,17 @@ export class GameManager extends Phaser.Scene {
     await this.resolveBoard([], undefined, !thornDamaged);
   }
 
-  private playBoosterFx(id: BoosterId, origin: Cell, hasBomb: boolean, hasRocket: boolean): void {
+  private playBoosterFx(
+    id: BoosterId,
+    origin: Cell,
+    pattern: Cell[],
+    hasBomb: boolean,
+    hasRocket: boolean,
+  ): void {
+    if (id === "ultra") {
+      this.playUltraSpiralTrail(pattern);
+    }
+
     if (id === "maxi") {
       const spread = Math.max(MEGA_SPREAD, Math.max(this.gridRows, this.gridCols) / 2);
 
@@ -1164,6 +1182,7 @@ export class GameManager extends Phaser.Scene {
     fades: FadeArt[] = [],
     delayFor?: (cell: Cell) => number,
     instant?: Cell,
+    burstTint?: number,
   ): Promise<void> {
     for (const bomb of bombCenters) {
       this.playBombShockwave(bomb);
@@ -1191,7 +1210,7 @@ export class GameManager extends Phaser.Scene {
       this.board[rocket.cell.r][rocket.cell.c] = EMPTY;
       this.pieces[rocket.cell.r][rocket.cell.c] = null;
 
-      return this.playRocketLaunch(rocket.cell, rocket.type, piece);
+      return this.playRocketLaunch(rocket.cell, rocket.type, piece, burstTint);
     });
 
     const starBase = Math.min(this.cellW, this.cellH) / 92;
@@ -1219,7 +1238,14 @@ export class GameManager extends Phaser.Scene {
               return;
             }
 
-            this.starsEffect.playAt(piece.x, piece.y, this.mainContainer, starScale, isCenter);
+            this.starsEffect.playAt(
+              piece.x,
+              piece.y,
+              this.mainContainer,
+              starScale,
+              isCenter,
+              burstTint,
+            );
             this.tweens.killTweensOf(piece);
 
             if (isCenter) {
@@ -1267,7 +1293,7 @@ export class GameManager extends Phaser.Scene {
           }
 
           if (isInstant) {
-            this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase, true);
+            this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase, true, burstTint);
             image.destroy();
             resolve();
 
@@ -1275,7 +1301,7 @@ export class GameManager extends Phaser.Scene {
           }
 
           this.mainContainer.bringToTop(image);
-          this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase, isInstant);
+          this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase, isInstant, burstTint);
 
           this.tweens.killTweensOf(image);
           this.tweens.add({
@@ -1353,6 +1379,7 @@ export class GameManager extends Phaser.Scene {
     cell: Cell,
     type: number,
     piece: Phaser.GameObjects.Image | null,
+    burstTint?: number,
   ): Promise<void> {
     const {x, y} = this.cellPos(cell);
     const starScale = (Math.min(this.cellW, this.cellH) / 92) * 1.2;
@@ -1371,11 +1398,11 @@ export class GameManager extends Phaser.Scene {
         ease: "Back.easeOut",
       });
 
-      this.starsEffect.playAt(piece.x, piece.y, this.mainContainer, starScale, true);
+      this.starsEffect.playAt(piece.x, piece.y, this.mainContainer, starScale, true, burstTint);
       piece.destroy();
     } else {
       await this.delay(ROCKET_ZOOM_MS);
-      this.starsEffect.playAt(x, y, this.mainContainer, starScale, true);
+      this.starsEffect.playAt(x, y, this.mainContainer, starScale, true, burstTint);
     }
 
     await this.playRocketFly(cell, type);
@@ -1426,12 +1453,86 @@ export class GameManager extends Phaser.Scene {
     await Promise.all([fly(a, endA), fly(b, endB)]);
   }
 
+  private playUltraSpiralTrail(cells: Cell[]): void {
+    if (!isEffectsEnabled() || cells.length === 0) return;
+
+    const cellSize = Math.min(this.cellW, this.cellH);
+    const start = this.cellPos(cells[0]);
+    const head = this.add.circle(start.x, start.y, cellSize * 0.2, 0xff2233, 0.92);
+
+    head.setStrokeStyle(5, 0xff8899, 0.95);
+    head.setBlendMode(Phaser.BlendModes.ADD);
+    this.mainContainer.add(head);
+    this.mainContainer.bringToTop(head);
+
+    let index = 1;
+
+    const spawnTrail = (x: number, y: number) => {
+      const mark = this.add.circle(x, y, cellSize * 0.14, 0xff3344, 0.55);
+
+      mark.setBlendMode(Phaser.BlendModes.ADD);
+      this.mainContainer.add(mark);
+      this.mainContainer.bringToTop(mark);
+
+      this.tweens.add({
+        targets: mark,
+        scale: 2.2,
+        alpha: 0,
+        duration: 320,
+        ease: "Cubic.easeOut",
+        onComplete: () => mark.destroy(),
+      });
+    };
+
+    const step = () => {
+      if (index >= cells.length) {
+        this.tweens.add({
+          targets: head,
+          scale: 2.4,
+          alpha: 0,
+          duration: 180,
+          ease: "Cubic.easeOut",
+          onComplete: () => head.destroy(),
+        });
+
+        return;
+      }
+
+      const {x, y} = this.cellPos(cells[index]);
+
+      index += 1;
+
+      this.tweens.add({
+        targets: head,
+        x,
+        y,
+        duration: SPIRAL_STEP_MS,
+        ease: "Linear",
+        onComplete: () => {
+          spawnTrail(x, y);
+          step();
+        },
+      });
+    };
+
+    if (cells.length > 1) step();
+    else {
+      this.tweens.add({
+        targets: head,
+        scale: 2.4,
+        alpha: 0,
+        duration: SPIRAL_STEP_MS * 2,
+        onComplete: () => head.destroy(),
+      });
+    }
+  }
+
   private playBombShockwave(cell: Cell, spread = 1): void {
     const {x, y} = this.cellPos(cell);
     const radius = Math.min(this.cellW, this.cellH) * 0.38;
     const flash = this.add.circle(x, y, radius, 0xffffff, 0.8);
 
-    flash.setStrokeStyle(8, 0x7ad7ff, 0.95);
+    flash.setStrokeStyle(8, MAXI_SHOCK_BLUE, 0.95);
     this.mainContainer.add(flash);
 
     const boom = this.add.image(x, y, assetConf.image.bomb).setOrigin(0.5);

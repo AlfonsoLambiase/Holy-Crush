@@ -2,6 +2,7 @@ import * as Phaser from "phaser";
 
 import {getCurrentLanguage, t} from "@/language";
 import {playBook, playClick, playNoTouch, playPulse, playRecharge, playUnlocked} from "@/settings/click";
+import {isReactHudOverlayActive} from "@/settings/ui-overlay";
 import {getHeartRemaining, isHeartEmpty, refillHeart, spendHeart} from "@/settings/heart";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 import {darkenHex, getStageLevelNumber, getStageMap, type StageMapConfig} from "@/settings/stage-map";
@@ -520,6 +521,8 @@ export class StageMapScene extends Phaser.Scene {
       assetConf.image.btnRead,
       corners.buttonScale,
       () => {
+        if (isReactHudOverlayActive()) return;
+
         playBook();
         this.scene.start(assetConf.scene.opening);
       },
@@ -808,10 +811,14 @@ export class StageMapScene extends Phaser.Scene {
     const button = this.add.image(x, y, key).setOrigin(0.5).setScale(scale).setInteractive({useHandCursor: true});
 
     button.on("pointerdown", () => {
+      if (isReactHudOverlayActive()) return;
+
       playClick();
       button.setScale(scale * 0.92);
     });
     button.on("pointerup", () => {
+      if (isReactHudOverlayActive()) return;
+
       button.setScale(scale);
       onPress();
     });

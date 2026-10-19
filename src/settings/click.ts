@@ -1,4 +1,5 @@
 import {isEffectsEnabled} from "./effects";
+import {isReactHudOverlayActive} from "./ui-overlay";
 
 const clips = new Map<string, HTMLAudioElement>();
 
@@ -104,7 +105,11 @@ export const playCloudOn = () => {
 
 export const playCloudOff = () => playSfx("/sounds/cloud_off.mp3", SFX_LEAD_TRIM_SEC);
 
-export const playBook = () => playSfx("/sounds/book.mp3", SFX_LEAD_TRIM_SEC);
+export const playBook = () => {
+  if (isReactHudOverlayActive()) return;
+
+  playSfx("/sounds/book.mp3", SFX_LEAD_TRIM_SEC);
+};
 
 const UNLOCKED_SRC = "/sounds/unlocked.mp3";
 const PULSE_SRC = "/sounds/pulse.mp3";

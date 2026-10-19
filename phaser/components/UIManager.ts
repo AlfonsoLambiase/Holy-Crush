@@ -189,6 +189,7 @@ export class UIManager {
         12,
         this.goalsContainer,
         true,
+        "goalNumber",
       );
 
       badge.objects.forEach((obj) => this.goalsContainer.bringToTop(obj));

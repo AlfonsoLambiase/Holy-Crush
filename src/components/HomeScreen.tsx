@@ -433,6 +433,31 @@ export function HomeScreen() {
     playTrack("home");
   }, [isPlaying, showWorld, isMusicOn]);
 
+  //* Mappa mondi sopra Phaser: stesso angolo HUD del btnRead in stage-map (playBook).
+  useEffect(() => {
+    if (!showWorld || !isPlaying) return;
+
+    setIsPlaying(false);
+  }, [showWorld, isPlaying]);
+
+  useEffect(() => {
+    const root = document.querySelector<HTMLElement>("[data-phaser-root]");
+
+    if (!root) return;
+
+    if (showWorld) {
+      root.style.pointerEvents = "none";
+
+      return () => {
+        root.style.pointerEvents = "";
+      };
+    }
+
+    root.style.pointerEvents = "";
+
+    return undefined;
+  }, [showWorld]);
+
   useEffect(() => {
     if (!isStartPressed) return;
 
@@ -716,6 +741,7 @@ export function HomeScreen() {
         hidden={isPlaying}
         phase={curtainPhase}
         onClosingComplete={() => {
+          setIsPlaying(false);
           setShowWorld(true);
           setCurtainPhase("open");
         }}
@@ -726,7 +752,7 @@ export function HomeScreen() {
       />
 
       {showWorld && (
-        <div className="absolute inset-0 z-20">
+        <div className="absolute inset-0 z-30 isolate">
           <WorldScreen
             onBack={() => {
               setShowWorld(false);
@@ -751,8 +777,8 @@ export function HomeScreen() {
         </div>
       )}
 
-      {isPlaying && (
-        <div className="absolute inset-0 z-20">
+      {isPlaying && !showWorld && (
+        <div className="absolute inset-0 z-20" data-phaser-root>
           <PhaserGame
             bootStart={phaserBootStart}
             onExit={() => {

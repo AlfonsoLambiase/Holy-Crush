@@ -8,6 +8,7 @@ import {StageHudBar} from "@/components/StageHudBar";
 import {WoodPanel} from "@/components/WoodPanel";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick, playNoTouch, playSwitch} from "@/settings/click";
+import {popReactHudOverlay, pushReactHudOverlay} from "@/settings/ui-overlay";
 import {computeStageHudMetrics, type StageHudMetrics} from "@/settings/stage-hud-layout";
 import {getStageIndex, isWorldUnlocked} from "@/settings/progress";
 import {
@@ -108,6 +109,14 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const snapFrame = useRef<number | null>(null);
   const initialFocusApplied = useRef(false);
   const viewportHRef = useRef(0);
+
+  useEffect(() => {
+    pushReactHudOverlay();
+
+    return () => {
+      popReactHudOverlay();
+    };
+  }, []);
 
   useEffect(() => {
     const sync = () => {
@@ -344,7 +353,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
 
   return (
     <div
-      className={`relative h-dvh w-full select-none overflow-hidden bg-[#0d0d0f] ${shopOpen ? "touch-auto" : "touch-none"}`}
+      className={`relative z-0 h-dvh w-full select-none overflow-hidden bg-[#0d0d0f] pointer-events-auto ${shopOpen ? "touch-auto" : "touch-none"}`}
       onPointerCancel={() => {
         if (shopOpen) return;
 
@@ -428,7 +437,11 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
           transform: `translateY(-50%) ${shopPressed ? "scale(0.92)" : "scale(1)"}`,
         }}
         type="button"
-        onClick={() => {
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
           if (shopOpen) return;
 
           playClick();
