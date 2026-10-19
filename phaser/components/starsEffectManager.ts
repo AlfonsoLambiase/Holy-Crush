@@ -17,7 +17,7 @@ const STAR_TEX_SIZE = 48;
 const STAR_COUNT = 3;
 const STAR_MS_RATIO = 0.85;
 /** Scala massima stelle (molto piccole vs anello). */
-const STAR_END_RING_RATIO = 0.14;
+const STAR_END_RING_RATIO = 0.21;
 /** Posizioni fisse sparpagliate dentro il disco dell’anello (0–1 del raggio). */
 const STAR_LAYOUT: ReadonlyArray<{angleDeg: number; radiusMul: number}> = [
   {angleDeg: 18, radiusMul: 0.52},

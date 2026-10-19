@@ -57,6 +57,26 @@ export const sceneryBlockPath = (theme: StageSceneryTheme): string =>
 export const sceneryRoadPath = (theme: StageSceneryTheme): string =>
   `/images/mode_0/stage_road/road_${theme}.png`;
 
+/** Placca sotto i block (tono affine al block_* ma più soft per far leggere i pezzi). */
+const PLATE_FILL_BY_THEME: Record<StageSceneryTheme, string> = {
+  pietra_notte: "#94a8d9",
+  terra_notte: "#a08882",
+  sabbia_notte: "#a89488",
+  terra: "#c4a882",
+  legno: "#b8a574",
+  sabbia: "#d0bf9e",
+  pietra: "#a8b4c6",
+  mare_notte: "#72b8d4",
+  pietra_guerra: "#b09898",
+  cielo: "#9ec8ea",
+};
+
+export const plateFillForTheme = (theme: StageSceneryTheme): string =>
+  PLATE_FILL_BY_THEME[theme];
+
+export const plateFillForStage = (stageOneBased: number): string =>
+  plateFillForTheme(stageSceneryTheme(stageOneBased));
+
 /** Tema usato da almeno uno stage (per preload batch futuro). */
 export const uniqueSceneryThemes = (): StageSceneryTheme[] => {
   const used = new Set<StageSceneryTheme>(SCENERY_THEME_BY_STAGE);

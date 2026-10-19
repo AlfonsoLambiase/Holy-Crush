@@ -76,9 +76,10 @@ export function createBoardPlate(
   cell: number,
   gridLeft: number,
   gridTop: number,
+  fillColor: string = PLATE_FILL,
 ): BoardPlate | null {
   const fill = paintPlate(open, cell, gridLeft, gridTop, (ctx) => {
-    ctx.fillStyle = PLATE_FILL;
+    ctx.fillStyle = fillColor;
     ctx.fill("evenodd");
   });
   const rim = paintPlate(open, cell, gridLeft, gridTop, (ctx) => {

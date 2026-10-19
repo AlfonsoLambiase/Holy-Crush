@@ -6,10 +6,10 @@ import {AssetPaths} from "@game/shared/config/asset-paths.const";
 import {listAllGrids, type ListedGrid} from "@game/shared/config/grid-generation.const";
 import {
   boardPlatePad,
-  PLATE_FILL,
   strokeBoardRim,
   traceBoardPath,
 } from "@game/shared/board-plate-paint";
+import {plateFillForStage} from "@/settings/stage-scenery-assets";
 import {missionForGrid, remainingOf} from "@game/shared/level-mission";
 import {obstacleFromSymbol} from "@game/shared/obstacles";
 import {getPieceKeysForStageLevel} from "@/settings/level-pieces";
@@ -39,6 +39,7 @@ const paintGrid = (
   open: boolean[][],
   cols: number,
   rows: number,
+  fillColor: string,
 ): void => {
   const maxW = window.innerWidth * 0.9;
   const maxH = window.innerHeight * 0.52;
@@ -57,7 +58,7 @@ const paintGrid = (
   ctx.clearRect(0, 0, width, height);
   ctx.setTransform(1, 0, 0, 1, pad, pad);
   traceBoardPath(ctx, open, cell, 0, 0);
-  ctx.fillStyle = PLATE_FILL;
+  ctx.fillStyle = fillColor;
   ctx.fill("evenodd");
   strokeBoardRim(ctx, cell);
 };
@@ -94,7 +95,13 @@ export function GridBrowser({onClose}: GridBrowserProps) {
 
     const open = shape.cells.map((row) => row.map((symbol) => symbol !== "."));
 
-    paintGrid(canvas, open, shape.cols, shape.rows);
+    paintGrid(
+      canvas,
+      open,
+      shape.cols,
+      shape.rows,
+      plateFillForStage(shape.stageIndex + 1),
+    );
   }, [shape]);
 
   if (!shape) return null;

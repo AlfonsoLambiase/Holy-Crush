@@ -8,6 +8,7 @@ import {isLowEndDevice} from "@/settings/app-header-layout";
 import {isEffectsEnabled} from "@/settings/effects";
 import {getPieceKeysForStageLevel} from "@/settings/level-pieces";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
+import {plateFillForStage} from "@/settings/stage-scenery-assets";
 
 import {AudioManager} from "../components/audioManager";
 import {ItemsBar} from "../components/items-bar";
@@ -463,12 +464,15 @@ export class GameManager extends Phaser.Scene {
     this.mainContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2);
 
     this.applyGridMetrics();
+    const stageOneBased = getStageIndex() + 1;
+
     this.boardPlate = createBoardPlate(
       this,
       this.obstacles.map((row) => row.map((cell) => cell != null)),
       this.cellW,
       this.gridLeft,
       this.gridTop,
+      plateFillForStage(stageOneBased),
     );
 
     if (this.boardPlate) this.mainContainer.add([this.boardPlate.fill, this.boardPlate.rim]);
