@@ -123,7 +123,7 @@ function AdPhrase({ ads, text }: { ads: number; text: string }) {
 
   return (
     <p
-      className={`whitespace-nowrap text-left text-[#f3e6c8] ${CARD_LABEL_CLASS}`}
+      className={`whitespace-nowrap text-left text-[#f3e6c8] max-[329px]:text-center ${CARD_LABEL_CLASS}`}
     >
       <span className="text-[#ffd76a]">{ads}</span> {head}
       {tail ? (
@@ -205,7 +205,7 @@ export function ShopMarket() {
       </GoldTitle>
 
       <FadeScroll className="mt-2 flex-1">
-        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-y-1.5 pb-1">
+        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-y-1.5 pb-1 max-[329px]:flex max-[329px]:flex-col">
           {SHOP_ITEMS.map((item) => {
             const count =
               "booster" in item ? counts[item.booster] : energyEmpty ? 0 : 1;
@@ -219,24 +219,28 @@ export function ShopMarket() {
             return (
               <div
                 key={item.id}
-                className="col-span-4 grid min-w-0 grid-cols-subgrid items-start gap-x-1.5 rounded-2xl border border-[#3d2614]/50 bg-[#5c3a14]/90 px-1.5 py-2 text-left @sm:gap-x-2 @sm:px-2"
+                className="col-span-4 grid min-w-0 grid-cols-subgrid items-start gap-x-1.5 rounded-2xl border border-[#3d2614]/50 bg-[#5c3a14]/90 px-1.5 py-2 text-left max-[329px]:flex max-[329px]:flex-col max-[329px]:items-center max-[329px]:gap-y-2 @sm:gap-x-2 @sm:px-2"
               >
-                <Image
-                  alt=""
-                  className="mt-0.5 h-9 w-9 shrink-0 self-center object-contain @sm:h-11 @sm:w-11"
-                  draggable={false}
-                  height={88}
-                  src={item.src}
-                  width={88}
-                />
+                <div className="contents max-[329px]:flex max-[329px]:w-full max-[329px]:min-w-0 max-[329px]:items-start max-[329px]:gap-x-1.5">
+                  <Image
+                    alt=""
+                    className="mt-0.5 h-9 w-9 shrink-0 self-center object-contain @sm:h-11 @sm:w-11"
+                    draggable={false}
+                    height={88}
+                    src={item.src}
+                    width={88}
+                  />
 
-                <div className="min-w-0">
-                  <p className={`uppercase text-[#fff8dc] ${CARD_LABEL_CLASS}`}>
-                    {t(item.titleKey)}
-                  </p>
-                  <p className="mt-0.5 font-accent text-[0.58rem] leading-snug text-[#f3e6c8] @sm:text-[0.68rem]">
-                    {t(item.bodyKey)}
-                  </p>
+                  <div className="min-w-0 max-[329px]:flex-1">
+                    <p
+                      className={`uppercase text-[#fff8dc] ${CARD_LABEL_CLASS}`}
+                    >
+                      {t(item.titleKey)}
+                    </p>
+                    <p className="mt-0.5 font-accent text-[0.58rem] leading-snug text-[#f3e6c8] @sm:text-[0.68rem]">
+                      {t(item.bodyKey)}
+                    </p>
+                  </div>
                 </div>
 
                 <button
@@ -257,7 +261,7 @@ export function ShopMarket() {
                   />
                   <MdLiveTv aria-hidden className="relative h-5 w-5" />
                 </button>
-                <div className="flex flex-col items-center gap-1">
+                <div className="flex flex-col items-center gap-1 max-[329px]:text-center">
                   <AdPhrase
                     ads={item.ads}
                     text={
