@@ -14,6 +14,9 @@ const RING_TEX_SIZE = 128;
 const RING_TEX_RADIUS = 50;
 const RING_TEX_STROKE = 16;
 const STAR_TEX_SIZE = 48;
+const TRAIL_SPARK_MS = 360;
+const TRAIL_SPARK_DRIFT_RATIO = 0.05;
+const TRAIL_SPARK_SCALE_RATIO = 0.13;
 const STAR_COUNT = 3;
 const STAR_MS_RATIO = 0.85;
 /** Scala massima stelle (molto piccole vs anello). */
@@ -256,5 +259,49 @@ export class StarsEffectManager {
       ease: "Cubic.easeOut",
       onComplete: () => this.#release(slot),
     });
+  }
+
+  /** Stellina scoppio (tint) accanto a una scia — resta finché non la fai fade/destroy. */
+  playTrailSpark(
+    x: number,
+    y: number,
+    parent: Phaser.GameObjects.Container,
+    cellSize: number,
+    tint: number,
+    tangentRad: number,
+    side: number,
+  ): Phaser.GameObjects.Image | null {
+    if (!isEffectsEnabled() || !BURST_INNER_STARS_ENABLED) return null;
+
+    ensureStarTexture(this.scene);
+
+    const normalX = -Math.sin(tangentRad);
+    const normalY = Math.cos(tangentRad);
+    const offset = cellSize * 0.24 * side;
+    const px = x + normalX * offset;
+    const py = y + normalY * offset;
+    const endScale = (cellSize * TRAIL_SPARK_SCALE_RATIO) / STAR_TEX_SIZE;
+    const star = this.scene.add.image(px, py, STAR_TEXTURE_KEY).setOrigin(0.5);
+
+    star.setTint(tint);
+    star.setBlendMode(Phaser.BlendModes.ADD);
+    star.setScale(0.001);
+    star.setAlpha(0.88);
+    star.setAngle(Phaser.Math.RadToDeg(tangentRad) + side * 68);
+    parent.add(star);
+    parent.bringToTop(star);
+
+    const drift = cellSize * TRAIL_SPARK_DRIFT_RATIO * side;
+
+    this.scene.tweens.add({
+      targets: star,
+      x: px + normalX * drift,
+      y: py + normalY * drift,
+      scale: {from: 0.001, to: endScale},
+      duration: TRAIL_SPARK_MS,
+      ease: "Cubic.easeOut",
+    });
+
+    return star;
   }
 }

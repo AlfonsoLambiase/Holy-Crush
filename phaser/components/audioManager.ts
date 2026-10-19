@@ -83,6 +83,27 @@ export class AudioManager {
     });
   }
 
+  stopAudio(key: keyof typeof assetConf.audio): void {
+    this.stopTimers.get(key)?.remove(false);
+    this.stopTimers.delete(key);
+    this.fades.get(key)?.stop();
+    this.fades.delete(key);
+
+    const audio = this.audios[key];
+
+    if (!audio) return;
+
+    this.setVolume(audio, 0);
+
+    if (audio.isPlaying) audio.stop();
+
+    this.setVolume(audio, 1);
+
+    if ("seek" in audio && typeof audio.seek === "function") {
+      audio.seek(0);
+    }
+  }
+
   #playLoaded(key: keyof typeof assetConf.audio, durationMs?: number, fadeMs = 0): void {
     const audio = this.audios[key];
 

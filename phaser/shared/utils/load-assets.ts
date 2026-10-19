@@ -95,6 +95,9 @@ export const GAME_AUDIO_KEYS: AudioKey[] = [
   "error",
   "explosion",
   "missile",
+  "super",
+  "mega",
+  "ultra",
   "fill",
 ];
 

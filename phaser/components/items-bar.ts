@@ -10,7 +10,7 @@ import {
 } from "@/settings/boosters";
 import {phaserImageScale, resolveHeaderMetrics} from "@/settings/app-header-layout";
 import {BTN_READ_NATIVE_HEIGHT} from "@/settings/app-header-tokens";
-import {playClick, playMaxi, playMega, playNoTouch, playSuper, playUltra} from "@/settings/click";
+import {playClick, playMaxi, playMega, playNoTouch, playUltra} from "@/settings/click";
 import {getCellSize} from "../shared/config/grid-generation.const";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import type {Cell} from "../shared/match3";
@@ -57,7 +57,8 @@ const SLOTS: {
 ];
 
 const DROP_SFX: Record<BoosterId, () => void> = {
-  super: playSuper,
+  // super: suono solo in griglia (Phaser, durata limitata)
+  super: () => {},
   mega: playMega,
   maxi: playMaxi,
   ultra: playUltra,

@@ -75,20 +75,39 @@ const SWIPE_RATIO = 0.22; // soglia drag (non è velocità)
 const BOMB_SHOCK_MS = 350;
 const EXPLOSION_AUDIO_MS = 1200;
 const AUDIO_FADE_MS = 450;
+/** super.mp3 al drop in griglia: taglio secco, sotto 500 ms. */
+const SUPER_AUDIO_MS = 420;
+const SUPER_AUDIO_MAX_MS = 480;
 const BOMB_RIPPLE_MS = 60;
 const ROCKET_ZOOM_MS = 200;
 const MISSILE_AUDIO_DELAY_MS = 0;
 const ROCKET_FLY_CELL_MS = 70;
 const MEGA_RADIUS = 2;
 const MEGA_SPREAD = 2;
+const MEGA_STAR_YELLOW = 0xffd83d;
+const MEGA_ELECTRIC_CORE = 0xfff6a8;
+const MEGA_STAR_FX_MS = 420;
+const MEGA_ELECTRIC_TICK_MS = 48;
+const SUPER_WAVE_FADE_MS = 520;
+const SUPER_WAVE_ELECTRIC_EVERY = 6;
 const SPIRAL_STEP_MS = 48;
+const ULTRA_VORTEX_TURNS = 2;
+/** Quota animazione per lo scatto verso la casella a sinistra del drop. */
+const ULTRA_VORTEX_PHASE1_T = 0.12;
 const MAXI_SHOCK_BLUE = 0x7ad7ff;
+const MAXI_ELECTRIC_CORE = 0xd6f7ff;
+const MAXI_ELECTRIC_TICK_MS = 52;
 const BOOSTER_BURST_TINT: Record<BoosterId, number> = {
   super: 0x45e06a,
   mega: 0xffd83d,
   maxi: MAXI_SHOCK_BLUE,
-  ultra: 0xff2e3a,
+  ultra: 0xe62838,
 };
+const ULTRA_BLADE_COLOR = 0xff3344;
+const ULTRA_ELECTRIC_CORE = 0xffa8b8;
+const ULTRA_TRAIL_FADE_MS = 720;
+const ULTRA_VORTEX_FX_SPEED = 0.52;
+const ULTRA_TRAIL_ELECTRIC_EVERY = 2;
 const MOVE_GRANT_TICK_MS = 70;
 const HINT_IDLE_MS = 10000;
 const HINT_PULSE_MS = 420;
@@ -99,6 +118,13 @@ const GUIDE_PULSE_MS = 480;
 
 type RocketOrigin = {cell: Cell; type: number};
 type FadeArt = {cell: Cell; image: Phaser.GameObjects.Image};
+type UltraVortexFxMetrics = {
+  hubPos: {x: number; y: number};
+  leftPos: {x: number; y: number};
+  startAngle: number;
+  rMin: number;
+  rMax: number;
+};
 
 const ICE_ALPHA = 0.72;
 const BLOCK_ALPHA = 0.45;
@@ -878,10 +904,7 @@ export class GameManager extends Phaser.Scene {
 
     this.playBoosterFx(id, origin, pattern, bombCenters.length > 0, rocketCenters.length > 0);
 
-    const flies =
-      id === "super"
-        ? [this.playRocketFly(origin, ROCKET_H), this.playRocketFly(origin, ROCKET_V)]
-        : [];
+    const flies = id === "super" ? [this.playSuperCrossWaveFx(origin)] : [];
 
     this.#notePop(pop);
 
@@ -920,13 +943,23 @@ export class GameManager extends Phaser.Scene {
     hasRocket: boolean,
   ): void {
     if (id === "ultra") {
-      this.playUltraSpiralTrail(pattern);
+      this.playUltraScytheFx(origin, pattern);
+    }
+
+    if (id === "mega") {
+      this.playMegaStarOfDavidFx(origin);
+      this.#maybeShake(130, 0.0048);
+      this.gameScene.audioManager.playAudio(
+        assetConf.audio.mega,
+        EXPLOSION_AUDIO_MS,
+        AUDIO_FADE_MS,
+      );
     }
 
     if (id === "maxi") {
       const spread = Math.max(MEGA_SPREAD, Math.max(this.gridRows, this.gridCols) / 2);
 
-      this.playBombShockwave(origin, spread);
+      this.playMaxiElectricPulse(origin, spread);
 
       if (!hasBomb) {
         this.#maybeShake(180, 0.006);
@@ -938,16 +971,20 @@ export class GameManager extends Phaser.Scene {
       }
     }
 
-    if (id === "super" && !hasRocket) {
+    if (id === "super") {
       this.time.delayedCall(MISSILE_AUDIO_DELAY_MS, () => {
-        this.gameScene.audioManager.playAudio(assetConf.audio.missile, undefined, AUDIO_FADE_MS);
+        const key = assetConf.audio.super;
+
+        this.gameScene.audioManager.playAudio(key, SUPER_AUDIO_MS, 0);
+        this.time.delayedCall(SUPER_AUDIO_MAX_MS, () => {
+          this.gameScene.audioManager.stopAudio(key);
+        });
       });
     }
 
     if (id === "ultra") {
-      this.#maybeShake(180, 0.004);
       this.gameScene.audioManager.playAudio(
-        assetConf.audio.explosion,
+        assetConf.audio.ultra,
         EXPLOSION_AUDIO_MS,
         AUDIO_FADE_MS,
       );
@@ -1412,6 +1449,191 @@ export class GameManager extends Phaser.Scene {
     await this.playRocketFly(cell, type);
   }
 
+  #sampleSuperIntertwinedWave(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    t: number,
+    cellSize: number,
+    phase: number,
+  ): {x: number; y: number; tangent: number} {
+    const bx = Phaser.Math.Linear(x0, x1, t);
+    const by = Phaser.Math.Linear(y0, y1, t);
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.hypot(dx, dy);
+
+    if (len < 0.5) return {x: bx, y: by, tangent: 0};
+
+    const nx = -dy / len;
+    const ny = dx / len;
+    const waves = Math.max(3, Math.round(len / (cellSize * 0.9)));
+    const amp = cellSize * 0.15;
+    const weave = Math.sin(t * waves * Math.PI * 2 + phase) * amp;
+    const tangent = Math.atan2(dy, dx);
+
+    return {x: bx + nx * weave, y: by + ny * weave, tangent};
+  }
+
+  #drawSuperRootLightning(
+    graphics: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    tangent: number,
+    cellSize: number,
+  ): void {
+    const side = Phaser.Math.Between(0, 1) === 0 ? -1 : 1;
+    const angle = tangent + side * (Math.PI / 2) + Phaser.Math.FloatBetween(-0.18, 0.18);
+
+    this.#strokeElectricBolt(
+      graphics,
+      x,
+      y,
+      angle,
+      cellSize * 0.24,
+      cellSize,
+      MEGA_STAR_YELLOW,
+      MEGA_ELECTRIC_CORE,
+      3,
+      0.12,
+    );
+  }
+
+  private async playSuperWaveArm(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    cellSize: number,
+    lowEnd: boolean,
+  ): Promise<void> {
+    const dist = Math.hypot(x1 - x0, y1 - y0);
+    const duration = Math.max(ROCKET_FLY_CELL_MS, (dist / cellSize) * ROCKET_FLY_CELL_MS);
+    const strandA = this.add.graphics();
+    const strandB = this.add.graphics();
+    const roots = this.add.graphics();
+    const lineWidth = Math.max(2, cellSize * (lowEnd ? 0.082 : 0.1));
+    const coreWidth = Math.max(1, lineWidth * 0.42);
+
+    strandA.setBlendMode(Phaser.BlendModes.ADD);
+    strandB.setBlendMode(Phaser.BlendModes.ADD);
+    roots.setBlendMode(Phaser.BlendModes.ADD);
+    this.mainContainer.add(strandA);
+    this.mainContainer.add(strandB);
+    this.mainContainer.add(roots);
+    this.mainContainer.bringToTop(roots);
+
+    let lastA = this.#sampleSuperIntertwinedWave(x0, y0, x1, y1, 0, cellSize, 0);
+    let lastB = this.#sampleSuperIntertwinedWave(x0, y0, x1, y1, 0, cellSize, Math.PI);
+    let tick = 0;
+    const progress = {t: 0};
+
+    await this.tweenPromise({
+      targets: progress,
+      t: 1,
+      duration,
+      ease: "Linear",
+      onUpdate: () => {
+        const sampleA = this.#sampleSuperIntertwinedWave(x0, y0, x1, y1, progress.t, cellSize, 0);
+        const sampleB = this.#sampleSuperIntertwinedWave(x0, y0, x1, y1, progress.t, cellSize, Math.PI);
+
+        strandA.lineStyle(lineWidth, MEGA_STAR_YELLOW, 0.5);
+        strandA.beginPath();
+        strandA.moveTo(lastA.x, lastA.y);
+        strandA.lineTo(sampleA.x, sampleA.y);
+        strandA.strokePath();
+        strandA.lineStyle(coreWidth, MEGA_ELECTRIC_CORE, 0.94);
+        strandA.beginPath();
+        strandA.moveTo(lastA.x, lastA.y);
+        strandA.lineTo(sampleA.x, sampleA.y);
+        strandA.strokePath();
+
+        strandB.lineStyle(lineWidth, MEGA_STAR_YELLOW, 0.46);
+        strandB.beginPath();
+        strandB.moveTo(lastB.x, lastB.y);
+        strandB.lineTo(sampleB.x, sampleB.y);
+        strandB.strokePath();
+        strandB.lineStyle(coreWidth, MEGA_ELECTRIC_CORE, 0.9);
+        strandB.beginPath();
+        strandB.moveTo(lastB.x, lastB.y);
+        strandB.lineTo(sampleB.x, sampleB.y);
+        strandB.strokePath();
+
+        const electricEvery = lowEnd ? 10 : SUPER_WAVE_ELECTRIC_EVERY;
+
+        if (tick > 0 && tick % electricEvery === 0) {
+          roots.clear();
+          const midX = (sampleA.x + sampleB.x) * 0.5;
+          const midY = (sampleA.y + sampleB.y) * 0.5;
+
+          this.#drawSuperRootLightning(roots, midX, midY, sampleA.tangent, cellSize);
+          this.#drawSuperRootLightning(roots, midX, midY, sampleB.tangent, cellSize);
+        }
+
+        lastA = sampleA;
+        lastB = sampleB;
+        tick += 1;
+      },
+    });
+
+    this.tweens.add({
+      targets: [strandA, strandB, roots],
+      alpha: 0,
+      duration: SUPER_WAVE_FADE_MS,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        strandA.destroy();
+        strandB.destroy();
+        roots.destroy();
+      },
+    });
+  }
+
+  #superWaveArmDurationMs(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    cellSize: number,
+  ): number {
+    const dist = Math.hypot(x1 - x0, y1 - y0);
+
+    return Math.max(ROCKET_FLY_CELL_MS, (dist / cellSize) * ROCKET_FLY_CELL_MS);
+  }
+
+  private async playSuperCrossWaveFx(cell: Cell): Promise<void> {
+    const {x, y} = this.cellPos(cell);
+    const cellSize = Math.min(this.cellW, this.cellH);
+    const lowEnd = isLowEndDevice();
+    const leftX = this.startX;
+    const rightX = this.startX + (this.gridCols - 1) * this.cellW;
+    const topY = this.startY;
+    const bottomY = this.startY + (this.gridRows - 1) * this.cellH;
+    const arms: ReadonlyArray<readonly [number, number, number, number]> = [
+      [x, y, leftX, y],
+      [x, y, rightX, y],
+      [x, y, x, topY],
+      [x, y, x, bottomY],
+    ];
+
+    if (!isEffectsEnabled()) {
+      const waitMs = Math.max(
+        ...arms.map(([ax, ay, bx, by]) => this.#superWaveArmDurationMs(ax, ay, bx, by, cellSize)),
+      );
+
+      await this.delay(waitMs);
+
+      return;
+    }
+
+    this.#maybeShake(95, 0.0035);
+
+    await Promise.all(
+      arms.map(([x0, y0, x1, y1]) => this.playSuperWaveArm(x0, y0, x1, y1, cellSize, lowEnd)),
+    );
+  }
+
   private async playRocketFly(cell: Cell, type: number): Promise<void> {
     const {x, y} = this.cellPos(cell);
     const isH = type === ROCKET_H;
@@ -1422,11 +1644,12 @@ export class GameManager extends Phaser.Scene {
       : {x, y: this.startY + (this.gridRows - 1) * this.cellH + extra};
     const endB = isH ? {x: this.startX - extra, y} : {x, y: this.startY - extra};
 
-    const spawnCopy = () => {
+    const spawnCopy = (flipX: boolean, flipY: boolean) => {
       const copy = this.add.image(x, y, assetConf.image.rocket).setOrigin(0.5);
+      const base = this.fitScale(copy) * 1.35;
 
       copy.setAngle(isH ? 90 : 0);
-      copy.setScale(this.fitScale(copy) * 1.35);
+      copy.setScale(flipX ? -base : base, flipY ? -base : base);
       this.mainContainer.add(copy);
       this.mainContainer.bringToTop(copy);
 
@@ -1451,84 +1674,606 @@ export class GameManager extends Phaser.Scene {
       });
     };
 
-    const a = spawnCopy();
-    const b = spawnCopy();
+    // endA = destra (H) o basso (V); endB = sinistra (H) o alto (V). A 90° lo specchio sinistra/destra è flipY.
+    const a = spawnCopy(false, !isH);
+    const b = spawnCopy(false, isH);
 
     await Promise.all([fly(a, endA), fly(b, endB)]);
   }
 
-  private playUltraSpiralTrail(cells: Cell[]): void {
-    if (!isEffectsEnabled() || cells.length === 0) return;
+  #ultraFxLeftCell(origin: Cell): Cell | null {
+    const col = origin.c - 1;
+
+    if (col < 0 || col >= this.gridCols) return null;
+
+    const obs = this.obstacles[origin.r]?.[col];
+
+    if (!obs || obs.blocker === "wall") return null;
+
+    return {r: origin.r, c: col};
+  }
+
+  #ultraVortexFxMetrics(origin: Cell, pattern: Cell[]): UltraVortexFxMetrics {
+    const hubPos = this.cellPos(origin);
+    const cellSize = Math.min(this.cellW, this.cellH);
+    const left = this.#ultraFxLeftCell(origin);
+    const leftPos = left
+      ? this.cellPos(left)
+      : {x: hubPos.x - cellSize * 0.92, y: hubPos.y};
+    const toLeftX = leftPos.x - hubPos.x;
+    const toLeftY = leftPos.y - hubPos.y;
+    const startAngle = Math.atan2(toLeftY, toLeftX);
+    const rMin = Math.max(Math.hypot(toLeftX, toLeftY), cellSize * 0.38);
+    let rMax = cellSize * MEGA_RADIUS;
+
+    for (const cell of pattern) {
+      const pos = this.cellPos(cell);
+
+      rMax = Math.max(rMax, Math.hypot(pos.x - hubPos.x, pos.y - hubPos.y));
+    }
+
+    rMax = Math.max(rMax, rMin + cellSize * 0.45);
+
+    return {hubPos, leftPos, startAngle, rMin, rMax};
+  }
+
+  #sampleUltraVortexFx(metrics: UltraVortexFxMetrics, t: number): {x: number; y: number} {
+    const {hubPos, leftPos, startAngle, rMin, rMax} = metrics;
+
+    if (t <= ULTRA_VORTEX_PHASE1_T) {
+      const u = t / ULTRA_VORTEX_PHASE1_T;
+      const ease = Phaser.Math.Easing.Sine.InOut(u);
+
+      return {
+        x: Phaser.Math.Linear(hubPos.x, leftPos.x, ease),
+        y: Phaser.Math.Linear(hubPos.y, leftPos.y, ease),
+      };
+    }
+
+    const u = (t - ULTRA_VORTEX_PHASE1_T) / (1 - ULTRA_VORTEX_PHASE1_T);
+    const radiusEase = Phaser.Math.Easing.Quadratic.In(u);
+    const theta = startAngle + ULTRA_VORTEX_TURNS * Math.PI * 2 * u;
+    const r = Phaser.Math.Linear(rMin, rMax, radiusEase);
+
+    return {
+      x: hubPos.x + Math.cos(theta) * r,
+      y: hubPos.y + Math.sin(theta) * r,
+    };
+  }
+
+  private playUltraScytheFx(origin: Cell, pattern: Cell[]): void {
+    if (!isEffectsEnabled() || pattern.length === 0) return;
 
     const cellSize = Math.min(this.cellW, this.cellH);
-    const start = this.cellPos(cells[0]);
-    const head = this.add.circle(start.x, start.y, cellSize * 0.2, 0xff2233, 0.92);
+    const lowEnd = isLowEndDevice();
+    const originPos = this.cellPos(origin);
 
-    head.setStrokeStyle(5, 0xff8899, 0.95);
-    head.setBlendMode(Phaser.BlendModes.ADD);
-    this.mainContainer.add(head);
-    this.mainContainer.bringToTop(head);
+    if (pattern.length === 1) {
+      const pulse = this.add.circle(originPos.x, originPos.y, cellSize * 0.16, ULTRA_BLADE_COLOR, 0.65);
 
-    let index = 1;
-
-    const spawnTrail = (x: number, y: number) => {
-      const mark = this.add.circle(x, y, cellSize * 0.14, 0xff3344, 0.55);
-
-      mark.setBlendMode(Phaser.BlendModes.ADD);
-      this.mainContainer.add(mark);
-      this.mainContainer.bringToTop(mark);
-
+      pulse.setBlendMode(Phaser.BlendModes.ADD);
+      this.mainContainer.add(pulse);
       this.tweens.add({
-        targets: mark,
+        targets: pulse,
         scale: 2.2,
         alpha: 0,
         duration: 320,
-        ease: "Cubic.easeOut",
-        onComplete: () => mark.destroy(),
+        onComplete: () => pulse.destroy(),
       });
-    };
+      this.#maybeShake(60, 0.0025);
 
-    const step = () => {
-      if (index >= cells.length) {
+      return;
+    }
+
+    const vortex = this.#ultraVortexFxMetrics(origin, pattern);
+    const duration = Math.floor(
+      Math.max(lowEnd ? 320 : 420, (pattern.length - 1) * SPIRAL_STEP_MS) * ULTRA_VORTEX_FX_SPEED,
+    );
+    const trail = this.add.graphics();
+    const electric = this.add.graphics();
+    const scythe = this.add.image(originPos.x, originPos.y, assetConf.image.ultra).setOrigin(0.5, 0.78);
+    const baseScale = this.fitScale(scythe) * 1.05;
+
+    scythe.setScale(baseScale).setAlpha(0.94);
+    trail.setBlendMode(Phaser.BlendModes.ADD);
+    electric.setBlendMode(Phaser.BlendModes.ADD);
+    this.mainContainer.add(trail);
+    this.mainContainer.add(electric);
+    this.mainContainer.add(scythe);
+    this.mainContainer.bringToTop(trail);
+    this.mainContainer.bringToTop(electric);
+    this.mainContainer.bringToTop(scythe);
+
+    let lastX = originPos.x;
+    let lastY = originPos.y;
+    let shakeTick = 0;
+    const progress = {t: 0};
+    const lineWidth = Math.max(3, cellSize * (lowEnd ? 0.09 : 0.11));
+
+    this.#maybeShake(65, 0.0028);
+
+    this.tweens.add({
+      targets: progress,
+      t: 1,
+      duration,
+      ease: "Linear",
+      onUpdate: () => {
+        const sample = this.#sampleUltraVortexFx(vortex, progress.t);
+        const x = sample.x;
+        const y = sample.y;
+        const dx = x - lastX;
+        const dy = y - lastY;
+        const moved = dx * dx + dy * dy > 0.04;
+
+        if (moved) {
+          const tangent = Math.atan2(dy, dx);
+
+          scythe.setRotation(tangent + Math.PI * 0.55);
+
+          if (shakeTick % (lowEnd ? 3 : ULTRA_TRAIL_ELECTRIC_EVERY) === 0) {
+            const midX = (lastX + x) * 0.5;
+            const midY = (lastY + y) * 0.5;
+
+            this.#drawUltraTrailElectric(electric, midX, midY, tangent, cellSize, lowEnd);
+          }
+        }
+
+        scythe.setPosition(x, y);
+        this.mainContainer.bringToTop(scythe);
+
+        trail.lineStyle(lineWidth, ULTRA_BLADE_COLOR, 0.78);
+        trail.beginPath();
+        trail.moveTo(lastX, lastY);
+        trail.lineTo(x, y);
+        trail.strokePath();
+
+        lastX = x;
+        lastY = y;
+        shakeTick += 1;
+
+        if (shakeTick % 7 === 0) this.#maybeShake(42, 0.0022);
+      },
+      onComplete: () => {
         this.tweens.add({
-          targets: head,
-          scale: 2.4,
+          targets: [trail, electric, scythe],
           alpha: 0,
-          duration: 180,
+          duration: ULTRA_TRAIL_FADE_MS,
           ease: "Cubic.easeOut",
-          onComplete: () => head.destroy(),
+          onComplete: () => {
+            trail.destroy();
+            electric.destroy();
+            scythe.destroy();
+          },
         });
+      },
+    });
+  }
 
-        return;
+  #megaStarTriangleVerts(baseAngle: number, radius: number): Phaser.Math.Vector2[] {
+    return [0, 1, 2].map(
+      (index) =>
+        new Phaser.Math.Vector2(
+          Math.cos(baseAngle + index * ((Math.PI * 2) / 3)) * radius,
+          Math.sin(baseAngle + index * ((Math.PI * 2) / 3)) * radius,
+        ),
+    );
+  }
+
+  #paintMegaStarOfDavid(
+    fill: Phaser.GameObjects.Graphics,
+    outline: Phaser.GameObjects.Graphics,
+    radius: number,
+  ): void {
+    const up = this.#megaStarTriangleVerts(-Math.PI / 2, radius);
+    const down = this.#megaStarTriangleVerts(Math.PI / 2, radius);
+    const stroke = Math.max(2, radius * 0.045);
+
+    fill.fillStyle(MEGA_STAR_YELLOW, 0.42);
+    fill.beginPath();
+    fill.moveTo(up[0].x, up[0].y);
+
+    for (let i = 1; i < up.length; i++) fill.lineTo(up[i].x, up[i].y);
+
+    fill.closePath();
+    fill.fillPath();
+
+    fill.fillStyle(MEGA_STAR_YELLOW, 0.28);
+    fill.beginPath();
+    fill.moveTo(down[0].x, down[0].y);
+
+    for (let i = 1; i < down.length; i++) fill.lineTo(down[i].x, down[i].y);
+
+    fill.closePath();
+    fill.fillPath();
+
+    outline.lineStyle(stroke, MEGA_ELECTRIC_CORE, 0.95);
+    outline.beginPath();
+    outline.moveTo(up[0].x, up[0].y);
+
+    for (let i = 1; i < up.length; i++) outline.lineTo(up[i].x, up[i].y);
+
+    outline.closePath();
+    outline.strokePath();
+
+    outline.beginPath();
+    outline.moveTo(down[0].x, down[0].y);
+
+    for (let i = 1; i < down.length; i++) outline.lineTo(down[i].x, down[i].y);
+
+    outline.closePath();
+    outline.strokePath();
+  }
+
+  #megaStarEdges(radius: number): ReadonlyArray<readonly [Phaser.Math.Vector2, Phaser.Math.Vector2]> {
+    const edges: Array<[Phaser.Math.Vector2, Phaser.Math.Vector2]> = [];
+
+    for (const base of [-Math.PI / 2, Math.PI / 2]) {
+      const verts = this.#megaStarTriangleVerts(base, radius);
+
+      for (let i = 0; i < verts.length; i++) {
+        edges.push([verts[i], verts[(i + 1) % verts.length]]);
       }
+    }
 
-      const {x, y} = this.cellPos(cells[index]);
+    return edges;
+  }
 
-      index += 1;
+  #strokeElectricAlongEdge(
+    graphics: Phaser.GameObjects.Graphics,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    cellSize: number,
+    segments: number,
+  ): void {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len = Math.hypot(dx, dy);
 
-      this.tweens.add({
-        targets: head,
+    if (len < 0.5) return;
+
+    const nx = -dy / len;
+    const ny = dx / len;
+    const alongJitter = cellSize * 0.1;
+    const sideJitter = cellSize * 0.28;
+    const alpha = Phaser.Math.FloatBetween(0.72, 0.98);
+
+    graphics.lineStyle(Phaser.Math.Between(2, 4), MEGA_STAR_YELLOW, alpha);
+    graphics.beginPath();
+    graphics.moveTo(
+      ax + Phaser.Math.FloatBetween(-alongJitter, alongJitter),
+      ay + Phaser.Math.FloatBetween(-alongJitter, alongJitter),
+    );
+
+    for (let s = 1; s <= segments; s++) {
+      const t = s / segments;
+      const px = Phaser.Math.Linear(ax, bx, t);
+      const py = Phaser.Math.Linear(ay, by, t);
+      const side = Phaser.Math.FloatBetween(-sideJitter, sideJitter);
+
+      graphics.lineTo(px + nx * side + Phaser.Math.FloatBetween(-alongJitter, alongJitter), py + ny * side);
+    }
+
+    graphics.strokePath();
+
+    graphics.lineStyle(1, MEGA_ELECTRIC_CORE, alpha * 0.92);
+    graphics.beginPath();
+    graphics.moveTo(ax, ay);
+
+    for (let s = 1; s <= segments; s++) {
+      const t = s / segments;
+      const px = Phaser.Math.Linear(ax, bx, t);
+      const py = Phaser.Math.Linear(ay, by, t);
+      const side = Phaser.Math.FloatBetween(-sideJitter * 0.55, sideJitter * 0.55);
+
+      graphics.lineTo(px + nx * side, py + ny * side);
+    }
+
+    graphics.strokePath();
+
+    const sparkT = Phaser.Math.FloatBetween(0.18, 0.82);
+    const sx = Phaser.Math.Linear(ax, bx, sparkT);
+    const sy = Phaser.Math.Linear(ay, by, sparkT);
+    const outward = Phaser.Math.Between(0, 1) === 1 ? 1 : -1;
+    const sparkAngle = Math.atan2(ny * outward, nx * outward);
+
+    this.#strokeElectricBolt(
+      graphics,
+      sx,
+      sy,
+      sparkAngle,
+      cellSize * Phaser.Math.FloatBetween(0.22, 0.38),
+      cellSize,
+      MEGA_STAR_YELLOW,
+      MEGA_ELECTRIC_CORE,
+      4,
+      0.16,
+    );
+  }
+
+  #drawMegaStarElectric(
+    graphics: Phaser.GameObjects.Graphics,
+    radius: number,
+    cellSize: number,
+    sparksPerEdge: number,
+  ): void {
+    graphics.clear();
+
+    const edges = this.#megaStarEdges(radius);
+    const segments = 7;
+
+    for (const [from, to] of edges) {
+      for (let n = 0; n < sparksPerEdge; n++) {
+        this.#strokeElectricAlongEdge(graphics, from.x, from.y, to.x, to.y, cellSize, segments);
+      }
+    }
+  }
+
+  private playMegaStarOfDavidFx(cell: Cell): void {
+    if (!isEffectsEnabled()) return;
+
+    const {x, y} = this.cellPos(cell);
+    const cellSize = Math.min(this.cellW, this.cellH);
+    const lowEnd = isLowEndDevice();
+    const outerR = cellSize * (MEGA_RADIUS + 0.38);
+    const fx = this.add.container(x, y);
+    const fill = this.add.graphics();
+    const outline = this.add.graphics();
+    const electric = this.add.graphics();
+    const emblem = this.add.image(0, 0, assetConf.image.mega).setOrigin(0.5);
+
+    fill.setBlendMode(Phaser.BlendModes.ADD);
+    outline.setBlendMode(Phaser.BlendModes.ADD);
+    electric.setBlendMode(Phaser.BlendModes.ADD);
+    emblem.setAlpha(0.92);
+
+    this.#paintMegaStarOfDavid(fill, outline, outerR);
+
+    const emblemScale = this.fitScale(emblem) * 0.72;
+
+    emblem.setScale(emblemScale);
+    fx.add([fill, outline, electric, emblem]);
+    this.mainContainer.add(fx);
+    this.mainContainer.bringToTop(fx);
+
+    fx.setScale(0.12);
+    fx.setAlpha(0.98);
+
+    this.tweens.add({
+      targets: fx,
+      scale: 1,
+      alpha: 0,
+      duration: MEGA_STAR_FX_MS,
+      ease: "Cubic.easeOut",
+      onComplete: () => fx.destroy(),
+    });
+
+    this.tweens.add({
+      targets: emblem,
+      scale: emblemScale * 1.35,
+      duration: MEGA_STAR_FX_MS * 0.55,
+      ease: "Back.easeOut",
+    });
+
+    const sparksPerEdge = lowEnd ? 1 : 2;
+    const tickRepeats = Math.max(3, Math.floor(MEGA_STAR_FX_MS / MEGA_ELECTRIC_TICK_MS) - 1);
+
+    const tick = this.time.addEvent({
+      delay: MEGA_ELECTRIC_TICK_MS,
+      repeat: tickRepeats,
+      callback: () => {
+        this.#drawMegaStarElectric(electric, outerR, cellSize, sparksPerEdge);
+      },
+    });
+
+    this.#drawMegaStarElectric(electric, outerR, cellSize, sparksPerEdge);
+
+    this.time.delayedCall(MEGA_STAR_FX_MS, () => tick.destroy());
+  }
+
+  #maxiPulseDurationMs(): number {
+    const rippleReach = Math.max(this.gridRows - 1, this.gridCols - 1);
+
+    return rippleReach * BOMB_RIPPLE_MS + BOMB_SHOCK_MS + DESTROY_MS * 0.35;
+  }
+
+  #strokeElectricBolt(
+    graphics: Phaser.GameObjects.Graphics,
+    x0: number,
+    y0: number,
+    angle: number,
+    reach: number,
+    cellSize: number,
+    primary: number,
+    core: number,
+    segments = 5,
+    jitterMul = 0.38,
+  ): void {
+    const jitter = cellSize * jitterMul;
+    const width = Phaser.Math.Between(2, 4);
+    const alpha = Phaser.Math.FloatBetween(0.42, 0.9);
+
+    graphics.lineStyle(width, primary, alpha);
+    graphics.beginPath();
+    graphics.moveTo(x0, y0);
+
+    for (let s = 1; s <= segments; s++) {
+      const t = s / segments;
+      const bx = x0 + Math.cos(angle) * reach * t + Phaser.Math.FloatBetween(-jitter, jitter);
+      const by = y0 + Math.sin(angle) * reach * t + Phaser.Math.FloatBetween(-jitter, jitter);
+
+      graphics.lineTo(bx, by);
+    }
+
+    graphics.strokePath();
+
+    graphics.lineStyle(1, core, alpha * 0.88);
+    graphics.beginPath();
+    graphics.moveTo(x0, y0);
+
+    for (let s = 1; s <= segments; s++) {
+      const t = s / segments;
+      const bx =
+        x0 + Math.cos(angle) * reach * t + Phaser.Math.FloatBetween(-jitter * 0.42, jitter * 0.42);
+      const by =
+        y0 + Math.sin(angle) * reach * t + Phaser.Math.FloatBetween(-jitter * 0.42, jitter * 0.42);
+
+      graphics.lineTo(bx, by);
+    }
+
+    graphics.strokePath();
+  }
+
+  #drawUltraTrailElectric(
+    graphics: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    tangent: number,
+    cellSize: number,
+    lowEnd: boolean,
+  ): void {
+    const reach = cellSize * (lowEnd ? 0.26 : 0.34);
+    const sides = lowEnd ? 1 : 2;
+
+    for (let side = -1; side <= sides; side += 2) {
+      const angle = tangent + side * (Math.PI / 2) + Phaser.Math.FloatBetween(-0.35, 0.35);
+
+      this.#strokeElectricBolt(
+        graphics,
         x,
         y,
-        duration: SPIRAL_STEP_MS,
-        ease: "Linear",
-        onComplete: () => {
-          spawnTrail(x, y);
-          step();
-        },
-      });
-    };
+        angle,
+        reach,
+        cellSize,
+        ULTRA_BLADE_COLOR,
+        ULTRA_ELECTRIC_CORE,
+        4,
+        0.2,
+      );
+    }
 
-    if (cells.length > 1) step();
-    else {
+    if (!lowEnd && Phaser.Math.Between(0, 1) === 1) {
+      this.#strokeElectricBolt(
+        graphics,
+        x,
+        y,
+        tangent + Phaser.Math.FloatBetween(-0.5, 0.5),
+        reach * 0.55,
+        cellSize,
+        ULTRA_BLADE_COLOR,
+        ULTRA_ELECTRIC_CORE,
+        3,
+        0.14,
+      );
+    }
+  }
+
+  #drawMaxiElectricArcs(
+    graphics: Phaser.GameObjects.Graphics,
+    cx: number,
+    cy: number,
+    maxReach: number,
+    cellSize: number,
+    boltCount: number,
+  ): void {
+    graphics.clear();
+
+    for (let b = 0; b < boltCount; b++) {
+      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const reach = Phaser.Math.FloatBetween(maxReach * 0.42, maxReach);
+
+      this.#strokeElectricBolt(
+        graphics,
+        cx,
+        cy,
+        angle,
+        reach,
+        cellSize,
+        MAXI_SHOCK_BLUE,
+        MAXI_ELECTRIC_CORE,
+      );
+    }
+  }
+
+  private playMaxiElectricPulse(cell: Cell, spread: number): void {
+    this.playBombShockwave(cell, spread);
+
+    if (!isEffectsEnabled()) return;
+
+    const {x, y} = this.cellPos(cell);
+    const cellSize = Math.min(this.cellW, this.cellH);
+    const lowEnd = isLowEndDevice();
+    const pulseMs = this.#maxiPulseDurationMs();
+    const maxReach = cellSize * 2.65 * spread;
+    const ringCount = lowEnd ? 2 : 4;
+
+    for (let i = 0; i < ringCount; i++) {
+      const baseRadius = cellSize * 0.22;
+      const ring = this.add.circle(x, y, baseRadius, MAXI_SHOCK_BLUE, 0);
+
+      ring.setStrokeStyle(lowEnd ? 3 : 5, MAXI_SHOCK_BLUE, 0.82);
+      ring.setBlendMode(Phaser.BlendModes.ADD);
+      this.mainContainer.add(ring);
+      this.mainContainer.bringToTop(ring);
+
       this.tweens.add({
-        targets: head,
-        scale: 2.4,
-        alpha: 0,
-        duration: SPIRAL_STEP_MS * 2,
-        onComplete: () => head.destroy(),
+        targets: ring,
+        scale: maxReach / baseRadius,
+        alpha: {from: 0.88, to: 0},
+        delay: i * 95,
+        duration: BOMB_SHOCK_MS + 220,
+        ease: "Cubic.easeOut",
+        onComplete: () => ring.destroy(),
       });
     }
+
+    const core = this.add.circle(x, y, cellSize * 0.14, MAXI_ELECTRIC_CORE, 0.55);
+
+    core.setBlendMode(Phaser.BlendModes.ADD);
+    this.mainContainer.add(core);
+    this.mainContainer.bringToTop(core);
+
+    this.tweens.add({
+      targets: core,
+      scale: {from: 1, to: 2.4},
+      alpha: {from: 0.7, to: 0},
+      duration: 280,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    const arcs = this.add.graphics();
+
+    arcs.setBlendMode(Phaser.BlendModes.ADD);
+    this.mainContainer.add(arcs);
+    this.mainContainer.bringToTop(arcs);
+
+    const tickRepeats = Math.max(4, Math.floor(pulseMs / MAXI_ELECTRIC_TICK_MS) - 1);
+    const boltCount = lowEnd ? 2 : 4;
+
+    const tick = this.time.addEvent({
+      delay: MAXI_ELECTRIC_TICK_MS,
+      repeat: tickRepeats,
+      callback: () => {
+        this.#drawMaxiElectricArcs(arcs, x, y, maxReach, cellSize, boltCount);
+      },
+    });
+
+    this.#drawMaxiElectricArcs(arcs, x, y, maxReach, cellSize, boltCount);
+
+    this.time.delayedCall(pulseMs, () => {
+      tick.destroy();
+      this.tweens.killTweensOf(core);
+      core.destroy();
+      this.tweens.add({
+        targets: arcs,
+        alpha: 0,
+        duration: 180,
+        onComplete: () => arcs.destroy(),
+      });
+    });
   }
 
   private playBombShockwave(cell: Cell, spread = 1): void {

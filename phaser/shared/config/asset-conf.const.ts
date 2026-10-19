@@ -20,6 +20,9 @@ export const CandyCrushAssetConf = {
     loseSound: "loseSound",
     missile: "missile",
     explosion: "explosion",
+    super: "super",
+    mega: "mega",
+    ultra: "ultra",
     fill: "fill",
   } as const,
   image: {
