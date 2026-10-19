@@ -89,9 +89,15 @@ export function getGridForLevel(level: number, stageIndex = 0): GridShape {
   return shape;
 }
 
+export type ListedGrid = GridShape & {stageIndex: number; localLevel: number};
+
 //* Tutte le griglie, da grid-0000 all'ultima, nello stesso ordine del gioco.
-export function listAllGrids(): GridShape[] {
+export function listAllGrids(): ListedGrid[] {
   return STAGES.flatMap((levels, stagePos) =>
-    levels.map((pattern, local) => createGrid(gridId(stagePos, levels.length, local), pattern)),
+    levels.map((pattern, local) => ({
+      ...createGrid(gridId(stagePos, levels.length, local), pattern),
+      stageIndex: stagePos,
+      localLevel: local + 1,
+    })),
   );
 }
