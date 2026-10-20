@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import {useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 
 import {
   CLOUD_CURTAIN_HOLD_MS,
@@ -50,6 +50,7 @@ import {
 
 const INTRO_HOLD_MS = 900; // quanto resta grande al centro prima di salire
 const INTRO_MOVE_MS = 1100; // durata della risalita
+const LOGO_ASPECT = 702 / 942;
 const PRESS_MS = 220; // attesa dell'effetto premuto prima di avviare il gioco
 
 const MENU_BUTTONS = [
@@ -413,7 +414,10 @@ export function HomeScreen() {
   const {language, setLanguage, t} = useLanguage();
   const [isPlaying, setIsPlaying] = useState(false);
   const [gridsOpen, setGridsOpen] = useState(false);
-  const [isIntroDone, setIsIntroDone] = useState(false);
+  const [introMoveStarted, setIntroMoveStarted] = useState(false);
+  const [introComplete, setIntroComplete] = useState(false);
+  const [logoIntroReady, setLogoIntroReady] = useState(false);
+  const logoWrapRef = useRef<HTMLDivElement>(null);
   const [isStartPressed, setIsStartPressed] = useState(false);
   const [isTestamentOpen, setIsTestamentOpen] = useState(false);
   const [homePlayTutorialOpen, setHomePlayTutorialOpen] = useState(false);
@@ -437,11 +441,60 @@ export function HomeScreen() {
     setTestStartMode(readTestStageStartMode());
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsIntroDone(true), INTRO_HOLD_MS);
+  const syncLogoIntroMetrics = useCallback(() => {
+    const el = logoWrapRef.current;
 
-    return () => clearTimeout(timer);
+    if (!el) return false;
+
+    let height = el.getBoundingClientRect().height;
+
+    if (height < 1 && el.offsetWidth > 0) height = el.offsetWidth * LOGO_ASPECT;
+
+    if (height < 1) return false;
+
+    const fromY = window.innerHeight / 2 - height / 2;
+    const toY = Math.max(0, window.innerHeight * 0.01);
+
+    el.style.setProperty("--home-logo-from-y", `${fromY}px`);
+    el.style.setProperty("--home-logo-to-y", `${toY}px`);
+
+    return true;
   }, []);
+
+  useLayoutEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reducedMotion) {
+      syncLogoIntroMetrics();
+      setLogoIntroReady(true);
+      setIntroMoveStarted(true);
+      setIntroComplete(true);
+
+      return;
+    }
+
+    if (syncLogoIntroMetrics()) setLogoIntroReady(true);
+  }, [syncLogoIntroMetrics]);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const holdTimer = setTimeout(() => setIntroMoveStarted(true), INTRO_HOLD_MS);
+
+    return () => clearTimeout(holdTimer);
+  }, []);
+
+  useEffect(() => {
+    if (!logoIntroReady || introComplete) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const failSafe = setTimeout(
+      () => setIntroComplete(true),
+      INTRO_HOLD_MS + INTRO_MOVE_MS + 80,
+    );
+
+    return () => clearTimeout(failSafe);
+  }, [introComplete, logoIntroReady]);
 
   useEffect(() => {
     if (isPlaying || showWorld || !isMusicOn) return;
@@ -551,21 +604,34 @@ export function HomeScreen() {
           showWorld ? "home-shell-suspended invisible pointer-events-none" : ""
         }`}
       >
-      <HomeLightFall paused={showWorld} />
-      <HomeDriftingClouds paused={showWorld} visible={isIntroDone} />
+      <HomeLightFall paused={showWorld || !introComplete} />
+      <HomeDriftingClouds paused={showWorld} visible={introComplete} />
       <div
-        className="absolute left-1/2 top-0 z-10 w-[82%] max-w-sm ease-out"
-        style={{
-          transition: `transform ${INTRO_MOVE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
-          transform: isIntroDone
-            ? "translate(-50%, 1vh) scale(0.62)"
-            : "translate(-50%, calc(50dvh - 50%)) scale(1)",
+        ref={logoWrapRef}
+        className={`home-logo-intro ${logoIntroReady ? "home-logo-intro--animate" : ""} ${
+          introComplete ? "home-logo-intro--done" : ""
+        }`}
+        style={
+          {
+            "--home-logo-hold-ms": `${INTRO_HOLD_MS}ms`,
+            "--home-logo-move-ms": `${INTRO_MOVE_MS}ms`,
+          } as React.CSSProperties
+        }
+        onAnimationEnd={(event) => {
+          if (event.animationName !== "home-logo-rise") return;
+
+          setIntroComplete(true);
         }}
       >
         <Image
           alt="Holy Crush"
           className="h-auto w-full drop-shadow-xl"
           height={702}
+          onLoad={() => {
+            if (logoIntroReady) return;
+
+            if (syncLogoIntroMetrics()) setLogoIntroReady(true);
+          }}
           priority
           src="/images/ui_home/logo.png"
           width={942}
@@ -574,9 +640,9 @@ export function HomeScreen() {
 
       <div
         className={`absolute bottom-[12vh] left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-[3.5vh] transition-all duration-500 ${
-          isIntroDone ? "opacity-100" : "pointer-events-none translate-y-4 opacity-0"
+          introMoveStarted ? "opacity-100" : "pointer-events-none translate-y-4 opacity-0"
         }`}
-        style={{transitionDelay: isIntroDone ? `${INTRO_MOVE_MS * 0.6}ms` : "0ms"}}
+        style={{transitionDelay: introMoveStarted ? `${INTRO_MOVE_MS * 0.6}ms` : "0ms"}}
       >
         {isStageStartTestEnabled() ? (
           <StageStartTestPanel

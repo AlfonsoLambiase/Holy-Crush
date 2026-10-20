@@ -45,15 +45,26 @@ const fontPx = (scene: Phaser.Scene, min: number, max: number): number => {
   return layoutScaleForViewport(width, height, min, max);
 };
 
-/** Popup mosse in partita: su schermi stretti testo più piccolo per far vedere il pulsante annuncio. */
-export const movesOutPopupTextScale = (scene: Phaser.Scene): number => {
+const movesOutCssViewport = (scene: Phaser.Scene): {cssShort: number; cssLong: number} => {
   const {width, height} = scene.scale;
-  const cssShort = Math.min(width, height) / cappedDevicePixelRatio();
+  const dpr = cappedDevicePixelRatio();
 
-  // Solo schermi stretti; sopra ~420px CSS = popup mosse come in origine.
+  return {
+    cssShort: Math.min(width, height) / dpr,
+    cssLong: Math.max(width, height) / dpr,
+  };
+};
+
+/** Popup mosse: stretti = spazio per il btn; grandi (Pro Max) = testo un filo più piccolo per non sbordare dal PNG. */
+export const movesOutPopupTextScale = (scene: Phaser.Scene): number => {
+  const {cssShort, cssLong} = movesOutCssViewport(scene);
+
   if (cssShort <= 360) return 0.82;
   if (cssShort <= 390) return 0.88;
   if (cssShort <= 420) return 0.92;
+
+  if (cssLong >= 920 || cssShort >= 430) return 0.9;
+  if (cssLong >= 880 || cssShort >= 414) return 0.93;
 
   return 1;
 };
@@ -68,8 +79,10 @@ export const showWatchAdPopup = (
   const scale = options.scale;
   const textScale = options.textScale ?? 1;
   const watchScale = options.watchScale ?? textScale;
+  const {cssShort} = movesOutCssViewport(scene);
   const compactMoves = options.adId === "moves" && textScale < 1;
-  const gapMul = compactMoves ? 0.58 : 1;
+  const compactMovesNarrow = compactMoves && cssShort <= 420;
+  const gapMul = compactMovesNarrow ? 0.58 : 1;
   const overlay = scene.add
     .rectangle(width / 2, height / 2, width, height, 0x000000, options.dim ?? 0.55)
     .setDepth(40)
@@ -80,13 +93,13 @@ export const showWatchAdPopup = (
     .setDepth(41)
     .setInteractive({useHandCursor: false});
   const plate = scene.add.image(0, 0, assetConf.image.popupExitGame).setOrigin(0.5);
-  const watchNudgeY = compactMoves ? plate.height * 0.045 : 0;
+  const watchNudgeY = compactMovesNarrow ? plate.height * 0.045 : 0;
   const wrap = plate.width * 0.78;
   const popup = scene.add.container(width / 2, height / 2).setDepth(42).setScrollFactor(0);
   let titleSize = fontPx(scene, TITLE_FONT_MIN, TITLE_FONT_MAX) * textScale;
   const bodySize = fontPx(scene, BODY_FONT_MIN, BODY_FONT_MAX) * textScale;
 
-  if (compactMoves) titleSize *= 1.1;
+  if (compactMovesNarrow) titleSize *= 1.1;
   const title = scene.add
     .text(0, 0, options.title, {
       fontFamily: APP_FONT,

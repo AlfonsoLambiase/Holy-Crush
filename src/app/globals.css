@@ -56,6 +56,39 @@ canvas {
   animation-play-state: paused;
 }
 
+@keyframes home-logo-rise {
+  from {
+    transform: translate3d(-50%, var(--home-logo-from-y, 40vh), 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(-50%, var(--home-logo-to-y, 1vh), 0) scale(0.62);
+  }
+}
+
+.home-logo-intro {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 10;
+  width: 82%;
+  max-width: 24rem;
+  transform: translate3d(-50%, var(--home-logo-from-y, 40vh), 0) scale(1);
+  transform-origin: top center;
+  will-change: transform;
+}
+
+.home-logo-intro--animate {
+  animation: home-logo-rise var(--home-logo-move-ms, 1100ms) cubic-bezier(0.22, 1, 0.36, 1)
+    forwards;
+  animation-delay: var(--home-logo-hold-ms, 900ms);
+}
+
+.home-logo-intro--done {
+  transform: translate3d(-50%, var(--home-logo-to-y, 1vh), 0) scale(0.62);
+  will-change: auto;
+}
+
 @keyframes language-arrow-zoom {
   0% {
     transform: scale(1);
@@ -253,6 +286,12 @@ canvas {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .home-logo-intro {
+    animation: none !important;
+    transform: translate3d(-50%, var(--home-logo-to-y, 1vh), 0) scale(0.62);
+    will-change: auto;
+  }
+
   .home-cloud,
   .language-arrow-zoom,
   .popup-backdrop-in,
