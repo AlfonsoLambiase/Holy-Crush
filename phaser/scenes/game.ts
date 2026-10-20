@@ -13,7 +13,7 @@ import {StarsEffectManager} from "../components/starsEffectManager";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {popupPlateScale} from "../shared/popup-plate-scale";
 import {getViewportGlobalScale} from "../shared/viewport-scale";
-import {showWatchAdPopup} from "../shared/watch-ad-popup";
+import {movesOutPopupTextScale, showWatchAdPopup} from "../shared/watch-ad-popup";
 import {EXTRA_MOVES} from "../shared/level-mission";
 
 import {TimerManager} from "./timer-manager";
@@ -153,6 +153,8 @@ export class Game extends Phaser.Scene {
       title: t("movesOutTitle", language),
       body: t("movesOutBody", language),
       scale: popupPlateScale(host, assetConf.image.popupExitGame),
+      textScale: movesOutPopupTextScale(host),
+      watchScale: 1,
       adId: "moves",
       dim: 0.72,
       hideAdLabel: true,

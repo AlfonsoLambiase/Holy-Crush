@@ -14,6 +14,7 @@ type WoodPanelProps = {
   contentAlign?: "center" | "start";
   panelClassName?: string;
   contentClassName?: string;
+  backdropClassName?: string;
 };
 
 export function WoodPanel({
@@ -25,6 +26,7 @@ export function WoodPanel({
   contentAlign = "center",
   panelClassName = "w-[min(88vw,28rem,calc(92dvh*863/1152))]",
   contentClassName = "inset-[11%] px-[6%] py-1",
+  backdropClassName = "bg-black/55",
 }: WoodPanelProps) {
   const [leaving, setLeaving] = useState(false);
 
@@ -37,7 +39,7 @@ export function WoodPanel({
 
   return (
     <div
-      className={`${className} flex touch-auto items-center justify-center overflow-y-auto bg-black/55 px-3 py-[max(0.5rem,env(safe-area-inset-top))] ${
+      className={`${className} flex touch-auto items-center justify-center overflow-y-auto px-3 py-[max(0.5rem,env(safe-area-inset-top))] ${backdropClassName} ${
         leaving ? "popup-backdrop-out" : "popup-backdrop-in"
       }`}
       onClick={requestClose}

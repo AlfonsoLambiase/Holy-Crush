@@ -15,7 +15,10 @@ export function HomePlayTutorial({onComplete}: HomePlayTutorialProps) {
   return (
     <StoryTutorialOverlay
       ariaLabelKey="homePlayTutorial0"
+      className="absolute inset-0 z-[40]"
       pages={PAGES}
+      showBackdrop={false}
+      showBottomScrim
       onComplete={onComplete}
     />
   );

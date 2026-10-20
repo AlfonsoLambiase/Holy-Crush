@@ -19,14 +19,22 @@ type StoryTutorialOverlayProps = {
   pages: readonly StoryTutorialPage[];
   ariaLabelKey: string;
   onComplete: () => void;
+  onPageChange?: (pageIndex: number) => void;
   className?: string;
+  /** false = solo pannello in basso (es. home con modalità sopra). */
+  showBackdrop?: boolean;
+  /** Velo scuro in basso per leggere il tutorial senza oscurare tutto lo schermo. */
+  showBottomScrim?: boolean;
 };
 
 export function StoryTutorialOverlay({
   pages,
   ariaLabelKey,
   onComplete,
+  onPageChange,
   className = "absolute inset-0 z-30",
+  showBackdrop = true,
+  showBottomScrim = false,
 }: StoryTutorialOverlayProps) {
   const {t} = useLanguage();
   const [pageIndex, setPageIndex] = useState(0);
@@ -95,6 +103,10 @@ export function StoryTutorialOverlay({
   }, []);
 
   useEffect(() => {
+    onPageChange?.(pageIndex);
+  }, [pageIndex, onPageChange]);
+
+  useEffect(() => {
     if (skipAutoTypeRef.current) {
       skipAutoTypeRef.current = false;
 
@@ -158,7 +170,7 @@ export function StoryTutorialOverlay({
 
   return (
     <div
-      className={`${className} touch-auto bg-black/72 transition-opacity duration-300`}
+      className={`${className} touch-auto transition-opacity duration-300 ${showBackdrop ? "bg-black/72" : "bg-transparent"}`}
       role="dialog"
       aria-modal
       aria-label={t(ariaLabelKey)}
@@ -168,6 +180,12 @@ export function StoryTutorialOverlay({
         if (event.key === "Enter" || event.key === " ") advance();
       }}
     >
+      {showBottomScrim ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[min(72dvh,34rem)] bg-gradient-to-t from-black/88 via-black/55 to-transparent"
+        />
+      ) : null}
       <div className="absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] flex justify-center px-3">
         <div className="relative w-[min(92vw,28rem)]">
           <div

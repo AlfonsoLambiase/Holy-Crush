@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 
 import {getCurrentLanguage, t} from "@/language";
-import {layoutScaleForViewport} from "@/settings/app-header-layout";
+import {cappedDevicePixelRatio, layoutScaleForViewport} from "@/settings/app-header-layout";
 import {playClick} from "@/settings/click";
 import {getShopAdProgress, SHOP_AD_COST, watchShopAd, type ShopAdId} from "@/settings/shop-ads";
 import {CandyCrushAssetConf} from "./config/asset-conf.const";
@@ -29,8 +29,10 @@ type WatchAdPopupOptions = {
   body: string;
   scale: number;
   adId: ShopAdId;
-  /** 1 = booster. Sotto 1 rimpicciolisce testi e cerchio insieme. */
+  /** 1 = booster. Sotto 1 rimpicciolisce titolo e corpo. */
   textScale?: number;
+  /** Se omesso, segue textScale (es. mosse: testo piccolo, pulsante annuncio pieno). */
+  watchScale?: number;
   dim?: number;
   hideAdLabel?: boolean;
   onWatch: () => void;
@@ -43,6 +45,19 @@ const fontPx = (scene: Phaser.Scene, min: number, max: number): number => {
   return layoutScaleForViewport(width, height, min, max);
 };
 
+/** Popup mosse in partita: su schermi stretti testo più piccolo per far vedere il pulsante annuncio. */
+export const movesOutPopupTextScale = (scene: Phaser.Scene): number => {
+  const {width, height} = scene.scale;
+  const cssShort = Math.min(width, height) / cappedDevicePixelRatio();
+
+  // Solo schermi stretti; sopra ~420px CSS = popup mosse come in origine.
+  if (cssShort <= 360) return 0.82;
+  if (cssShort <= 390) return 0.88;
+  if (cssShort <= 420) return 0.92;
+
+  return 1;
+};
+
 export const showWatchAdPopup = (
   scene: Phaser.Scene,
   options: WatchAdPopupOptions,
@@ -52,6 +67,9 @@ export const showWatchAdPopup = (
   const {width, height} = scene.scale;
   const scale = options.scale;
   const textScale = options.textScale ?? 1;
+  const watchScale = options.watchScale ?? textScale;
+  const compactMoves = options.adId === "moves" && textScale < 1;
+  const gapMul = compactMoves ? 0.58 : 1;
   const overlay = scene.add
     .rectangle(width / 2, height / 2, width, height, 0x000000, options.dim ?? 0.55)
     .setDepth(40)
@@ -62,10 +80,13 @@ export const showWatchAdPopup = (
     .setDepth(41)
     .setInteractive({useHandCursor: false});
   const plate = scene.add.image(0, 0, assetConf.image.popupExitGame).setOrigin(0.5);
+  const watchNudgeY = compactMoves ? plate.height * 0.045 : 0;
   const wrap = plate.width * 0.78;
   const popup = scene.add.container(width / 2, height / 2).setDepth(42).setScrollFactor(0);
-  const titleSize = fontPx(scene, TITLE_FONT_MIN, TITLE_FONT_MAX) * textScale;
+  let titleSize = fontPx(scene, TITLE_FONT_MIN, TITLE_FONT_MAX) * textScale;
   const bodySize = fontPx(scene, BODY_FONT_MIN, BODY_FONT_MAX) * textScale;
+
+  if (compactMoves) titleSize *= 1.1;
   const title = scene.add
     .text(0, 0, options.title, {
       fontFamily: APP_FONT,
@@ -88,19 +109,20 @@ export const showWatchAdPopup = (
   const watch = addWatchVisual(
     scene,
     options.adId,
-    textScale,
+    watchScale,
     plate.width * BUTTON_WIDTH_RATIO,
     options.hideAdLabel,
   );
 
-  const titleGap = plate.height * TITLE_BODY_GAP_RATIO;
-  const watchGap = plate.height * BODY_BUTTON_GAP_RATIO;
-  const top = -(title.height + titleGap + body.height + watchGap + watch.height) / 2;
+  const titleGap = plate.height * TITLE_BODY_GAP_RATIO * gapMul;
+  const watchGap = plate.height * BODY_BUTTON_GAP_RATIO * gapMul;
+  const top =
+    -(title.height + titleGap + body.height + watchGap + watch.height + watchNudgeY) / 2;
 
   title.setY(top + title.height / 2);
   body.setY(title.y + title.height / 2 + titleGap + body.height / 2);
 
-  const watchY = body.y + body.height / 2 + watchGap + watch.height / 2;
+  const watchY = body.y + body.height / 2 + watchGap + watch.height / 2 + watchNudgeY;
 
   watch.root.setY(watchY);
 

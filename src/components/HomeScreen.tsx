@@ -112,6 +112,7 @@ type TestamentCardProps = {
   className?: string;
   disabled?: boolean;
   isPressed?: boolean;
+  tutorialHighlight?: boolean;
   onClick: () => void;
 };
 
@@ -128,11 +129,14 @@ function TestamentCard({
   className = "",
   disabled = false,
   isPressed = false,
+  tutorialHighlight = false,
   onClick,
 }: TestamentCardProps) {
   return (
     <button
       className={`flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-[#e7c27a] bg-[#2a160c] shadow-[0_0_12px_rgba(255,214,120,0.45)] transition-transform duration-100 ${
+        tutorialHighlight ? "home-mode-tutorial-glow" : ""
+      } ${
         disabled
           ? "cursor-not-allowed opacity-45 brightness-[0.55] saturate-50"
           : isPressed
@@ -645,10 +649,15 @@ export function HomeScreen() {
         </div>
       </div>
 
+      {isTestamentOpen && homePlayTutorialOpen ? (
+        <div aria-hidden className="absolute inset-0 z-[28] bg-black/85 pointer-events-none" />
+      ) : null}
+
       {isTestamentOpen && (
         <WoodPanel
           alt={t("newTestament")}
-          className="absolute inset-0 z-20"
+          backdropClassName={homePlayTutorialOpen ? "bg-transparent" : "bg-black/55"}
+          className={homePlayTutorialOpen ? "absolute inset-0 z-[32]" : "absolute inset-0 z-20"}
           src="/images/ui_home/gameContainer.png"
           onClose={() => {
             if (pressedMode !== null || homePlayTutorialOpen) return;
@@ -657,16 +666,27 @@ export function HomeScreen() {
             setIsTestamentOpen(false);
           }}
         >
-          <div className="flex h-full w-full flex-col gap-1">
+          <div
+            className={`relative flex h-full w-full flex-col gap-1 ${
+              homePlayTutorialOpen ? "brightness-[0.55] saturate-[0.88]" : ""
+            }`}
+          >
+            {homePlayTutorialOpen ? (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-[1] rounded-lg bg-black/25"
+              />
+            ) : null}
             {TESTAMENTS.map(({mode, label, src}, index) => (
               <TestamentCard
                 key={mode}
-                className={index > 0 ? "mt-1" : ""}
+                className={`relative z-[2] ${index > 0 ? "mt-1" : ""}`}
                 label={t(label)}
                 src={src}
                 isPressed={pressedMode === mode}
+                tutorialHighlight={homePlayTutorialOpen}
                 onClick={() => {
-                  if (pressedMode !== null) return;
+                  if (pressedMode !== null || homePlayTutorialOpen) return;
 
                   playClick();
                   setGameMode(mode);

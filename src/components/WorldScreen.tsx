@@ -98,6 +98,9 @@ const WORLD_MAP_TUTORIAL_PAGES = [
   {image: "/images/tutorial/tutorial_2.png", textKey: "worldMapTutorial1"},
 ] as const;
 
+/** Seconda pagina tutorial mondi → evidenzia il mercato. */
+const WORLD_MAP_TUTORIAL_SHOP_PAGE = 1;
+
 const defaultHudMetrics = (): StageHudMetrics => ({
   headerCenterY: 58,
   heartSize: 62,
@@ -113,6 +116,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const [shopOpen, setShopOpen] = useState(false);
   const [shopPressed, setShopPressed] = useState(false);
   const [worldMapTutorialOpen, setWorldMapTutorialOpen] = useState(false);
+  const [worldMapTutorialPage, setWorldMapTutorialPage] = useState(0);
   const [hudMetrics, setHudMetrics] = useState<StageHudMetrics>(defaultHudMetrics);
   const scrollRef = useRef(0);
   const lastTouchY = useRef<number | null>(null);
@@ -446,7 +450,11 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
 
       <button
         aria-label={t("shop")}
-        className="pointer-events-auto absolute z-40 block shrink-0 border-0 bg-transparent p-0 transition-transform duration-100"
+        className={`absolute block shrink-0 border-0 bg-transparent p-0 transition-transform duration-100 ${
+          worldMapTutorialOpen && worldMapTutorialPage === WORLD_MAP_TUTORIAL_SHOP_PAGE
+            ? "pointer-events-none z-[50]"
+            : "pointer-events-auto z-40"
+        }`}
         style={{
           left: hudMetrics.insetX,
           top: hudMetrics.headerCenterY,
@@ -460,7 +468,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
         }}
         onClick={(event) => {
           event.stopPropagation();
-          if (shopOpen) return;
+          if (worldMapTutorialOpen || shopOpen) return;
 
           playClick();
           setShopPressed(true);
@@ -472,7 +480,11 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
       >
         <Image
           alt=""
-          className="object-contain drop-shadow-lg"
+          className={`object-contain drop-shadow-lg ${
+            worldMapTutorialOpen && worldMapTutorialPage === WORLD_MAP_TUTORIAL_SHOP_PAGE
+              ? "world-shop-tutorial-glow"
+              : ""
+          }`}
           draggable={false}
           fill
           sizes="4rem"
@@ -485,9 +497,11 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
           ariaLabelKey="worldMapTutorial0"
           className="fixed inset-0 z-[45]"
           pages={WORLD_MAP_TUTORIAL_PAGES}
+          onPageChange={setWorldMapTutorialPage}
           onComplete={() => {
             markWorldMapTutorialSeen();
             setWorldMapTutorialOpen(false);
+            setWorldMapTutorialPage(0);
           }}
         />
       ) : null}
