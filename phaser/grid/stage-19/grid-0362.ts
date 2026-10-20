@@ -1,6 +1,6 @@
-//* Stage 19, livello 3. 6×8. buchi ., casse B, casse rinforzate D.
+//* Stage 19, livello 3. 6×8. buchi ., casse B, casse rinforzate D, terreno G, rovi V.
 export const GRID_0362 = [
-  "..000.",
+  "..GV0.",
   ".B00D0",
   "00DD00",
   "0DD0D0",

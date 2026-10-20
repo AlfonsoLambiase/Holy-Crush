@@ -1,6 +1,6 @@
-//* Stage 11, livello 10. 7×9. catene L, buchi ., muri X, ghiaccio doppio J, ghiaccio I.
+//* Stage 11, livello 10. 7×9. catene L, buchi ., muri X, ghiaccio doppio J, ghiaccio I, casse B.
 export const GRID_0209 = [
-  "0000000",
+  "B000000",
   "000L00.",
   "X00000.",
   "J0I00J.",

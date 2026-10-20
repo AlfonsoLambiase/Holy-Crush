@@ -1,6 +1,6 @@
-//* Stage 15, livello 8. 7×10. buchi ., casse rinforzate D, ghiaccio doppio J.
+//* Stage 15, livello 8. 7×10. buchi ., casse rinforzate D, ghiaccio doppio J, terreno G.
 export const GRID_0287 = [
-  "..00000",
+  "..G0000",
   "..00000",
   "0D0DD00",
   "00D0000",

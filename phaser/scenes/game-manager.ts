@@ -4,7 +4,7 @@ import * as Phaser from "phaser";
 
 import {getCurrentLanguage, t} from "@/language";
 import type {BoosterId} from "@/settings/boosters";
-import {isLowEndDevice} from "@/settings/app-header-layout";
+import {isLowEndDevice, layoutScaleForViewport} from "@/settings/app-header-layout";
 import {isEffectsEnabled} from "@/settings/effects";
 import {getPieceKeysForStageLevel} from "@/settings/level-pieces";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
@@ -20,11 +20,20 @@ import {
   runFirstLevelScript,
   type GuidedMove,
 } from "../tutorial/first-level-script";
+import {isObstacleTipSeen, markObstacleTipSeen} from "../tutorial/obstacle-tip-storage";
+import {pendingObstacleTips} from "../tutorial/obstacle-tutorials";
 import {shouldShowTutorial, TutorialScreen} from "../tutorial/tutorial";
 import {createBoardPlate, destroyBoardPlate, type BoardPlate} from "../shared/board-frame";
+import {POPUP_OPEN_MS} from "../shared/popup-motion";
+import {stylePopupTitle} from "../shared/popup-text";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
 import {APP_FONT} from "../shared/config/font.const";
-import {getCellSize, getGridForLevel, GRID_PIECE_FIT} from "../shared/config/grid-generation.const";
+import {
+  getCellSize,
+  getGridForLevel,
+  getLevelsInStage,
+  GRID_PIECE_FIT,
+} from "../shared/config/grid-generation.const";
 import type {GridShape} from "../grid/create-grid";
 import {missionForGrid, remainingOf, type MissionGoal} from "../shared/level-mission";
 import {
@@ -58,6 +67,7 @@ import {
   holdsPiece,
   obstacleFromSymbol,
   pickThornTarget,
+  magmaCooled,
   terrainKey,
   type ObstacleCell,
 } from "../shared/obstacles";
@@ -128,6 +138,12 @@ type UltraVortexFxMetrics = {
 
 const ICE_ALPHA = 0.72;
 const BLOCK_ALPHA = 0.45;
+const MAGMA_COOL_VEIL_COLOR = 0x9a9a9a;
+const MAGMA_COOL_VEIL_ALPHA = 0.65;
+//* Sopra griglia, pezzi e (via trasparenza) header/footer della scena Game.
+const SHUFFLE_OVERLAY_DEPTH = 1200;
+const SHUFFLE_TEXT_DEPTH = 1201;
+const SHUFFLE_DIM_ALPHA = 0.72;
 const FULL_CELL_ART = new Set(["G", "H", "I", "J", "R", "X"]);
 
 export class GameManager extends Phaser.Scene {
@@ -151,6 +167,7 @@ export class GameManager extends Phaser.Scene {
   private obstacles: (ObstacleCell | null)[][] = [];
   private covers: (Phaser.GameObjects.Image | null)[][] = [];
   private terrains: (Phaser.GameObjects.Image | null)[][] = [];
+  private magmaVeils: (Phaser.GameObjects.Rectangle | null)[][] = [];
   private pieces: (Phaser.GameObjects.Image | null)[][] = [];
   private board: number[][] = [];
 
@@ -225,8 +242,40 @@ export class GameManager extends Phaser.Scene {
       this.isGameOver = false;
 
       if (tutorial) void this.#runTutorial();
-      else this.#startPlay();
+      else void this.#beginWithObstacleTips();
     });
+  }
+
+  async #beginWithObstacleTips(): Promise<void> {
+    await this.#runObstacleTips(false);
+
+    if (!this.scene.isActive()) return;
+
+    this.#startPlay();
+  }
+
+  async #runObstacleTips(skipCollect: boolean): Promise<void> {
+    if (!this.#shape) return;
+
+    const language = getCurrentLanguage();
+    let tips = pendingObstacleTips(this.#shape.cells, this.#goals, getStageIndex()).filter(
+      (tip) => !isObstacleTipSeen(tip.id),
+    );
+
+    if (skipCollect) tips = tips.filter((tip) => tip.id !== "collect");
+
+    if (!tips.length) return;
+
+    this.canShoot = false;
+    const screen = new TutorialScreen(this);
+
+    for (const tip of tips) {
+      if (!this.scene.isActive()) return;
+
+      await screen.customPage(tip.image, tip.text[language] || tip.text.it);
+      markObstacleTipSeen(tip.id);
+      await screen.close();
+    }
   }
 
   #startPlay(): void {
@@ -267,8 +316,12 @@ export class GameManager extends Phaser.Scene {
     if (this.#shape) this.#armMission(this.#shape);
 
     this.presentMission();
-    this.#startPlay();
+    await this.#runObstacleTips(true);
     await screen.close();
+
+    if (!this.scene.isActive()) return;
+
+    this.#startPlay();
   }
 
   #rigCombo(type: number): GuidedMove | null {
@@ -365,7 +418,16 @@ export class GameManager extends Phaser.Scene {
 
   #armMission(shape: GridShape): void {
     const pieceIcon = this.#pieceKeys[0] ?? assetConf.image.block;
-    const mission = missionForGrid(shape.cells, pieceIcon);
+    const stageIndex = getStageIndex();
+    const selected = Number(this.registry.get("level"));
+    const level = Number.isFinite(selected) && selected > 0 ? selected : getUnlockedCount();
+    const levelsInStage = getLevelsInStage(stageIndex);
+    const localLevel = ((level - 1) % levelsInStage) + 1;
+    const mission = missionForGrid(shape.cells, pieceIcon, {
+      stageIndex,
+      localLevel,
+      levelsInStage,
+    });
 
     this.#goals = mission.goals;
     //* Test: 2 mosse sul primo livello. Togli quando hai finito di provare.
@@ -516,16 +578,19 @@ export class GameManager extends Phaser.Scene {
     this.pieces = [];
     this.covers = [];
     this.terrains = [];
+    this.magmaVeils = [];
 
     for (let row = 0; row < this.gridRows; row++) {
       const rowBlocks: (Phaser.GameObjects.Image | null)[] = [];
       const rowPieces: (Phaser.GameObjects.Image | null)[] = [];
       const rowCovers: (Phaser.GameObjects.Image | null)[] = [];
       const rowTerrains: (Phaser.GameObjects.Image | null)[] = [];
+      const rowVeils: (Phaser.GameObjects.Rectangle | null)[] = [];
 
       for (let col = 0; col < this.gridCols; col++) {
         rowCovers.push(null);
         rowTerrains.push(null);
+        rowVeils.push(null);
 
         if (!this.isOpen(row, col)) {
           rowBlocks.push(null);
@@ -552,6 +617,7 @@ export class GameManager extends Phaser.Scene {
       this.pieces.push(rowPieces);
       this.covers.push(rowCovers);
       this.terrains.push(rowTerrains);
+      this.magmaVeils.push(rowVeils);
     }
 
     this.syncArt();
@@ -2404,7 +2470,7 @@ export class GameManager extends Phaser.Scene {
     this.syncArt();
   }
 
-  //* Toglie l'arte degli ostacoli distrutti e scala J in I, H in G, D in C, C in B.
+  //* Toglie l'arte degli ostacoli distrutti e scala J in I, D in C, C in B.
   private peelArt(): FadeArt[] {
     const fading: FadeArt[] = [];
 
@@ -2448,11 +2514,65 @@ export class GameManager extends Phaser.Scene {
         const cell = this.obstacles[row]?.[col] ?? null;
 
         this.syncLayer(row, col, coverKey(cell), this.covers);
-        this.syncLayer(row, col, terrainKey(cell), this.terrains);
+        this.syncTerrainLayer(row, col, cell);
+        this.syncMagmaVeil(row, col, cell);
       }
     }
 
     this.stackSprites();
+  }
+
+  private syncMagmaVeil(row: number, col: number, cell: ObstacleCell | null): void {
+    const show = magmaCooled(cell);
+    const layer = this.magmaVeils;
+    let veil = layer[row]?.[col] ?? null;
+
+    if (!show) {
+      if (veil?.active) veil.destroy();
+      if (layer[row]) layer[row][col] = null;
+
+      return;
+    }
+
+    const {x, y} = this.cellPos({r: row, c: col});
+
+    if (!veil?.active) {
+      veil = this.add
+        .rectangle(x, y, this.cellW, this.cellH, MAGMA_COOL_VEIL_COLOR, MAGMA_COOL_VEIL_ALPHA)
+        .setOrigin(0.5);
+      this.mainContainer.add(veil);
+      if (layer[row]) layer[row][col] = veil;
+    } else {
+      veil
+        .setPosition(x, y)
+        .setSize(this.cellW, this.cellH)
+        .setFillStyle(MAGMA_COOL_VEIL_COLOR, MAGMA_COOL_VEIL_ALPHA)
+        .setVisible(true);
+    }
+  }
+
+  private syncTerrainLayer(row: number, col: number, cell: ObstacleCell | null): void {
+    const nextKey = terrainKey(cell);
+    const layer = this.terrains;
+    const current = layer[row]?.[col];
+
+    if (!nextKey) {
+      if (current?.active) current.destroy();
+      if (layer[row]) layer[row][col] = null;
+
+      return;
+    }
+
+    if (!current?.active) {
+      layer[row][col] = this.spawnTerrainArt(row, col, cell);
+
+      return;
+    }
+
+    this.paintTerrain(current, cell);
+    const pos = this.cellPos({r: row, c: col});
+
+    current.setPosition(pos.x, pos.y);
   }
 
   private syncLayer(
@@ -2492,8 +2612,23 @@ export class GameManager extends Phaser.Scene {
     return image;
   }
 
+  private spawnTerrainArt(
+    row: number,
+    col: number,
+    cell: ObstacleCell | null,
+  ): Phaser.GameObjects.Image {
+    const key = terrainKey(cell) ?? "G";
+    const {x, y} = this.cellPos({r: row, c: col});
+    const image = this.add.image(x, y, key).setOrigin(0.5);
+
+    this.paintTerrain(image, cell);
+    this.mainContainer.add(image);
+
+    return image;
+  }
+
   private paintObstacle(image: Phaser.GameObjects.Image, key: string): void {
-    image.setTexture(key).setAngle(0).setVisible(true);
+    image.setTexture(key).setAngle(0).setVisible(true).clearTint();
 
     if (FULL_CELL_ART.has(key)) image.setDisplaySize(this.cellW, this.cellH);
     else image.setScale(this.fitScale(image));
@@ -2501,7 +2636,17 @@ export class GameManager extends Phaser.Scene {
     image.setAlpha(key === "I" || key === "J" ? ICE_ALPHA : 1);
   }
 
-  //* Dal basso: fondo, block, cornice dorata, terreno, pezzo, copertura.
+  private paintTerrain(image: Phaser.GameObjects.Image, cell: ObstacleCell | null): void {
+    const key = terrainKey(cell);
+
+    if (!key) return;
+
+    image.setTexture(key).setAngle(0).setVisible(true).clearTint();
+    image.setDisplaySize(this.cellW, this.cellH);
+    image.setAlpha(1);
+  }
+
+  //* Dal basso: fondo, block, cornice dorata, terreno, velo magma raffreddato, pezzo, copertura.
   private stackSprites(): void {
     if (!this.mainContainer) return;
 
@@ -2520,6 +2665,7 @@ export class GameManager extends Phaser.Scene {
     if (this.boardPlate?.rim.active) this.mainContainer.bringToTop(this.boardPlate.rim);
 
     raise(this.terrains);
+    raise(this.magmaVeils);
     raise(this.pieces);
     raise(this.covers);
   }
@@ -2547,37 +2693,41 @@ export class GameManager extends Phaser.Scene {
   }
 
   private async warnAndShuffle(): Promise<void> {
-    const overlay = this.add.rectangle(
-      0,
-      0,
-      this.gridCols * this.cellW,
-      this.gridRows * this.cellH,
-      0x001428,
-      0.55,
-    );
+    const {width, height} = this.scale;
+    const fontSize = layoutScaleForViewport(width, height, 38, 50);
+    const overlay = this.add
+      .rectangle(width / 2, height / 2, width, height, 0x000000, 1)
+      .setScrollFactor(0)
+      .setDepth(SHUFFLE_OVERLAY_DEPTH)
+      .setAlpha(0);
     const label = this.add
-      .text(0, 0, t("noMovesShuffle", getCurrentLanguage()), {
+      .text(width / 2, height / 2, t("noMovesShuffle", getCurrentLanguage()), {
         fontFamily: APP_FONT,
-        fontSize: "42px",
-        color: "#ffffff",
+        fontSize: `${fontSize}px`,
         align: "center",
-        stroke: "#003366",
-        strokeThickness: 6,
+        wordWrap: {width: width * 0.72},
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(SHUFFLE_TEXT_DEPTH)
+      .setAlpha(0)
+      .setScale(0.92);
 
-    overlay.setAlpha(0);
-    label.setAlpha(0);
-    label.setScale(0.76);
-    this.mainContainer.add([overlay, label]);
+    stylePopupTitle(label, fontSize);
 
     await this.tweenPromise({
-      targets: [overlay, label],
-      alpha: 1,
-      duration: 320,
+      targets: overlay,
+      alpha: SHUFFLE_DIM_ALPHA,
+      duration: POPUP_OPEN_MS,
       ease: "Sine.easeOut",
     });
-    await this.tweenPromise({targets: label, scale: 1, duration: 320, ease: "Back.easeOut"});
+    await this.tweenPromise({
+      targets: label,
+      alpha: 1,
+      scale: 1,
+      duration: POPUP_OPEN_MS,
+      ease: "Back.easeOut",
+    });
     await this.delay(900);
 
     shuffleBoard(
@@ -2588,8 +2738,18 @@ export class GameManager extends Phaser.Scene {
     );
     this.applyBoardTextures();
 
-    await this.tweenPromise({targets: label, scale: 0.76, duration: 260, ease: "Sine.easeIn"});
-    await this.tweenPromise({targets: [overlay, label], alpha: 0, duration: 260, ease: "Sine.easeIn"});
+    await this.tweenPromise({
+      targets: label,
+      scale: 0.92,
+      duration: POPUP_OPEN_MS * 0.8,
+      ease: "Sine.easeIn",
+    });
+    await this.tweenPromise({
+      targets: [overlay, label],
+      alpha: 0,
+      duration: POPUP_OPEN_MS * 0.8,
+      ease: "Sine.easeIn",
+    });
     overlay.destroy();
     label.destroy();
 

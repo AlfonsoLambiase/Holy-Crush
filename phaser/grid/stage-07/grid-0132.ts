@@ -1,6 +1,6 @@
-//* Stage 7, livello 13. 6×7. casse doppie C, catene L.
+//* Stage 7, livello 13. 6×7. casse doppie C, catene L, terreno G.
 export const GRID_0132 = [
-  "000000",
+  "G00000",
   "0C0C0L",
   "000000",
   "0000C0",

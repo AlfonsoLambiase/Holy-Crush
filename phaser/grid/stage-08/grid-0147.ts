@@ -1,6 +1,6 @@
-//* Stage 8, livello 8. 7×8. ghiaccio doppio J, catene L.
+//* Stage 8, livello 8. 7×8. ghiaccio doppio J, catene L, casse B.
 export const GRID_0147 = [
-  "0000000",
+  "B000000",
   "0J000LL",
   "0000L00",
   "0000000",

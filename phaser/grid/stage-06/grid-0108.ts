@@ -1,8 +1,9 @@
-//* Stage 6, livello 9. 5×6. buchi ., catene L, terreno doppio H, terreno G.
+//* Stage 6, livello 9. 5×7. buchi ., catene L, terreno doppio H, terreno G, casse B.
 export const GRID_0108 = [
-  ".00..",
+  ".B0..",
   ".L0..",
   ".HH..",
+  "00H00",
   "000HG",
   ".00..",
   ".0H..",

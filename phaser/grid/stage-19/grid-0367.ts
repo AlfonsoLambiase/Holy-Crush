@@ -1,6 +1,6 @@
-//* Stage 19, livello 8. 7×10. buchi ., casse rinforzate D, rocce R, muri X.
+//* Stage 19, livello 8. 7×10. buchi ., casse rinforzate D, rocce R, muri X, terreno G.
 export const GRID_0367 = [
-  "0000000",
+  "G000000",
   "00..00D",
   "00..000",
   "0R..000",

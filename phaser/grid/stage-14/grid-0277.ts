@@ -1,6 +1,6 @@
-//* Stage 14, livello 18. 6×8. buchi ., muri X, casse doppie C, ghiaccio I.
+//* Stage 14, livello 18. 6×8. buchi ., muri X, casse doppie C, ghiaccio I, terreno G.
 export const GRID_0277 = [
-  "000000",
+  "G00000",
   ".X00XX",
   ".0000C",
   ".00000",

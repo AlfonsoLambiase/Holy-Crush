@@ -1,6 +1,6 @@
-//* Stage 11, livello 12. 7×9. rocce R, buchi ..
+//* Stage 11, livello 12. 7×9. rocce R, buchi ., casse B, terreno G.
 export const GRID_0211 = [
-  "0000000",
+  "BG00000",
   "0R..000",
   "00..00R",
   "00..000",

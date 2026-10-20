@@ -165,10 +165,11 @@ export class UIManager {
     this.#goalSlots = [];
     this.goalsContainer.removeAll(true);
     this.goalsContainer.setScale(1);
-    this.goalsContainer.setPosition(GOAL_WHITE_START - this.#barW / 2, 0);
+    //* Y sulle mosse: se si scala il container, l’origine locale resta sulla stessa riga.
+    this.goalsContainer.setPosition(GOAL_WHITE_START - this.#barW / 2, MOVES_SLOT.y);
 
     let x = GOAL_ICON / 2;
-    const y = MOVES_SLOT.y;
+    const y = 0;
 
     for (const goal of goals) {
       if (!this.scene.textures.exists(goal.icon)) continue;

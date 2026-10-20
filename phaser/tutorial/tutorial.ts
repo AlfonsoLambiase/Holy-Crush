@@ -56,6 +56,77 @@ export class TutorialScreen {
 
   constructor(private readonly scene: Phaser.Scene) {}
 
+  async customPage(imageKey: string, text: string, options: PageOptions = {}): Promise<void> {
+    await this.#loadImages([imageKey]);
+
+    const {scene} = this;
+    const {width, height} = scene.scale;
+    const overlay = this.#showOverlay();
+
+    const image = scene.add
+      .image(width * (1 - IMAGE_RIGHT_INSET), height, imageKey)
+      .setOrigin(1, 1)
+      .setScrollFactor(0)
+      .setDepth(DEPTH + 1)
+      .setAlpha(0);
+
+    image.setScale(
+      Math.min((width * IMAGE_MAX_WIDTH) / image.width, (height * IMAGE_MAX_HEIGHT) / image.height),
+    );
+
+    const panelH = isTallStoryLayout(width, height)
+      ? height * STORY_PANEL_HEIGHT_RATIO
+      : Math.min(height * STORY_PANEL_HEIGHT_RATIO, image.displayHeight * STORY_PANEL_ART_RATIO);
+    const panelY = height - height * STORY_PANEL_BOTTOM_MARGIN_RATIO - panelH / 2;
+    const panel = addStoryPanel(scene, {
+      x: width / 2,
+      y: panelY,
+      width: width * STORY_PANEL_WIDTH_RATIO,
+      height: panelH,
+      text,
+      depth: DEPTH + 2,
+    });
+    const layers = [image, ...panel.objects];
+    const rise = options.rise ? panel.centerY - height / 2 : 0;
+    const panelTop = panel.centerY - panel.height / 2;
+    const room = panelTop - rise - height * IMAGE_TOP_MARGIN;
+
+    if (room > 0 && image.displayHeight > room) image.setScale((image.scale * room) / image.displayHeight);
+
+    image.setY(panelTop);
+
+    scene.tweens.add({targets: image, alpha: 1, duration: POPUP_OPEN_MS, ease: "Sine.easeOut"});
+
+    if (options.rise) {
+      scene.tweens.add({
+        targets: layers,
+        y: `-=${rise}`,
+        duration: RISE_MS,
+        delay: POPUP_OPEN_MS,
+        ease: "Cubic.easeOut",
+      });
+    }
+
+    await new Promise<void>((resolve) => {
+      const onTap = () => {
+        if (!panel.isComplete()) {
+          panel.complete();
+
+          return;
+        }
+
+        overlay.off("pointerup", onTap);
+        resolve();
+      };
+
+      overlay.on("pointerup", onTap);
+    });
+
+    await this.#fade(layers, 0);
+    panel.destroy();
+    image.destroy();
+  }
+
   async page(index: number, options: PageOptions = {}): Promise<void> {
     await this.#loadImages();
 
@@ -193,8 +264,10 @@ export class TutorialScreen {
     return this.#overlay;
   }
 
-  #loadImages(): Promise<void> {
-    const missing = imageKeys().filter((key) => !this.scene.textures.exists(key));
+  #loadImages(extraKeys: string[] = []): Promise<void> {
+    const missing = [...new Set([...imageKeys(), ...extraKeys])].filter(
+      (key) => !this.scene.textures.exists(key),
+    );
 
     if (!missing.length) return Promise.resolve();
 

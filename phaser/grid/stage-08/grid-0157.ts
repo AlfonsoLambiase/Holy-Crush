@@ -1,6 +1,6 @@
-//* Stage 8, livello 18. 5×7. terreno doppio H, buchi ., terreno G.
+//* Stage 8, livello 18. 5×7. terreno doppio H, buchi ., terreno G, casse B, rovi V.
 export const GRID_0157 = [
-  "00000",
+  "BV000",
   "00H0H",
   "0.0.0",
   "H.0.H",

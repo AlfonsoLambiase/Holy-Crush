@@ -1,6 +1,6 @@
-//* Stage 13, livello 14. 7×7. buchi ., muri X, ghiaccio I.
+//* Stage 13, livello 14. 7×7. buchi ., muri X, ghiaccio I, casse B, terreno G.
 export const GRID_0253 = [
-  "0000000",
+  "BG00000",
   "00..0XX",
   "00..I0X",
   "0X..000",

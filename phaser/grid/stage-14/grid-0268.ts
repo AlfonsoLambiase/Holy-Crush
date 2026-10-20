@@ -1,6 +1,6 @@
-//* Stage 14, livello 9. 7×6. muri X, buchi ., rocce R, ghiaccio doppio J.
+//* Stage 14, livello 9. 7×6. muri X, buchi ., rocce R, ghiaccio doppio J, casse B.
 export const GRID_0268 = [
-  "0000000",
+  "B000000",
   "X0..00R",
   "0J..00X",
   "00..0J0",

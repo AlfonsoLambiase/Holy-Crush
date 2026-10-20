@@ -1,6 +1,6 @@
-//* Stage 19, livello 1. 6×8. rovi V, terreno G.
+//* Stage 19, livello 1. 6×8. rovi V, terreno G, casse B.
 export const GRID_0360 = [
-  "000000",
+  "B00000",
   "000000",
   "0VV000",
   "V00000",

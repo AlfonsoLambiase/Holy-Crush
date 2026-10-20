@@ -1,6 +1,6 @@
-//* Stage 5, livello 7. 6×6. buchi ., catene L, ghiaccio I.
+//* Stage 5, livello 7. 6×6. buchi ., catene L, ghiaccio I, casse B.
 export const GRID_0086 = [
-  ".00000",
+  ".B0000",
   "0L0L0.",
   ".0000I",
   "L0L0L.",

@@ -1,6 +1,6 @@
-//* Stage 13, livello 13. 6×9. buchi ., muri X, casse doppie C, terreno G.
+//* Stage 13, livello 13. 6×9. buchi ., muri X, casse doppie C, terreno G, rovi V.
 export const GRID_0252 = [
-  "..00..",
+  "..V0..",
   "000000",
   "0X0000",
   "XXC000",

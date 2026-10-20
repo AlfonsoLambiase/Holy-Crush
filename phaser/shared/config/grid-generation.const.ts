@@ -68,6 +68,13 @@ export function getCellSize(gameWidth: number): number {
   return usableWidth / GRID_LIMITS.blockSizeColumns;
 }
 
+export function getLevelsInStage(stageIndex: number): number {
+  const stageCount = STAGES.length;
+  const stagePos = ((Math.floor(stageIndex) % stageCount) + stageCount) % stageCount;
+
+  return STAGES[stagePos].length;
+}
+
 //* stageIndex parte da 0. Oltre i 20 livelli dello stage, i disegni ripartono dal primo.
 export function getGridForLevel(level: number, stageIndex = 0): GridShape {
   const stageCount = STAGES.length;

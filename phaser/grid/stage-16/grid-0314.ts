@@ -1,6 +1,6 @@
-//* Stage 16, livello 15. 7×9. buchi ., casse rinforzate D, rovi V, muri X.
+//* Stage 16, livello 15. 7×9. buchi ., casse rinforzate D, rovi V, muri X, terreno G.
 export const GRID_0314 = [
-  "..00000",
+  "..G0000",
   "..00000",
   "0000000",
   "00000DD",

@@ -3,7 +3,11 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 
 import {AssetPaths} from "@game/shared/config/asset-paths.const";
-import {listAllGrids, type ListedGrid} from "@game/shared/config/grid-generation.const";
+import {
+  getLevelsInStage,
+  listAllGrids,
+  type ListedGrid,
+} from "@game/shared/config/grid-generation.const";
 import {
   boardPlatePad,
   strokeBoardRim,
@@ -20,7 +24,11 @@ type GridBrowserProps = {
 
 const missionOf = (shape: ListedGrid) => {
   const pieceIcon = getPieceKeysForStageLevel(shape.localLevel, shape.stageIndex)[0] ?? "block";
-  const mission = missionForGrid(shape.cells, pieceIcon);
+  const mission = missionForGrid(shape.cells, pieceIcon, {
+    stageIndex: shape.stageIndex,
+    localLevel: shape.localLevel,
+    levelsInStage: getLevelsInStage(shape.stageIndex),
+  });
   const obstacles = shape.cells.map((row) =>
     row.map((symbol) => (symbol === "." ? null : obstacleFromSymbol(symbol))),
   );

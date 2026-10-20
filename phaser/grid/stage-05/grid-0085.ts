@@ -1,6 +1,6 @@
-//* Stage 5, livello 6. 5×7. buchi ., ghiaccio I, casse B, casse doppie C.
+//* Stage 5, livello 6. 5×7. buchi ., ghiaccio I, casse B, casse doppie C, terreno G.
 export const GRID_0085 = [
-  "00000",
+  "G0000",
   "0..00",
   "0..00",
   "I..00",

@@ -1,10 +1,15 @@
 import {Cell, EMPTY, isRegular} from "./match3";
 
 //* Stato di una cella aperta. Il buco è null e non passa da qui.
+export type TerrainKind = "G" | "H";
+
 export type ObstacleCell = {
   lock: "ice" | "chain" | null;
   lockLayers: number;
+  /** Strati rimanenti sotto il pezzo (G=1, H=2 in griglia). */
   terrain: number;
+  /** Tipo terreno iniziale: il magma H resta sprite H anche a 1 strato (raffreddato). */
+  terrainKind: TerrainKind | null;
   blocker: "crate" | "rock" | "thorn" | "wall" | null;
   blockerLayers: number;
 };
@@ -19,10 +24,22 @@ const DIRS = [
 ] as const;
 
 export function obstacleFromSymbol(symbol: string): ObstacleCell {
-  const cell: ObstacleCell = {lock: null, lockLayers: 0, terrain: 0, blocker: null, blockerLayers: 0};
+  const cell: ObstacleCell = {
+    lock: null,
+    lockLayers: 0,
+    terrain: 0,
+    terrainKind: null,
+    blocker: null,
+    blockerLayers: 0,
+  };
 
-  if (symbol === "G") cell.terrain = 1;
-  else if (symbol === "H") cell.terrain = 2;
+  if (symbol === "G") {
+    cell.terrainKind = "G";
+    cell.terrain = 1;
+  } else if (symbol === "H") {
+    cell.terrainKind = "H";
+    cell.terrain = 2;
+  }
   else if (symbol === "I") {
     cell.lock = "ice";
     cell.lockLayers = 1;
@@ -75,11 +92,15 @@ export function coverKey(cell: ObstacleCell | null): string | null {
 }
 
 export function terrainKey(cell: ObstacleCell | null): string | null {
-  if (!cell) return null;
-  if (cell.terrain >= 2) return "H";
-  if (cell.terrain === 1) return "G";
+  if (!cell || cell.terrain <= 0) return null;
+  if (cell.terrainKind === "H") return "H";
+  if (cell.terrainKind === "G") return "G";
 
   return null;
+}
+
+export function magmaCooled(cell: ObstacleCell | null): boolean {
+  return !!cell && cell.terrainKind === "H" && cell.terrain === 1;
 }
 
 function keyOf(cell: Cell): string {
