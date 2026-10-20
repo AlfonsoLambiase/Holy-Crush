@@ -17,6 +17,8 @@ export type GameModeConfig = {
   folder: string;
   progressKey: string;
   stageLevels: number;
+  /** Solo sull’ultimo stage del mondo (es. finale Antico Testamento). */
+  finalStageLevels?: number;
   worlds: readonly ModeWorld[];
   objGroups: number;
   showVerses: boolean;
@@ -54,7 +56,8 @@ const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     folder: "mode_1",
     progressKey: "holy-crush-cleared-old",
     stageLevels: 50,
-    worlds: [world(5, 4, 12, "world2")],
+    finalStageLevels: 300,
+    worlds: [world(5, 4, 13, "world2")],
     objGroups: 3,
     showVerses: false,
     openingTextKey: "openingOldTestament",
@@ -79,6 +82,11 @@ export const setGameMode = (mode: GameModeId): void => {
 };
 
 export const getModeConfig = (): GameModeConfig => GAME_MODES[getGameMode()];
+
+export const getModeConfigForMode = (mode: GameModeId): GameModeConfig => GAME_MODES[mode];
+
+export const getStageCountForMode = (mode: GameModeId): number =>
+  getModeConfigForMode(mode).worlds.reduce((sum, item) => sum + item.stages, 0);
 
 export const getStageCount = (): number =>
   getModeConfig().worlds.reduce((sum, item) => sum + item.stages, 0);

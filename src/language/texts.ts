@@ -1,4 +1,4 @@
-import {OPENING_TEXTS} from "./opening_text";
+import {OPENING_OLD_TESTAMENT_TEXTS, OPENING_TEXTS} from "./opening_text";
 
 export const LANGUAGES = ["it", "en", "es", "fr"] as const;
 
@@ -333,18 +333,39 @@ const UI_TEXTS: TextEntry[] = [
     fr: "TOUCHE POUR CONTINUER",
   },
   {
+    key: "homePlayTutorial0",
+    it: "Benvenuto fedele! In Holy-Crush esistono due modalità: il Nuovo Testamento e l'Antico Testamento",
+    en: "Welcome, faithful one! In Holy-Crush there are two modes: the New Testament and the Old Testament",
+    es: "¡Bienvenido, fiel! En Holy-Crush hay dos modos: el Nuevo Testamento y el Antiguo Testamento",
+    fr: "Bienvenue, fidèle ! Dans Holy-Crush, il existe deux modes : le Nouveau Testament et l'Ancien Testament",
+  },
+  {
+    key: "homePlayTutorial1",
+    it: "Il Nuovo racconta la storia di Gesù il figlio dell'uomo, quello Antico narra di altri episodi biblici. Provali entrambi e divertiti!",
+    en: "The New Testament tells the story of Jesus, the Son of Man; the Old recounts other biblical episodes. Try both and have fun!",
+    es: "El Nuevo cuenta la historia de Jesús, el Hijo del Hombre; el Antiguo narra otros episodios bíblicos. ¡Pruébalos ambos y diviértete!",
+    fr: "Le Nouveau raconte l'histoire de Jésus, le Fils de l'homme ; l'Ancien relate d'autres épisodes bibliques. Essaie-les tous les deux et amuse-toi !",
+  },
+  {
+    key: "worldMapTutorial0",
+    it: "Questa è l'area in cui sono avvenuti gli episodi che andrai a giocare",
+    en: "This is the area where the episodes you will play took place",
+    es: "Esta es la zona donde ocurrieron los episodios que vas a jugar",
+    fr: "Voici la zone où se sont déroulés les épisodes que tu vas jouer",
+  },
+  {
+    key: "worldMapTutorial1",
+    it: "Qui trovi il mercato dove puoi ottenere gli oggetti speciali o l'energia per continuare a giocare",
+    en: "Here you'll find the market where you can get special items or energy to keep playing",
+    es: "Aquí está el mercado donde puedes conseguir objetos especiales o energía para seguir jugando",
+    fr: "Ici se trouve le marché où tu peux obtenir des objets spéciaux ou de l'énergie pour continuer à jouer",
+  },
+  {
     key: "yourTurn",
     it: "TOCCA A TE!",
     en: "YOUR TURN!",
     es: "¡TE TOCA!",
     fr: "À TOI !",
-  },
-  {
-    key: "openingOldTestament",
-    it: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    en: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    es: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    fr: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
   },
   {
     key: "noMovesShuffle",
@@ -376,4 +397,4 @@ const UI_TEXTS: TextEntry[] = [
   },
 ];
 
-export const TEXTS: TextEntry[] = [...UI_TEXTS, ...OPENING_TEXTS];
+export const TEXTS: TextEntry[] = [...UI_TEXTS, ...OPENING_TEXTS, ...OPENING_OLD_TESTAMENT_TEXTS];

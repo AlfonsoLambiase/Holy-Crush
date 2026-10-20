@@ -53,7 +53,10 @@ export const getVerseByStageAndLevel = (
   language: Language = getCurrentLanguage(),
 ): Verse => {
   const stageNum = Math.max(1, Math.floor(stage));
-  const local = Math.max(1, Math.min(getStageLevels(), Math.floor(localLevel)));
+  const local = Math.max(
+    1,
+    Math.min(getStageLevels(stageNum - 1), Math.floor(localLevel)),
+  );
   const globalLevel = getStageLevelNumber(stageNum - 1, local - 1);
   const entry = findVerseEntry(stageNum, local);
 

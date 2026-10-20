@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
 
-import {getCurrentLanguage, openingTextKey, t} from "@/language";
+import {getCurrentLanguage, oldTestamentOpeningKey, openingTextKey, t} from "@/language";
 import {getModeConfig} from "@/settings/game-mode";
 import {getStageIndex} from "@/settings/progress";
 import {playStageTrack} from "@/settings/soundtrack";
@@ -43,7 +43,11 @@ export class OpeningScene extends Phaser.Scene {
     const {width, height} = this.scale;
     const stage = Number(this.registry.get("stage")) || DEFAULT_STAGE;
     const language = getCurrentLanguage();
-    const key = getModeConfig().openingTextKey ?? openingTextKey(stage);
+    const modeOpening = getModeConfig().openingTextKey;
+    const key =
+      modeOpening === "openingOldTestament"
+        ? oldTestamentOpeningKey(stage)
+        : (modeOpening ?? openingTextKey(stage));
     const translated = t(key, language);
     const copy = translated === key ? t("opening_0", language) : translated;
     const tallOpeningLayout = isTallStoryLayout(width, height);

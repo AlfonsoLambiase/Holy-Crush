@@ -1,4 +1,4 @@
-import {getModeConfig, getStageCount} from "./game-mode";
+import {getModeConfig, getStageCount, getStageCountForMode, type GameModeId} from "./game-mode";
 
 //* Qui decidi la mappa di ogni stage.
 
@@ -15,7 +15,35 @@ import {getModeConfig, getStageCount} from "./game-mode";
 export const DRAIN_FILL_IN_CIRCLE = true;
 
 //* Livelli e numero di stage dipendono dalla modalità (game-mode.ts)
-export const getStageLevels = (): number => getModeConfig().stageLevels;
+export const getStageLevels = (stageIndex?: number): number => {
+  const config = getModeConfig();
+
+  if (stageIndex == null) return config.stageLevels;
+
+  const idx = normalizeStageIndex(stageIndex);
+  const count = getStageCount();
+
+  if (config.finalStageLevels != null && count > 0 && idx === count - 1) {
+    return config.finalStageLevels;
+  }
+
+  return config.stageLevels;
+};
+
+const stageLevelOffset = (stageIndex: number): number => {
+  const count = getStageCount();
+
+  if (count <= 0) return 0;
+
+  let sum = 0;
+  const target = normalizeStageIndex(stageIndex);
+
+  for (let i = 0; i < target; i++) {
+    sum += getStageLevels(i);
+  }
+
+  return sum;
+};
 
 export {getStageCount};
 
@@ -63,6 +91,17 @@ const PATH_COLORS = [
   "#9370db",
 ] as const;
 
+export const normalizeStageIndexForMode = (
+  stageIndex: number,
+  mode: GameModeId,
+): number => {
+  const count = getStageCountForMode(mode);
+
+  if (count <= 0) return 0;
+
+  return ((Math.floor(stageIndex) % count) + count) % count;
+};
+
 export const normalizeStageIndex = (stageIndex: number): number => {
   const count = getStageCount();
 
@@ -72,18 +111,17 @@ export const normalizeStageIndex = (stageIndex: number): number => {
 };
 
 export const getStageMap = (stageIndex: number): StageMapConfig => ({
-  levels: getStageLevels(),
+  levels: getStageLevels(stageIndex),
 
   numberColor: PATH_COLORS[normalizeStageIndex(stageIndex)] ?? PATH_COLORS[0],
 });
 
-//* 1-20 sul primo stage, 21-40 sul secondo, e così via (50 per stage nell'Antico Testamento)
+//* Numero globale mostrato sulla mappa (50 per stage OT; 300 sul finale).
 
 export const getStageLevelNumber = (
   stageIndex: number,
   localIndex: number,
-): number =>
-  Math.max(0, normalizeStageIndex(stageIndex)) * getStageLevels() + localIndex + 1;
+): number => stageLevelOffset(stageIndex) + localIndex + 1;
 
 export const hexToInt = (hex: string): number => {
   const value = Number.parseInt(hex.trim().replace("#", ""), 16);

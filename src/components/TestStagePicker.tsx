@@ -2,7 +2,8 @@
 
 import {useEffect, useId, useRef, useState} from "react";
 
-import {getStageCount, normalizeStageIndex} from "@/settings/stage-map";
+import {type GameModeId, getStageCountForMode} from "@/settings/game-mode";
+import {normalizeStageIndexForMode} from "@/settings/stage-map";
 
 const TRIGGER_CLASS =
   "flex w-full items-center justify-between gap-2 rounded-lg border border-amber-700/60 bg-[#2a1810] px-2 py-1.5 text-left text-sm text-[#fde8a0] outline-none";
@@ -11,14 +12,20 @@ const LIST_CLASS =
   "absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-amber-700/60 bg-[#2a1810] py-1 shadow-lg";
 
 type TestStagePickerProps = {
+  gameMode: GameModeId;
   stageIndex: number;
   onStageIndexChange: (stageIndex: number) => void;
 };
 
-export function TestStagePicker({stageIndex, onStageIndexChange}: TestStagePickerProps) {
+export function TestStagePicker({gameMode, stageIndex, onStageIndexChange}: TestStagePickerProps) {
+  const stageCount = getStageCountForMode(gameMode);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const listId = useId();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [gameMode]);
 
   useEffect(() => {
     if (!open) return;
@@ -35,7 +42,7 @@ export function TestStagePicker({stageIndex, onStageIndexChange}: TestStagePicke
   }, [open]);
 
   const pick = (index: number) => {
-    const next = normalizeStageIndex(index);
+    const next = normalizeStageIndexForMode(index, gameMode);
 
     onStageIndexChange(next);
     setOpen(false);
@@ -58,7 +65,7 @@ export function TestStagePicker({stageIndex, onStageIndexChange}: TestStagePicke
       </button>
       {open ? (
         <ul id={listId} role="listbox" aria-label="Stage" className={LIST_CLASS}>
-          {Array.from({length: getStageCount()}, (_, index) => (
+          {Array.from({length: stageCount}, (_, index) => (
             <li key={index} role="option" aria-selected={index === stageIndex}>
               <button
                 type="button"

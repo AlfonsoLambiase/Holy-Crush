@@ -150,3 +150,5 @@ export const OPENING_TEXTS: OpeningText[] = [
 
 //* I file stage sono 0-based (op_0), lo stage di gioco parte da 1
 export const openingTextKey = (stage: number): string => `opening_${Math.max(0, stage - 1)}`;
+
+export {OPENING_OLD_TESTAMENT_TEXTS, oldTestamentOpeningKey} from "./old-testament";

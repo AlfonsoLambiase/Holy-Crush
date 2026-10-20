@@ -5,7 +5,12 @@ import {useCallback, useEffect, useRef, useState} from "react";
 
 import {ShopMarket} from "@/components/ShopMarket";
 import {StageHudBar} from "@/components/StageHudBar";
+import {StoryTutorialOverlay} from "@/components/StoryTutorialOverlay";
 import {WoodPanel} from "@/components/WoodPanel";
+import {
+  markWorldMapTutorialSeen,
+  shouldShowWorldMapTutorial,
+} from "@/settings/world-map-tutorial";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick, playNoTouch, playSwitch} from "@/settings/click";
 import {popReactHudOverlay, pushReactHudOverlay} from "@/settings/ui-overlay";
@@ -87,6 +92,12 @@ const SWIPE_DISTANCE_PX = 52;
 const SWIPE_VELOCITY = 0.28;
 const SNAP_MS = 340;
 const SHOP_PRESS_MS = 220;
+
+const WORLD_MAP_TUTORIAL_PAGES = [
+  {image: "/images/tutorial/tutorial_0.png", textKey: "worldMapTutorial0"},
+  {image: "/images/tutorial/tutorial_2.png", textKey: "worldMapTutorial1"},
+] as const;
+
 const defaultHudMetrics = (): StageHudMetrics => ({
   headerCenterY: 58,
   heartSize: 62,
@@ -101,6 +112,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const [viewportH, setViewportH] = useState(0);
   const [shopOpen, setShopOpen] = useState(false);
   const [shopPressed, setShopPressed] = useState(false);
+  const [worldMapTutorialOpen, setWorldMapTutorialOpen] = useState(false);
   const [hudMetrics, setHudMetrics] = useState<StageHudMetrics>(defaultHudMetrics);
   const scrollRef = useRef(0);
   const lastTouchY = useRef<number | null>(null);
@@ -116,6 +128,12 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
     return () => {
       popReactHudOverlay();
     };
+  }, []);
+
+  useEffect(() => {
+    if (shouldShowWorldMapTutorial()) {
+      setWorldMapTutorialOpen(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -461,6 +479,18 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
           src="/images/ui_home/shop.png"
         />
       </button>
+
+      {worldMapTutorialOpen && !shopOpen ? (
+        <StoryTutorialOverlay
+          ariaLabelKey="worldMapTutorial0"
+          className="fixed inset-0 z-[45]"
+          pages={WORLD_MAP_TUTORIAL_PAGES}
+          onComplete={() => {
+            markWorldMapTutorialSeen();
+            setWorldMapTutorialOpen(false);
+          }}
+        />
+      ) : null}
 
       {shopOpen ? (
         <WoodPanel

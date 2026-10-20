@@ -28,17 +28,25 @@ import {
   applyTestStageForStart,
   bootStartForTestMode,
   isStageStartTestEnabled,
+  readTestGameMode,
   readTestStageSelection,
   readTestStageStartMode,
   StageStartTestPanel,
+  writeTestGameMode,
   writeTestStageSelection,
   writeTestStageStartMode,
   type TestStageStartMode,
 } from "@game/level-up-test";
+import {normalizeStageIndexForMode} from "@/settings/stage-map";
 
 import {PhaserGame} from "./PhaserGame";
 import {GridBrowser} from "./GridBrowser";
+import {HomePlayTutorial} from "./HomePlayTutorial";
 import {WorldScreen} from "./WorldScreen";
+import {
+  markHomePlayTutorialSeen,
+  shouldShowHomePlayTutorial,
+} from "@/settings/home-play-tutorial";
 
 const INTRO_HOLD_MS = 900; // quanto resta grande al centro prima di salire
 const INTRO_MOVE_MS = 1100; // durata della risalita
@@ -112,8 +120,7 @@ const TESTAMENTS: readonly {mode: GameModeId; label: string; src: string}[] = [
   {mode: 1, label: "oldTestament", src: "/images/ui_game/mode_1.png"},
 ];
 
-//* Il picker di test lavora sugli stage del Nuovo Testamento
-const isTestStageMode = (): boolean => isStageStartTestEnabled() && getGameMode() === 0;
+const isTestStageMode = (): boolean => isStageStartTestEnabled();
 
 function TestamentCard({
   label,
@@ -405,11 +412,13 @@ export function HomeScreen() {
   const [isIntroDone, setIsIntroDone] = useState(false);
   const [isStartPressed, setIsStartPressed] = useState(false);
   const [isTestamentOpen, setIsTestamentOpen] = useState(false);
+  const [homePlayTutorialOpen, setHomePlayTutorialOpen] = useState(false);
   const [pressedMode, setPressedMode] = useState<GameModeId | null>(null);
   const [curtainPhase, setCurtainPhase] = useState<CloudCurtainPhase>("idle");
   const [showWorld, setShowWorld] = useState(false);
   const homeShellRef = useRef<HTMLDivElement>(null);
   const [phaserBootStart, setPhaserBootStart] = useState<BootStartScene>("default");
+  const [testGameMode, setTestGameMode] = useState<GameModeId>(0);
   const [testStageIndex, setTestStageIndex] = useState(0);
   const [testStartMode, setTestStartMode] = useState<TestStageStartMode>("map");
   const [pressedPanel, setPressedPanel] = useState<MenuButtonKey | null>(null);
@@ -417,7 +426,10 @@ export function HomeScreen() {
   const [isMusicOn, setIsMusicOn] = useState(isMusicEnabled);
   const [isEffectsOn, setIsEffectsOn] = useState(isEffectsEnabled);
   useEffect(() => {
-    setTestStageIndex(readTestStageSelection());
+    const mode = readTestGameMode();
+
+    setTestGameMode(mode);
+    setTestStageIndex(readTestStageSelection(mode));
     setTestStartMode(readTestStageStartMode());
   }, []);
 
@@ -463,6 +475,11 @@ export function HomeScreen() {
 
     const timer = setTimeout(() => {
       setIsTestamentOpen(true);
+
+      if (shouldShowHomePlayTutorial()) {
+        setHomePlayTutorialOpen(true);
+      }
+
       setIsStartPressed(false);
     }, PRESS_MS);
 
@@ -505,11 +522,19 @@ export function HomeScreen() {
   }, [pressedPanel]);
 
   const launchTestStage = () => {
-    setGameMode(0);
-    applyTestStageForStart(testStageIndex, testStartMode);
+    applyTestStageForStart(testStageIndex, testStartMode, testGameMode);
     playStageTrack(testStageIndex);
     setPhaserBootStart(bootStartForTestMode(testStartMode));
     setIsPlaying(true);
+  };
+
+  const handleTestGameModeChange = (mode: GameModeId) => {
+    writeTestGameMode(mode);
+    setTestGameMode(mode);
+    const nextStage = normalizeStageIndexForMode(testStageIndex, mode);
+
+    writeTestStageSelection(nextStage, mode);
+    setTestStageIndex(nextStage);
   };
 
   return (
@@ -551,16 +576,22 @@ export function HomeScreen() {
       >
         {isStageStartTestEnabled() ? (
           <StageStartTestPanel
+            gameMode={testGameMode}
+            gameModeLabels={{
+              0: t("newTestament"),
+              1: t("oldTestament"),
+            }}
             mode={testStartMode}
             stageIndex={testStageIndex}
             onBrowseGrids={() => setGridsOpen(true)}
+            onGameModeChange={handleTestGameModeChange}
             onLaunch={launchTestStage}
             onModeChange={(mode) => {
               writeTestStageStartMode(mode);
               setTestStartMode(mode);
             }}
             onStageIndexChange={(index) => {
-              writeTestStageSelection(index);
+              writeTestStageSelection(index, testGameMode);
               setTestStageIndex(index);
             }}
           />
@@ -620,8 +651,9 @@ export function HomeScreen() {
           className="absolute inset-0 z-20"
           src="/images/ui_home/gameContainer.png"
           onClose={() => {
-            if (pressedMode !== null) return;
+            if (pressedMode !== null || homePlayTutorialOpen) return;
 
+            setHomePlayTutorialOpen(false);
             setIsTestamentOpen(false);
           }}
         >
@@ -638,9 +670,11 @@ export function HomeScreen() {
 
                   playClick();
                   setGameMode(mode);
+                  writeTestGameMode(mode);
+                  setTestGameMode(mode);
 
                   if (isTestStageMode()) {
-                    applyTestStageForStart(testStageIndex, testStartMode);
+                    applyTestStageForStart(testStageIndex, testStartMode, mode);
                   }
 
                   setPressedMode(mode);
@@ -650,6 +684,15 @@ export function HomeScreen() {
           </div>
         </WoodPanel>
       )}
+
+      {isTestamentOpen && homePlayTutorialOpen ? (
+        <HomePlayTutorial
+          onComplete={() => {
+            markHomePlayTutorialSeen();
+            setHomePlayTutorialOpen(false);
+          }}
+        />
+      ) : null}
 
       {openPanel && (
         <WoodPanel
@@ -761,7 +804,7 @@ export function HomeScreen() {
             }}
             onEnter={(worldIndex) => {
               if (isTestStageMode()) {
-                applyTestStageForStart(testStageIndex, testStartMode);
+                applyTestStageForStart(testStageIndex, testStartMode, getGameMode());
               } else {
                 prepareEnterWorld(worldIndex);
               }
