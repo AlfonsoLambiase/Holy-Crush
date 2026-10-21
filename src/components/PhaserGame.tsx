@@ -4,7 +4,7 @@ import {useEffect, useRef, useState} from "react";
 import type * as PhaserType from "phaser";
 
 import {useLanguage} from "@/language/LanguageProvider";
-import {cappedDevicePixelRatio} from "@/settings/app-header-layout";
+import {cappedDevicePixelRatio, readSafeBottomCss, readSafeTopCss} from "@/settings/app-header-layout";
 
 import type {BootStartScene} from "@game/scenes/boot";
 
@@ -14,11 +14,9 @@ type PhaserGameProps = {
 };
 
 //* La griglia lavora in pixel fisici, quindi il notch va convertito con il devicePixelRatio
-const readSafeTop = (): number => {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue("--safe-top");
+const readSafeTop = (): number => readSafeTopCss() * cappedDevicePixelRatio();
 
-  return (parseFloat(raw) || 0) * cappedDevicePixelRatio();
-};
+const readSafeBottom = (): number => readSafeBottomCss() * cappedDevicePixelRatio();
 
 export function PhaserGame({bootStart = "default", onExit}: PhaserGameProps) {
   const {t} = useLanguage();
@@ -68,6 +66,7 @@ export function PhaserGame({bootStart = "default", onExit}: PhaserGameProps) {
       game = createGame({
         parent: containerRef.current,
         safeTop: readSafeTop(),
+        safeBottom: readSafeBottom(),
         bootStart,
       });
     };

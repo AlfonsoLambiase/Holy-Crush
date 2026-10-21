@@ -7,6 +7,7 @@ import type {BoosterId} from "@/settings/boosters";
 import {isLowEndDevice, layoutScaleForViewport} from "@/settings/app-header-layout";
 import {isEffectsEnabled} from "@/settings/effects";
 import {getPieceKeysForStageLevel} from "@/settings/level-pieces";
+import {getGameMode} from "@/settings/game-mode";
 import {getStageIndex, getUnlockedCount} from "@/settings/progress";
 import {plateFillForStage} from "@/settings/stage-scenery-assets";
 
@@ -66,11 +67,20 @@ import {
   coverKey,
   holdsPiece,
   obstacleFromSymbol,
-  pickThornTarget,
-  magmaCooled,
+  canPlaceThornAt,
+  listThornSpreads,
+  type ThornSpread,
   terrainKey,
   type ObstacleCell,
 } from "../shared/obstacles";
+import {
+  injectRuntimeFiends,
+  isFiend,
+  listFiendCells,
+  moveFiendObstacle,
+  pickFiendSwapTarget,
+  shuffleCells,
+} from "../shared/fiend";
 
 import {Game} from "./game";
 
@@ -81,6 +91,12 @@ const GRID_VERTICAL_PAD = 0.02;
 const SWAP_MS = 280; // swipe / scambio pezzi
 const DESTROY_MS = 280; // esplosione match
 const FALL_MS = 420; // caduta e refill
+const MAGMA_COOL_AUDIO_MS = 2000;
+const MAGMA_COOL_FADE_MS = 480;
+const ICE_J_AUDIO_MS = 2000;
+const ICE_J_FADE_MS = 480;
+const TERRAIN_G_AUDIO_MS = 2000;
+const TERRAIN_G_FADE_MS = 480;
 const SWIPE_RATIO = 0.22; // soglia drag (non è velocità)
 const BOMB_SHOCK_MS = 350;
 const EXPLOSION_AUDIO_MS = 1200;
@@ -136,15 +152,20 @@ type UltraVortexFxMetrics = {
   rMax: number;
 };
 
+const THORN_PULSE_MS = 220;
+const THORN_PULSE_SCALE = 1.14;
+const THORN_SPLIT_MS = 340;
+const FIEND_AURA_TINT = 0xbb55ff;
+const FIEND_AURA_PULSE_MS = 880;
+const FIEND_AURA_ALPHA_PEAK = 0.68;
+
 const ICE_ALPHA = 0.72;
 const BLOCK_ALPHA = 0.45;
-const MAGMA_COOL_VEIL_COLOR = 0x9a9a9a;
-const MAGMA_COOL_VEIL_ALPHA = 0.65;
 //* Sopra griglia, pezzi e (via trasparenza) header/footer della scena Game.
 const SHUFFLE_OVERLAY_DEPTH = 1200;
 const SHUFFLE_TEXT_DEPTH = 1201;
 const SHUFFLE_DIM_ALPHA = 0.72;
-const FULL_CELL_ART = new Set(["G", "H", "I", "J", "R", "X"]);
+const FULL_CELL_ART = new Set(["G", "H", "H_1", "I", "J", "R", "X"]);
 
 export class GameManager extends Phaser.Scene {
   audioManager!: AudioManager;
@@ -162,12 +183,14 @@ export class GameManager extends Phaser.Scene {
   timeAddNewRow: number = 20000;
 
   private mainContainer!: Phaser.GameObjects.Container;
+  /** Sopra pezzi e coperture: scoppi match / booster non restano coperti da stackSprites. */
+  private fxLayer!: Phaser.GameObjects.Container;
   private blocks: (Phaser.GameObjects.Image | null)[][] = [];
   private boardPlate: BoardPlate | null = null;
   private obstacles: (ObstacleCell | null)[][] = [];
   private covers: (Phaser.GameObjects.Image | null)[][] = [];
   private terrains: (Phaser.GameObjects.Image | null)[][] = [];
-  private magmaVeils: (Phaser.GameObjects.Rectangle | null)[][] = [];
+  private fiendGlows: (Phaser.GameObjects.Image | null)[][] = [];
   private pieces: (Phaser.GameObjects.Image | null)[][] = [];
   private board: number[][] = [];
 
@@ -550,6 +573,8 @@ export class GameManager extends Phaser.Scene {
   private createGrid(): void {
     this.clearBoardPlate();
     this.mainContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2);
+    this.fxLayer = this.add.container(0, 0);
+    this.mainContainer.add(this.fxLayer);
 
     this.applyGridMetrics();
     const stageOneBased = getStageIndex() + 1;
@@ -578,19 +603,19 @@ export class GameManager extends Phaser.Scene {
     this.pieces = [];
     this.covers = [];
     this.terrains = [];
-    this.magmaVeils = [];
+    this.fiendGlows = [];
 
     for (let row = 0; row < this.gridRows; row++) {
       const rowBlocks: (Phaser.GameObjects.Image | null)[] = [];
       const rowPieces: (Phaser.GameObjects.Image | null)[] = [];
       const rowCovers: (Phaser.GameObjects.Image | null)[] = [];
       const rowTerrains: (Phaser.GameObjects.Image | null)[] = [];
-      const rowVeils: (Phaser.GameObjects.Rectangle | null)[] = [];
+      const rowGlows: (Phaser.GameObjects.Image | null)[] = [];
 
       for (let col = 0; col < this.gridCols; col++) {
         rowCovers.push(null);
         rowTerrains.push(null);
-        rowVeils.push(null);
+        rowGlows.push(null);
 
         if (!this.isOpen(row, col)) {
           rowBlocks.push(null);
@@ -617,7 +642,39 @@ export class GameManager extends Phaser.Scene {
       this.pieces.push(rowPieces);
       this.covers.push(rowCovers);
       this.terrains.push(rowTerrains);
-      this.magmaVeils.push(rowVeils);
+      this.fiendGlows.push(rowGlows);
+    }
+
+    if (this.#shape) {
+      const selected = Number(this.registry.get("level"));
+      const level = Number.isFinite(selected) && selected > 0 ? selected : getUnlockedCount();
+      const stageIndex = getStageIndex();
+      const levelsInStage = getLevelsInStage(stageIndex);
+      const localLevel = ((level - 1) % levelsInStage) + 1;
+
+      injectRuntimeFiends(this.obstacles, this.board, this.#shape, {
+        stageOneBased: stageIndex + 1,
+        stageIndex,
+        localLevel,
+        levelsInStage,
+        mode: getGameMode(),
+      });
+
+      for (let row = 0; row < this.gridRows; row++) {
+        for (let col = 0; col < this.gridCols; col++) {
+          if (!isFiend(this.obstacles[row]?.[col])) continue;
+
+          const piece = this.pieces[row][col];
+
+          if (piece?.active) {
+            this.tweens.killTweensOf(piece);
+            piece.destroy();
+          }
+
+          this.pieces[row][col] = null;
+          this.board[row][col] = EMPTY;
+        }
+      }
     }
 
     this.syncArt();
@@ -947,13 +1004,20 @@ export class GameManager extends Phaser.Scene {
             this.board,
             pattern.filter((cell) => isSpecial(this.board[cell.r][cell.c])),
           );
-    const {pop, thornDamaged} = applyWave(
+    const {pop, thornDamaged, magmaCooled, terrainGPurified, iceBreak, iceJCrack, crateCrack} =
+      applyWave(
       this.board,
       this.obstacles,
       [],
       [pattern, ...chained],
       new Set(),
     );
+
+    if (magmaCooled.length) this.#playMagmaCoolSound();
+    if (terrainGPurified.length) this.#playTerrainGPurifiedSound();
+
+    const iceSfx = this.#playIceHitSounds(iceBreak, iceJCrack, crateCrack);
+    const skipSuccess = iceSfx || terrainGPurified.length > 0;
 
     this.releaseOrigin(origin, pop);
 
@@ -989,7 +1053,8 @@ export class GameManager extends Phaser.Scene {
 
     this.syncArt();
     this.stackSprites();
-    this.gameScene.audioManager.playAudio(assetConf.audio.success);
+
+    if (!skipSuccess) this.gameScene.audioManager.playAudio(assetConf.audio.success);
 
     if (this.#goalReached()) {
       await this.#finishMatch(true);
@@ -1163,7 +1228,12 @@ export class GameManager extends Phaser.Scene {
   }
 
   //* Scopo: Distrugge i match, colpisce gli ostacoli, fa cadere i pezzi e ripete le cascate.
-  private async resolveBoard(activated: Cell[] = [], preferred?: Cell, growThorns = true): Promise<void> {
+  private async resolveBoard(
+    activated: Cell[] = [],
+    preferred?: Cell,
+    growThorns = true,
+    moveFiends = true,
+  ): Promise<void> {
     let isFirstWave = true;
     let thornDamaged = false;
     const canMatch = (row: number, col: number) => this.canMatch(row, col);
@@ -1184,7 +1254,15 @@ export class GameManager extends Phaser.Scene {
       const origins = this.uniqueCells(
         [...uniqueMatches, ...extra].filter((cell) => isSpecial(this.board[cell.r][cell.c])),
       );
-      const {pop, thornDamaged: hit} = applyWave(
+      const {
+        pop,
+        thornDamaged: hit,
+        magmaCooled,
+        terrainGPurified,
+        iceBreak,
+        iceJCrack,
+        crateCrack,
+      } = applyWave(
         this.board,
         this.obstacles,
         uniqueMatches,
@@ -1193,6 +1271,12 @@ export class GameManager extends Phaser.Scene {
       );
 
       if (hit) thornDamaged = true;
+
+      if (magmaCooled.length) this.#playMagmaCoolSound();
+      if (terrainGPurified.length) this.#playTerrainGPurifiedSound();
+
+      const iceSfx = this.#playIceHitSounds(iceBreak, iceJCrack, crateCrack);
+      const skipSuccess = iceSfx || terrainGPurified.length > 0;
 
       const bombCenters = pop.filter((cell) => this.board[cell.r][cell.c] === BOMB);
       const rocketCenters = this.rocketOrigins(pop);
@@ -1206,7 +1290,8 @@ export class GameManager extends Phaser.Scene {
       for (const spawn of spawns) this.placeSpecial(spawn.cell, spawn.type);
 
       this.stackSprites();
-      this.gameScene.audioManager.playAudio(assetConf.audio.success);
+
+      if (!skipSuccess) this.gameScene.audioManager.playAudio(assetConf.audio.success);
 
       if (this.#goalReached()) {
         await this.#finishMatch(true);
@@ -1219,8 +1304,18 @@ export class GameManager extends Phaser.Scene {
     const stillPlaying = !this.isGameOver && !this.#goalReached();
 
     if (growThorns && stillPlaying && !thornDamaged) {
-      this.growThorn();
+      await this.growThorn();
       this.#pushMission();
+    }
+
+    if (moveFiends && stillPlaying) {
+      const matched = await this.#moveAllFiends();
+
+      if (matched) {
+        await this.resolveBoard([], undefined, false, false);
+
+        return;
+      }
     }
 
     if (stillPlaying && !hasValidMove(this.board, allowsSwap, canMatch)) {
@@ -1348,7 +1443,7 @@ export class GameManager extends Phaser.Scene {
             this.starsEffect.playAt(
               piece.x,
               piece.y,
-              this.mainContainer,
+              this.fxLayer,
               starScale,
               isCenter,
               burstTint,
@@ -1400,7 +1495,7 @@ export class GameManager extends Phaser.Scene {
           }
 
           if (isInstant) {
-            this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase, true, burstTint);
+            this.starsEffect.playAt(image.x, image.y, this.fxLayer, starBase, true, burstTint);
             image.destroy();
             resolve();
 
@@ -1408,7 +1503,7 @@ export class GameManager extends Phaser.Scene {
           }
 
           this.mainContainer.bringToTop(image);
-          this.starsEffect.playAt(image.x, image.y, this.mainContainer, starBase, isInstant, burstTint);
+          this.starsEffect.playAt(image.x, image.y, this.fxLayer, starBase, isInstant, burstTint);
 
           this.tweens.killTweensOf(image);
           this.tweens.add({
@@ -1505,11 +1600,11 @@ export class GameManager extends Phaser.Scene {
         ease: "Back.easeOut",
       });
 
-      this.starsEffect.playAt(piece.x, piece.y, this.mainContainer, starScale, true, burstTint);
+      this.starsEffect.playAt(piece.x, piece.y, this.fxLayer, starScale, true, burstTint);
       piece.destroy();
     } else {
       await this.delay(ROCKET_ZOOM_MS);
-      this.starsEffect.playAt(x, y, this.mainContainer, starScale, true, burstTint);
+      this.starsEffect.playAt(x, y, this.fxLayer, starScale, true, burstTint);
     }
 
     await this.playRocketFly(cell, type);
@@ -2447,11 +2542,175 @@ export class GameManager extends Phaser.Scene {
     return "mobile";
   }
 
-  private growThorn(): void {
-    const target = pickThornTarget(this.obstacles, this.board);
+  #playMagmaCoolSound(): void {
+    this.gameScene.audioManager.playAudio(
+      assetConf.audio.fire_off,
+      MAGMA_COOL_AUDIO_MS,
+      MAGMA_COOL_FADE_MS,
+    );
+  }
 
-    if (!target) return;
+  #playTerrainGPurifiedSound(): void {
+    this.gameScene.audioManager.playAudio(
+      assetConf.audio.poison,
+      TERRAIN_G_AUDIO_MS,
+      TERRAIN_G_FADE_MS,
+    );
+  }
 
+  /** Ghiaccio I liberato; primo colpo J; colpo su cassa C/D senza distruggerla. */
+  #playIceHitSounds(iceBreak: Cell[], iceJCrack: Cell[], crateCrack: Cell[] = []): boolean {
+    let played = false;
+
+    if (iceBreak.length) {
+      this.gameScene.audioManager.playAudio(assetConf.audio.break);
+      played = true;
+    }
+
+    if (iceJCrack.length || crateCrack.length) {
+      this.gameScene.audioManager.playAudio(
+        assetConf.audio.unlocked,
+        ICE_J_AUDIO_MS,
+        ICE_J_FADE_MS,
+      );
+      played = true;
+    }
+
+    return played;
+  }
+
+  async #moveAllFiends(): Promise<boolean> {
+    if (this.isGameOver) return false;
+
+    const fiends = shuffleCells(listFiendCells(this.obstacles));
+
+    if (!fiends.length) return false;
+
+    let moved = false;
+
+    for (const from of fiends) {
+      if (!isFiend(this.obstacles[from.r]?.[from.c])) continue;
+
+      const to = pickFiendSwapTarget(this.obstacles, this.board, from, (row, col) =>
+        this.allowsSwap(row, col),
+      );
+
+      if (!to) continue;
+
+      await this.#swapFiendWithPiece(from, to);
+      moved = true;
+    }
+
+    if (!moved) return false;
+
+    return hasMatches(this.board, (row, col) => this.canMatch(row, col));
+  }
+
+  async #swapFiendWithPiece(from: Cell, to: Cell): Promise<void> {
+    const pieceImg = this.pieces[to.r][to.c];
+    const coverImg = this.covers[from.r]?.[from.c];
+    const type = this.board[to.r][to.c];
+
+    if (!pieceImg?.active || type === EMPTY) return;
+
+    moveFiendObstacle(this.obstacles, from, to);
+    this.board[from.r][from.c] = type;
+    this.board[to.r][to.c] = EMPTY;
+    this.pieces[from.r][from.c] = pieceImg;
+    this.pieces[to.r][to.c] = null;
+    this.covers[from.r][from.c] = null;
+    this.covers[to.r][to.c] = coverImg;
+
+    const posFrom = this.cellPos(from);
+    const posTo = this.cellPos(to);
+
+    this.gameScene.audioManager.playAudio(assetConf.audio.fill);
+
+    const moves: Promise<void>[] = [
+      this.moveImage(pieceImg, posFrom.x, posFrom.y, SWAP_MS),
+    ];
+
+    if (coverImg?.active) {
+      this.mainContainer.bringToTop(coverImg);
+      moves.push(this.moveImage(coverImg, posTo.x, posTo.y, SWAP_MS));
+    }
+
+    await Promise.all(moves);
+    this.#syncFiendGlow(from.r, from.c, this.obstacles[from.r]?.[from.c] ?? null);
+    this.#syncFiendGlow(to.r, to.c, this.obstacles[to.r]?.[to.c] ?? null);
+    this.stackSprites();
+  }
+
+  #syncFiendGlow(row: number, col: number, cell: ObstacleCell | null): void {
+    const layer = this.fiendGlows;
+    let aura = layer[row]?.[col] ?? null;
+    const show = isFiend(cell);
+    const artKey = show ? coverKey(cell) : null;
+
+    if (!show || !artKey) {
+      if (aura?.active) {
+        this.tweens.killTweensOf(aura);
+        aura.destroy();
+      }
+
+      if (layer[row]) layer[row][col] = null;
+
+      return;
+    }
+
+    const {x, y} = this.cellPos({r: row, c: col});
+
+    if (!aura?.active) {
+      aura = this.add.image(x, y, artKey).setOrigin(0.5);
+      this.paintObstacle(aura, artKey);
+      aura.setBlendMode(Phaser.BlendModes.ADD);
+      aura.setTint(FIEND_AURA_TINT);
+      aura.setAlpha(0);
+      this.mainContainer.add(aura);
+
+      if (layer[row]) layer[row][col] = aura;
+
+      const baseScale = aura.scaleX;
+
+      if (isEffectsEnabled()) {
+        this.tweens.add({
+          targets: aura,
+          alpha: {from: 0, to: FIEND_AURA_ALPHA_PEAK},
+          scaleX: baseScale * 1.05,
+          scaleY: baseScale * 1.05,
+          duration: FIEND_AURA_PULSE_MS / 2,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+        });
+      } else {
+        aura.setAlpha(FIEND_AURA_ALPHA_PEAK * 0.55);
+      }
+    } else {
+      if (aura.texture.key !== artKey) {
+        this.paintObstacle(aura, artKey);
+        aura.setTint(FIEND_AURA_TINT);
+      }
+
+      aura.setPosition(x, y).setVisible(true);
+    }
+  }
+
+  private async growThorn(): Promise<void> {
+    const spreads = shuffleCells(listThornSpreads(this.obstacles, this.board));
+
+    for (const spread of spreads) {
+      if (!canPlaceThornAt(this.obstacles, this.board, spread.to)) continue;
+
+      if (isEffectsEnabled()) {
+        await this.#playThornSpreadFx(spread);
+      }
+
+      this.#applyThornAt(spread.to);
+    }
+  }
+
+  #applyThornAt(target: Cell): void {
     const piece = this.pieces[target.r][target.c];
 
     if (piece?.active) {
@@ -2468,6 +2727,45 @@ export class GameManager extends Phaser.Scene {
 
     cell.blocker = "thorn";
     this.syncArt();
+  }
+
+  async #playThornSpreadFx({from, to}: ThornSpread): Promise<void> {
+    const sourceCover = this.covers[from.r]?.[from.c];
+    const fromPos = this.cellPos(from);
+    const toPos = this.cellPos(to);
+
+    if (sourceCover?.active) {
+      this.tweens.killTweensOf(sourceCover);
+      const baseScale = sourceCover.scaleX;
+
+      await this.tweenPromise({
+        targets: sourceCover,
+        scaleX: baseScale * THORN_PULSE_SCALE,
+        scaleY: baseScale * THORN_PULSE_SCALE,
+        duration: THORN_PULSE_MS / 2,
+        yoyo: true,
+        ease: "Sine.easeInOut",
+      });
+    } else {
+      await this.delay(THORN_PULSE_MS);
+    }
+
+    const ghost = this.add.image(fromPos.x, fromPos.y, "V").setOrigin(0.5);
+
+    this.paintObstacle(ghost, "V");
+    this.fxLayer.add(ghost);
+    this.mainContainer.bringToTop(this.fxLayer);
+    this.gameScene.audioManager.playAudio(assetConf.audio.pop);
+
+    await this.tweenPromise({
+      targets: ghost,
+      x: toPos.x,
+      y: toPos.y,
+      duration: THORN_SPLIT_MS,
+      ease: "Cubic.easeInOut",
+    });
+
+    if (ghost.active) ghost.destroy();
   }
 
   //* Toglie l'arte degli ostacoli distrutti e scala J in I, D in C, C in B.
@@ -2515,40 +2813,11 @@ export class GameManager extends Phaser.Scene {
 
         this.syncLayer(row, col, coverKey(cell), this.covers);
         this.syncTerrainLayer(row, col, cell);
-        this.syncMagmaVeil(row, col, cell);
+        this.#syncFiendGlow(row, col, cell);
       }
     }
 
     this.stackSprites();
-  }
-
-  private syncMagmaVeil(row: number, col: number, cell: ObstacleCell | null): void {
-    const show = magmaCooled(cell);
-    const layer = this.magmaVeils;
-    let veil = layer[row]?.[col] ?? null;
-
-    if (!show) {
-      if (veil?.active) veil.destroy();
-      if (layer[row]) layer[row][col] = null;
-
-      return;
-    }
-
-    const {x, y} = this.cellPos({r: row, c: col});
-
-    if (!veil?.active) {
-      veil = this.add
-        .rectangle(x, y, this.cellW, this.cellH, MAGMA_COOL_VEIL_COLOR, MAGMA_COOL_VEIL_ALPHA)
-        .setOrigin(0.5);
-      this.mainContainer.add(veil);
-      if (layer[row]) layer[row][col] = veil;
-    } else {
-      veil
-        .setPosition(x, y)
-        .setSize(this.cellW, this.cellH)
-        .setFillStyle(MAGMA_COOL_VEIL_COLOR, MAGMA_COOL_VEIL_ALPHA)
-        .setVisible(true);
-    }
   }
 
   private syncTerrainLayer(row: number, col: number, cell: ObstacleCell | null): void {
@@ -2646,7 +2915,7 @@ export class GameManager extends Phaser.Scene {
     image.setAlpha(1);
   }
 
-  //* Dal basso: fondo, block, cornice dorata, terreno, velo magma raffreddato, pezzo, copertura.
+  //* Dal basso: fondo, block, cornice dorata, terreno, pezzo, copertura.
   private stackSprites(): void {
     if (!this.mainContainer) return;
 
@@ -2665,9 +2934,16 @@ export class GameManager extends Phaser.Scene {
     if (this.boardPlate?.rim.active) this.mainContainer.bringToTop(this.boardPlate.rim);
 
     raise(this.terrains);
-    raise(this.magmaVeils);
     raise(this.pieces);
     raise(this.covers);
+
+    for (const row of this.fiendGlows) {
+      for (const aura of row) {
+        if (aura?.active) this.mainContainer.bringToTop(aura);
+      }
+    }
+
+    if (this.fxLayer?.active) this.mainContainer.bringToTop(this.fxLayer);
   }
 
   private syncPieceVisuals(): void {

@@ -1,3 +1,4 @@
+import {fiendCoverKey, makeFiendCell} from "./fiend";
 import {Cell, EMPTY, isRegular} from "./match3";
 
 //* Stato di una cella aperta. Il buco è null e non passa da qui.
@@ -8,9 +9,9 @@ export type ObstacleCell = {
   lockLayers: number;
   /** Strati rimanenti sotto il pezzo (G=1, H=2 in griglia). */
   terrain: number;
-  /** Tipo terreno iniziale: il magma H resta sprite H anche a 1 strato (raffreddato). */
+  /** Tipo terreno iniziale: magma H passa allo sprite H_1 al primo colpo. */
   terrainKind: TerrainKind | null;
-  blocker: "crate" | "rock" | "thorn" | "wall" | null;
+  blocker: "crate" | "rock" | "thorn" | "wall" | "fiend" | null;
   blockerLayers: number;
 };
 
@@ -61,6 +62,7 @@ export function obstacleFromSymbol(symbol: string): ObstacleCell {
   } else if (symbol === "R") cell.blocker = "rock";
   else if (symbol === "V") cell.blocker = "thorn";
   else if (symbol === "X") cell.blocker = "wall";
+  else if (symbol === "Z") return makeFiendCell();
 
   return cell;
 }
@@ -84,6 +86,7 @@ export function coverKey(cell: ObstacleCell | null): string | null {
   if (cell.blocker === "rock") return "R";
   if (cell.blocker === "thorn") return "V";
   if (cell.blocker === "wall") return "X";
+  if (cell.blocker === "fiend") return fiendCoverKey(cell.blockerLayers);
   if (cell.lock === "ice" && cell.lockLayers >= 2) return "J";
   if (cell.lock === "ice") return "I";
   if (cell.lock === "chain") return "L";
@@ -93,14 +96,10 @@ export function coverKey(cell: ObstacleCell | null): string | null {
 
 export function terrainKey(cell: ObstacleCell | null): string | null {
   if (!cell || cell.terrain <= 0) return null;
-  if (cell.terrainKind === "H") return "H";
+  if (cell.terrainKind === "H") return cell.terrain >= 2 ? "H" : "H_1";
   if (cell.terrainKind === "G") return "G";
 
   return null;
-}
-
-export function magmaCooled(cell: ObstacleCell | null): boolean {
-  return !!cell && cell.terrainKind === "H" && cell.terrain === 1;
 }
 
 function keyOf(cell: Cell): string {
@@ -184,6 +183,7 @@ type Hit = {
   chainBreak: boolean;
   rock: boolean;
   thorn: boolean;
+  fiend: boolean;
   clearPiece: boolean;
 };
 
@@ -194,11 +194,24 @@ export function applyWave(
   matchCells: Cell[],
   blasts: Cell[][],
   spawnKeys: Set<string>,
-): {pop: Cell[]; thornDamaged: boolean} {
+): {
+  pop: Cell[];
+  thornDamaged: boolean;
+  magmaCooled: Cell[];
+  terrainGPurified: Cell[];
+  iceBreak: Cell[];
+  iceJCrack: Cell[];
+  crateCrack: Cell[];
+} {
   const rows = obstacles.length;
   const cols = obstacles[0]?.length ?? 0;
   const hits = new Map<string, Hit>();
   let thornDamaged = false;
+  const magmaCooled: Cell[] = [];
+  const terrainGPurified: Cell[] = [];
+  const iceBreak: Cell[] = [];
+  const iceJCrack: Cell[] = [];
+  const crateCrack: Cell[] = [];
 
   const at = (cell: Cell): ObstacleCell | null => obstacles[cell.r]?.[cell.c] ?? null;
 
@@ -214,6 +227,7 @@ export function applyWave(
       chainBreak: false,
       rock: false,
       thorn: false,
+      fiend: false,
       clearPiece: false,
     };
 
@@ -245,6 +259,7 @@ export function applyWave(
     if (obs.lock === "ice") hit(cell).iceHits += 1;
     if (obs.blocker === "crate") hit(cell).crateHits += 1;
     if (obs.blocker === "thorn") hit(cell).thorn = true;
+    if (obs.blocker === "fiend") hit(cell).fiend = true;
   }
 
   const blastCounts = new Map<string, number>();
@@ -295,6 +310,11 @@ export function applyWave(
       continue;
     }
 
+    if (obs.blocker === "fiend") {
+      next.fiend = true;
+      continue;
+    }
+
     if (board[cell.r][cell.c] !== EMPTY) next.clearPiece = true;
   }
 
@@ -307,8 +327,16 @@ export function applyWave(
     if (!obs) continue;
 
     if (obs.lock === "ice" && next.iceHits > 0) {
+      const layersBefore = obs.lockLayers;
+
       obs.lockLayers = Math.max(0, obs.lockLayers - next.iceHits);
-      if (obs.lockLayers === 0) obs.lock = null;
+
+      if (obs.lockLayers === 0) {
+        obs.lock = null;
+        iceBreak.push(cell);
+      } else if (layersBefore >= 2) {
+        iceJCrack.push(cell);
+      }
     }
 
     if (next.chainBreak && obs.lock === "chain") {
@@ -317,8 +345,15 @@ export function applyWave(
     }
 
     if (obs.blocker === "crate" && next.crateHits > 0) {
+      const layersBefore = obs.blockerLayers;
+
       obs.blockerLayers = Math.max(0, obs.blockerLayers - next.crateHits);
-      if (obs.blockerLayers === 0) obs.blocker = null;
+
+      if (obs.blockerLayers === 0) {
+        obs.blocker = null;
+      } else if (layersBefore >= 2) {
+        crateCrack.push(cell);
+      }
     }
 
     if (next.rock && obs.blocker === "rock") obs.blocker = null;
@@ -328,7 +363,17 @@ export function applyWave(
       thornDamaged = true;
     }
 
-    if (next.clearPiece && obs.terrain > 0) obs.terrain -= 1;
+    if (next.fiend && obs.blocker === "fiend") {
+      obs.blocker = null;
+      obs.blockerLayers = 0;
+    }
+
+    if (next.clearPiece && obs.terrain > 0) {
+      if (obs.terrainKind === "H" && obs.terrain === 2) magmaCooled.push(cell);
+      if (obs.terrainKind === "G" && obs.terrain === 1) terrainGPurified.push(cell);
+
+      obs.terrain -= 1;
+    }
 
     const locked = obs.lock !== null;
     const blocked = obs.blocker !== null;
@@ -339,42 +384,88 @@ export function applyWave(
     pop.push(cell);
   }
 
-  return {pop, thornDamaged};
+  return {
+    pop,
+    thornDamaged,
+    magmaCooled,
+    terrainGPurified,
+    iceBreak,
+    iceJCrack,
+    crateCrack,
+  };
 }
 
-//* Dopo le cascate, se nessun rovo è stato colpito, ne nasce uno su un pezzo normale vicino.
-export function pickThornTarget(
+export type ThornSpread = {from: Cell; to: Cell};
+
+export function canPlaceThornAt(
   obstacles: (ObstacleCell | null)[][],
   board: number[][],
-): Cell | null {
+  cell: Cell,
+): boolean {
+  const obs = obstacles[cell.r]?.[cell.c];
+
+  if (!obs || obs.blocker || obs.lock || obs.terrain > 0) return false;
+
+  return isRegular(board[cell.r][cell.c]);
+}
+
+function thornSpreadTargetsFrom(
+  obstacles: (ObstacleCell | null)[][],
+  board: number[][],
+  from: Cell,
+): Cell[] {
   const rows = obstacles.length;
   const cols = obstacles[0]?.length ?? 0;
   const targets: Cell[] = [];
-  const seen = new Set<string>();
+
+  for (const [dr, dc] of DIRS) {
+    const to = {r: from.r + dr, c: from.c + dc};
+
+    if (to.r < 0 || to.c < 0 || to.r >= rows || to.c >= cols) continue;
+    if (!canPlaceThornAt(obstacles, board, to)) continue;
+
+    targets.push(to);
+  }
+
+  return targets;
+}
+
+/** Ogni rovo si sdoppia in una direzione adiacente valida (solo verso l'interno della griglia). */
+export function listThornSpreads(
+  obstacles: (ObstacleCell | null)[][],
+  board: number[][],
+  rand: () => number = Math.random,
+): ThornSpread[] {
+  const rows = obstacles.length;
+  const cols = obstacles[0]?.length ?? 0;
+  const spreads: ThornSpread[] = [];
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (obstacles[r][c]?.blocker !== "thorn") continue;
 
-      for (const [dr, dc] of DIRS) {
-        const cell = {r: r + dr, c: c + dc};
-        const key = keyOf(cell);
+      const from = {r, c};
+      const targets = thornSpreadTargetsFrom(obstacles, board, from);
 
-        if (seen.has(key)) continue;
-        if (cell.r < 0 || cell.c < 0 || cell.r >= rows || cell.c >= cols) continue;
+      if (!targets.length) continue;
 
-        const obs = obstacles[cell.r][cell.c];
+      const to = targets[Math.floor(rand() * targets.length)];
 
-        if (!obs || obs.blocker || obs.lock || obs.terrain > 0) continue;
-        if (!isRegular(board[cell.r][cell.c])) continue;
-
-        seen.add(key);
-        targets.push(cell);
-      }
+      spreads.push({from, to});
     }
   }
 
-  if (!targets.length) return null;
+  return spreads;
+}
 
-  return targets[Math.floor(Math.random() * targets.length)];
+/** @deprecated Usa listThornSpreads — mantiene compat per test. */
+export function pickThornSpread(
+  obstacles: (ObstacleCell | null)[][],
+  board: number[][],
+): ThornSpread | null {
+  const spreads = listThornSpreads(obstacles, board);
+
+  if (!spreads.length) return null;
+
+  return spreads[Math.floor(Math.random() * spreads.length)];
 }

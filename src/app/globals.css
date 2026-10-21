@@ -4,6 +4,7 @@
   --background: #140d2d;
   --foreground: #fff8dc;
   --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   --font-app: "Cinzel Decorative", serif;
   --font-display: "Cinzel Decorative", serif;
   --font-accent: "Cinzel Decorative", serif;

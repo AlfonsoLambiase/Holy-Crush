@@ -13,6 +13,7 @@ export class Boot extends Phaser.Scene {
   sponsorLogo?: string;
   isTesting: boolean = false;
   safeTop: number = 0; //! notch Area
+  safeBottom: number = 0;
   stage: number = DEFAULT_STAGE;
   bootStart: BootStartScene = "default";
 
@@ -26,6 +27,7 @@ export class Boot extends Phaser.Scene {
     sponsorLogo: string;
     isTesting: boolean;
     safeTop?: number; //! notch Area
+    safeBottom?: number;
     stage?: number;
     bootStart?: BootStartScene;
   }) {
@@ -33,10 +35,12 @@ export class Boot extends Phaser.Scene {
       this.sponsorLogo = data.sponsorLogo;
       this.isTesting = data.isTesting;
       this.safeTop = data.safeTop || 0; //! notch Area
+      this.safeBottom = data.safeBottom || 0;
       this.bootStart = data.bootStart ?? "default";
       this.stage = getStageIndex() + 1;
 
       this.registry.set("safeTop", this.safeTop); //! notch Area
+      this.registry.set("safeBottom", this.safeBottom);
 
       this.isInit = true;
     }

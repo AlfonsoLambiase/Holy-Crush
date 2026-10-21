@@ -33,6 +33,7 @@ export type CreateGameOptions = {
   sponsorLogo?: string;
   isTesting?: boolean;
   safeTop?: number; //! notch Area
+  safeBottom?: number;
   stage?: number;
   bootStart?: BootStartScene;
 };
@@ -42,6 +43,7 @@ export const createGame = ({
   sponsorLogo,
   isTesting = false,
   safeTop = 0,
+  safeBottom = 0,
   stage = DEFAULT_STAGE,
   bootStart = "default",
 }: CreateGameOptions): Phaser.Game => {
@@ -58,6 +60,7 @@ export const createGame = ({
     sponsorLogo: sponsorLogo ?? "empty",
     isTesting,
     safeTop,
+    safeBottom,
     stage,
     bootStart,
   });

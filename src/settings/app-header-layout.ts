@@ -137,6 +137,14 @@ export const readSafeTopCss = (): number => {
   return parseFloat(raw) || 0;
 };
 
+export const readSafeBottomCss = (): number => {
+  if (typeof window === "undefined") return 0;
+
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--safe-bottom");
+
+  return parseFloat(raw) || 0;
+};
+
 export type ResolvedHeaderMetrics = {
   cornerButtonCss: number;
   cornerButtonPhysical: number;

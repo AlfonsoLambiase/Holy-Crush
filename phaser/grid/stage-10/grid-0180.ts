@@ -1,10 +1,10 @@
-//* Stage 10, livello 1. 7×7. buchi ., terreno doppio H, muri X, casse B, rovi V.
+//* Stage 10, livello 1. 7×7. buchi ., terreno doppio H, casse B, rovi V.
 export const GRID_0180 = [
   "..BV...",
   "..0H...",
-  "..X0...",
-  "000X000",
-  "X000XXX",
+  "..00...",
+  "0000000",
+  "0000000",
   "..00...",
   "..00...",
 ] as const;

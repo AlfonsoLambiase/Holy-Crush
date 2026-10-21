@@ -1,7 +1,7 @@
-//* Stage 20, livello 15. 7×9. muri X, buchi ., casse doppie C, casse rinforzate D, terreno G, rocce R, terreno doppio H.
+//* Stage 20, livello 15. 7×9., buchi ., casse doppie C, casse rinforzate D, terreno G, rocce R, terreno doppio H.
 export const GRID_0394 = [
   "0000000",
-  "0X..0C0",
+  "00..0C0",
   "DD..CG0",
   "00..D00",
   "00..0D0",

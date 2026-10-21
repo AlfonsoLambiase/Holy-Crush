@@ -1,4 +1,4 @@
-export const GRID_SYMBOLS = [".", "0", "B", "C", "D", "G", "H", "I", "J", "L", "R", "V", "X"] as const;
+export const GRID_SYMBOLS = [".", "0", "B", "C", "D", "G", "H", "I", "J", "L", "R", "V", "X", "Z"] as const;
 
 export type GridSymbol = (typeof GRID_SYMBOLS)[number];
 
@@ -11,7 +11,7 @@ export type GridShape = {
 
 const ALLOWED = new Set<string>(GRID_SYMBOLS);
 
-//* . buco, 0 pezzo, B/C/D cassa, G/H terreno, I/J ghiaccio, L catena, R roccia, V rovo, X muro.
+//* . buco, 0 pezzo, B/C/D cassa, G/H terreno, I/J ghiaccio, L catena, R roccia, V rovo, X muro, Z demone.
 export function createGrid(id: string, pattern: readonly string[]): GridShape {
   if (pattern.length === 0) {
     throw new Error(`Griglia "${id}" vuota.`);

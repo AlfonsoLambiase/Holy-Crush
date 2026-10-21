@@ -1,9 +1,9 @@
-//* Stage 10, livello 9. 7×6. buchi ., muri X, catene L, ghiaccio doppio J, casse B.
+//* Stage 10, livello 9. 7×6. buchi ., catene L, ghiaccio doppio J, casse B.
 export const GRID_0188 = [
   "..B0000",
-  "..XLX00",
-  "0X00000",
-  "0000X0J",
-  "00XX0..",
+  "..0L000",
+  "0000000",
+  "000000J",
+  "00000..",
   "0J000..",
 ] as const;

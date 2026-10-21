@@ -2,7 +2,7 @@
 // Versione di progetto: 1.0 — 30/09/2026
 // Questo documento descrive regole proposte, non funzionalità già implementate.
 // I numeri degli esempi devono essere bilanciati con partite e test.
-// Il parser accetta . 0 B C D G H I J L R V X.
+// Il parser accetta . 0 B C D G H I J L R V X Z.
 // N, S, E e P non sono nel gioco: sono segnati con //* No.
 //
 // ============================================================================
@@ -24,13 +24,17 @@
 // D = Cassa rinforzata: 3 colpi.                                                  
 // R = Roccia: si distrugge soltanto con i potenziamenti, 1 colpo.
 // X = Muro permanente: non si distrugge.
+// Regole layout muri: max 2 X per colonna; niente X su griglie a croce (bracci stretti).
+// Controllo: npm run grids:audit-walls
+// Z = Demone (Fiend): occupa la cella; si muove da solo a fine mossa (vedi sezione Z).
 //
 // STRATI SOTTO I PEZZI
 // G = Terreno da purificare: 1 eliminazione sopra la cella.
 // H = Terreno resistente: 2 eliminazioni sopra la cella.
 //
-// OSTACOLI SPECIALI — DA INTRODURRE SUCCESSIVAMENTE
-// V = Rovo: si espande se nessun rovo viene danneggiato durante la mossa.
+// OSTACOLI SPECIALI
+// V = Rovo: si sdoppia se nessun rovo viene danneggiato durante la mossa.
+// Z = Demone: in griglia o iniettato a runtime; cap per stage e modalità di gioco.
 // N = Nebbia: nasconde e blocca il pezzo finché non viene rimossa.                //* No
 // S = Generatore di ostacoli: produce ostacoli secondo le regole del livello.     //* No
 //
@@ -136,13 +140,36 @@
 // V — ROVO
 // - Occupa una cella; 1 colpo adiacente o diretto lo elimina.
 // - Se almeno un rovo viene danneggiato nell'intera mossa, niente espansione.
-// - Altrimenti, dopo tutte le cascate, nasce al massimo 1 nuovo rovo.
-// - Scegliere con la sorgente casuale del livello una cella normale adiacente
-//   a un rovo. Il nuovo rovo sostituisce il pezzo normale presente.
-// - Escludere celle speciali, terreno-obiettivo, oggetti da accompagnare,
-//   potenziamenti e pezzi già bloccati. Senza celle idonee non si espande.
+// - Altrimenti, dopo tutte le cascate, ogni rovo presente prova a sdoppiarsi.
+// - Per ciascun rovo: direzione casuale tra le celle adiacenti valide (solo verso
+//   l'interno della griglia giocabile; mai fuori tabellone o in un buco).
+// - Il nuovo rovo sostituisce il pezzo normale sulla cella scelta.
+// - Escludere celle con ostacoli, ghiaccio, catena, terreno sotto il pezzo,
+//   potenziamenti e pezzi non normali. Senza direzioni idonee quel rovo resta fermo.
+// - Se più rovi puntano la stessa cella, vale il primo nell'ordine casuale di esecuzione.
 // - Nessuna espansione durante avvio o rimescolamento.
 // - Se tutti gli obiettivi sono completati, dichiarare vittoria prima di espandere.
+//
+// Z — DEMONE (FIEND)
+// - Occupa la cella; grafica Z_0 … Z_4 (variante casuale) con aura viola sovrapposta
+//   che pulsa (scompare e ricompare) sopra lo sprite.
+// - Non è scambiabile dal giocatore; blocca la caduta come cassa, roccia o rovo.
+// - Si elimina con match adiacente o colpo diretto da potenziamento (razzo, bomba, ecc.).
+// - Dopo ogni mossa valida del giocatore (scambio o booster), tutti i demoni si muovono.
+// - Movimento: asse casuale (riga o colonna); scambio con il pezzo normale adiacente
+//   (una sola casella, mai salti lungo la linea). Suono fill come caduta/refill.
+// - Se il demone è sul bordo del playable (adiacente a buco o limite), si sposta solo
+//   verso l'interno: mai verso il buco o fuori griglia.
+// - Se lo spostamento crea combinazioni, si risolvono le cascate; si autodistruggono
+//   soltanto i demoni adiacenti alle celle del match (non quelli lontani).
+// - Presenza in griglia: simbolo Z nel file livello; oppure iniezione a runtime.
+// - Primo stage (indice 0): compaiono dalla seconda metà dei livelli dello stage;
+//   negli stage successivi sin dal primo livello.
+// - Numero massimo di demoni nel livello (per stage di gioco, 1-based):
+//   mode_0 (Nuovo Testamento): 1 fino a stage 2, 2 fino a 4, 3 fino a 9, 4 fino a 17, 5 oltre.
+//   mode_1 (Antico Testamento): 1 fino a stage 2, 2 fino a 4, 3 fino a 7, 4 fino a 9, 5 fino a 12+.
+// - Con più di 3 demoni nel livello: solo griglie grandi e non a forma di croce.
+// - L'iniezione riempie fino al cap con quantità casuale tra quelli già presenti e il massimo.
 //
 // N — NEBBIA
 // - Nasconde un pezzo e ne impedisce movimento e partecipazione ai match.
@@ -330,7 +357,7 @@
 // La griglia parte da 5×5 e si allarga, senza superare 7 colonne e 10 righe.
 //
 // Si vince completando 1 o 2 obiettivi letti dalla griglia (pezzi, ghiaccio,
-// casse, terreno, catene, rocce, rovi). Le mosse sono limitate: uno scambio
+// casse, terreno, catene, rocce, rovi, demoni se presenti). Le mosse sono limitate: uno scambio
 // valido ne costa una, le cascate no. A zero mosse si perde, con un solo
 // annuncio per ricevere 10 mosse e restare sulla stessa griglia.
 //
@@ -347,7 +374,7 @@
 //   Corridoi e rocce.
 //
 // Stage 15–20
-//   Si aggiungono V D
+//   Si aggiungono V D; Z da runtime / griglia secondo cap stage.
 //   Più ostacoli e forme più chiuse.
 //
 // Ogni griglia è diversa. Le forme si rivedono, gli ostacoli no nella stessa disposizione.
@@ -365,5 +392,5 @@
 //si aggiungono X R
 //corridoi e rocce
 //15–20
-//si aggiungono V D
+//si aggiungono V D; Z (runtime / griglia)
 //più ostacoli, forme più chiuse

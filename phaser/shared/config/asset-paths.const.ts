@@ -56,7 +56,25 @@ const POWER_UP_KEYS = new Set([
   "ultra_disabled",
 ]);
 
-const OBJECTIVE_KEYS = new Set(["B", "C", "D", "G", "H", "I", "J", "L", "R", "V", "X"]);
+const OBJECTIVE_KEYS = new Set([
+  "B",
+  "C",
+  "D",
+  "G",
+  "H",
+  "H_1",
+  "I",
+  "J",
+  "L",
+  "R",
+  "V",
+  "X",
+  "Z_0",
+  "Z_1",
+  "Z_2",
+  "Z_3",
+  "Z_4",
+]);
 
 //* Il file su disco non coincide col nome logico usato in gioco
 const FILE_NAME: Record<string, string> = {
