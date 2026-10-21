@@ -185,6 +185,8 @@ type Hit = {
   thorn: boolean;
   fiend: boolean;
   clearPiece: boolean;
+  /** Colpi terreno G/H da blast (super oggetti, razzi, bombe). */
+  terrainHits: number;
 };
 
 //* Un'ondata: il match dà al massimo 1 colpo adiacente. Ogni razzo o bomba aggiunge il suo.
@@ -229,6 +231,7 @@ export function applyWave(
       thorn: false,
       fiend: false,
       clearPiece: false,
+      terrainHits: 0,
     };
 
     hits.set(key, created);
@@ -284,6 +287,8 @@ export function applyWave(
     if (!obs || obs.blocker === "wall") continue;
 
     const next = hit(cell);
+
+    if (obs.terrain > 0) next.terrainHits += times;
 
     if (obs.lock === "ice") {
       next.iceHits += times;
@@ -368,11 +373,21 @@ export function applyWave(
       obs.blockerLayers = 0;
     }
 
-    if (next.clearPiece && obs.terrain > 0) {
+    const stripTerrainLayer = (): void => {
+      if (obs.terrain <= 0) return;
+
       if (obs.terrainKind === "H" && obs.terrain === 2) magmaCooled.push(cell);
       if (obs.terrainKind === "G" && obs.terrain === 1) terrainGPurified.push(cell);
 
       obs.terrain -= 1;
+    };
+
+    if (next.terrainHits > 0) {
+      const layers = Math.min(next.terrainHits, obs.terrain);
+
+      for (let i = 0; i < layers; i++) stripTerrainLayer();
+    } else if (next.clearPiece && obs.terrain > 0) {
+      stripTerrainLayer();
     }
 
     const locked = obs.lock !== null;
