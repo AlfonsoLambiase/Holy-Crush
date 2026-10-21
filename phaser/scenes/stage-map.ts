@@ -66,6 +66,7 @@ export class StageMapScene extends Phaser.Scene {
   #energyPopup: WatchAdPopup | null = null;
   #rechargeTween: Phaser.Tweens.Tween | null = null;
   #rechargeSafety: Phaser.Time.TimerEvent | null = null;
+  #heartSyncTimer: Phaser.Time.TimerEvent | null = null;
   #recharging = false;
   #leaving = false;
   #releaseMapTextures = false;
@@ -108,6 +109,7 @@ export class StageMapScene extends Phaser.Scene {
     this.#stopUnlockSfx = null;
     this.#unbindScroll();
     this.#cancelRecharge();
+    this.#stopHeartSync();
     this.#roadMask?.destroy();
     this.#roadMask = null;
     this.#scrollVelocity = 0;
@@ -550,6 +552,25 @@ export class StageMapScene extends Phaser.Scene {
 
     this.#heart = addStageHeart(this, this.scale.width / 2, this.#headerHeartY, this.#headerHeartSize);
     this.#heart?.setRemaining(getHeartRemaining());
+    this.#startHeartSync();
+  }
+
+  #startHeartSync() {
+    this.#stopHeartSync();
+    this.#heartSyncTimer = this.time.addEvent({
+      delay: 400,
+      loop: true,
+      callback: () => {
+        if (this.#recharging || !this.#heart) return;
+
+        this.#heart.setRemaining(getHeartRemaining());
+      },
+    });
+  }
+
+  #stopHeartSync() {
+    this.#heartSyncTimer?.remove();
+    this.#heartSyncTimer = null;
   }
 
   #startLevelPulse(levelContent: Phaser.GameObjects.Container) {

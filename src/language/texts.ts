@@ -68,10 +68,10 @@ const UI_TEXTS: TextEntry[] = [
   },
   {
     key: "energyEmptyBody",
-    it: "Guarda un annuncio per ricaricarla e continuare a giocare",
-    en: "Watch an ad to recharge it and keep playing",
-    es: "Mira un anuncio para recargarla y seguir jugando",
-    fr: "Regarde une annonce pour la recharger et continuer à jouer",
+    it: "Guarda un annuncio per continuare a giocare oppure attendi che si ricarichi",
+    en: "Watch an ad to keep playing or wait for it to recharge",
+    es: "Mira un anuncio para seguir jugando o espera a que se recargue",
+    fr: "Regarde une annonce pour continuer à jouer ou attends qu'elle se recharge",
   },
   {
     key: "movesOutTitle",
