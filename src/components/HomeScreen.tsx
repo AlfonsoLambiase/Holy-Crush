@@ -173,8 +173,6 @@ const APP_CORNER_BTN_CLASS = "h-[min(16vw,4.75rem)] w-[min(16vw,4.75rem)]";
 const PANEL_ICON_BTN_CLASS =
   "flex h-[min(14vw,4rem)] w-[min(14vw,4rem)] shrink-0 items-center justify-center rounded-full border-2 border-[#a67c22] bg-[#3d2614] text-[#fff8dc] shadow-[0_0_10px_rgba(255,214,120,0.35)] transition-transform duration-100 active:scale-95";
 
-const PANEL_HINT_TEXT_CLASS = "font-display text-sm font-bold text-[#fff8dc] sm:text-base";
-
 function GoogleMark() {
   return (
     <svg aria-hidden className="h-[52%] w-[52%]" viewBox="0 0 48 48">
@@ -198,17 +196,6 @@ function GoogleMark() {
   );
 }
 
-function FacebookMark() {
-  return (
-    <svg aria-hidden className="h-[52%] w-[52%]" viewBox="0 0 24 24">
-      <path
-        fill="#1877F2"
-        d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
-      />
-    </svg>
-  );
-}
-
 function AccessPanel() {
   const {t} = useLanguage();
 
@@ -217,33 +204,21 @@ function AccessPanel() {
       <GoldTitle titleClassName={PANEL_SECTION_TITLE_CLASS} titleStyle={PANEL_TITLE_STYLE}>
         {t("access")}
       </GoldTitle>
-      <div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-3 max-[700px]:mt-3 sm:mt-6 sm:gap-5">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <button
-            aria-label={t("googleSignIn")}
-            className={PANEL_ICON_BTN_CLASS}
-            type="button"
-            onClick={() => playClick()}
-          >
-            <GoogleMark />
-          </button>
-          <p className={PANEL_HINT_TEXT_CLASS} style={PANEL_TITLE_STYLE}>
-            {t("googleSignIn")}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 sm:gap-4">
-          <button
-            aria-label={t("facebookSignIn")}
-            className={PANEL_ICON_BTN_CLASS}
-            type="button"
-            onClick={() => playClick()}
-          >
-            <FacebookMark />
-          </button>
-          <p className={PANEL_HINT_TEXT_CLASS} style={PANEL_TITLE_STYLE}>
-            {t("facebookSignIn")}
-          </p>
-        </div>
+      <div className="mt-4 flex w-full max-w-sm flex-col items-center gap-4 max-[700px]:mt-3 sm:mt-6 sm:gap-6">
+        <p
+          className="text-center font-display text-[clamp(1.05rem,3.6vw,1.45rem)] font-bold leading-snug text-[#fff8dc] sm:text-xl"
+          style={PANEL_TITLE_STYLE}
+        >
+          {t("googleSignIn")}
+        </p>
+        <button
+          aria-label={t("googleSignIn")}
+          className={PANEL_ICON_BTN_CLASS}
+          type="button"
+          onClick={() => playClick()}
+        >
+          <GoogleMark />
+        </button>
       </div>
     </div>
   );

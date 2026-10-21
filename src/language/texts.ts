@@ -180,10 +180,17 @@ const UI_TEXTS: TextEntry[] = [
   },
   {
     key: "shareInvite",
-    it: "Gioca a Holy Crush con me!",
-    en: "Play Holy Crush with me!",
-    es: "¡Juega a Holy Crush conmigo!",
-    fr: "Joue à Holy Crush avec moi !",
+    it: "Fai scoprire Holy-Crush ai tuoi amici e diffondilo!",
+    en: "Help your friends discover Holy Crush and spread it!",
+    es: "¡Haz que tus amigos descubran Holy Crush y difúndelo!",
+    fr: "Fais découvrir Holy Crush à tes amis et diffuse-le !",
+  },
+  {
+    key: "shareBody",
+    it: "Fai scoprire Holy-Crush ai tuoi amici e diffondilo!",
+    en: "Help your friends discover Holy Crush and spread it!",
+    es: "¡Haz que tus amigos descubran Holy Crush y difúndelo!",
+    fr: "Fais découvrir Holy Crush à tes amis et diffuse-le !",
   },
   {
     key: "shareWhatsApp",
@@ -214,13 +221,6 @@ const UI_TEXTS: TextEntry[] = [
     fr: "Copier le lien",
   },
   {
-    key: "shareCopyHint",
-    it: "Copia il link e invialo agli amici",
-    en: "Copy the link and send it to friends",
-    es: "Copia el enlace y envíaselo a tus amigos",
-    fr: "Copie le lien et envoie-le à tes amis",
-  },
-  {
     key: "shareLinkCopied",
     it: "Link copiato!",
     en: "Link copied!",
@@ -233,13 +233,6 @@ const UI_TEXTS: TextEntry[] = [
     en: "Sign in with Google",
     es: "Accede con Google",
     fr: "Connexion avec Google",
-  },
-  {
-    key: "facebookSignIn",
-    it: "Accedi con Facebook",
-    en: "Sign in with Facebook",
-    es: "Accede con Facebook",
-    fr: "Connexion avec Facebook",
   },
   {
     key: "language",

@@ -158,49 +158,60 @@ export function SharePanel() {
         {t("share")}
       </GoldTitle>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-3 max-[700px]:mt-3 sm:mt-6 sm:gap-5">
-        <button
-          aria-label={t("shareWhatsApp")}
-          className={SHARE_ICON_CLASS}
-          type="button"
-          onClick={shareWhatsApp}
-        >
-          <WhatsAppIcon />
-        </button>
-        <button
-          aria-label={t("shareTelegram")}
-          className={SHARE_ICON_CLASS}
-          type="button"
-          onClick={shareTelegram}
-        >
-          <TelegramIcon />
-        </button>
-        <button
-          aria-label={t("shareMore")}
-          className={SHARE_ICON_CLASS}
-          type="button"
-          onClick={() => void shareNative()}
-        >
-          <ShareMoreIcon />
-        </button>
-        <button
-          aria-label={t("shareCopyLink")}
-          className={SHARE_ICON_CLASS}
-          type="button"
-          onClick={() => void copyLink()}
-        >
-          <CopyIcon />
-        </button>
-      </div>
-
       <p
-        className={`mt-5 min-h-[1.25rem] font-display text-sm font-bold sm:text-base ${
-          copied ? "text-[#ffd76a]" : "text-[#fff8dc]"
-        }`}
+        className="mt-4 max-w-md px-2 text-center font-display text-[clamp(1.05rem,3.6vw,1.45rem)] font-bold leading-snug text-[#fff8dc] max-[700px]:mt-3 sm:mt-6 sm:text-xl"
         style={PANEL_TITLE_STYLE}
       >
-        {copied ? t("shareLinkCopied") : t("shareCopyHint")}
+        {t("shareBody")}
       </p>
+
+      <div className="mt-4 flex flex-col items-center gap-3 max-[700px]:mt-3 sm:mt-5 sm:gap-5">
+        <div className="flex items-center justify-center gap-3 sm:gap-5">
+          <button
+            aria-label={t("shareWhatsApp")}
+            className={SHARE_ICON_CLASS}
+            type="button"
+            onClick={shareWhatsApp}
+          >
+            <WhatsAppIcon />
+          </button>
+          <button
+            aria-label={t("shareTelegram")}
+            className={SHARE_ICON_CLASS}
+            type="button"
+            onClick={shareTelegram}
+          >
+            <TelegramIcon />
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-3 sm:gap-5">
+          <button
+            aria-label={t("shareMore")}
+            className={SHARE_ICON_CLASS}
+            type="button"
+            onClick={() => void shareNative()}
+          >
+            <ShareMoreIcon />
+          </button>
+          <button
+            aria-label={t("shareCopyLink")}
+            className={SHARE_ICON_CLASS}
+            type="button"
+            onClick={() => void copyLink()}
+          >
+            <CopyIcon />
+          </button>
+        </div>
+      </div>
+
+      {copied ? (
+        <p
+          className="mt-5 min-h-[1.25rem] font-display text-base font-bold text-[#ffd76a] sm:text-lg"
+          style={PANEL_TITLE_STYLE}
+        >
+          {t("shareLinkCopied")}
+        </p>
+      ) : null}
     </div>
   );
 }
