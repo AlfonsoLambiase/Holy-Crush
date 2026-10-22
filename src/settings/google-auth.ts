@@ -9,7 +9,7 @@ export type GoogleAccount = {
   displayName: string | null;
 };
 
-export type GoogleAuthNotice = "cancelled" | "failed";
+export type GoogleAuthNotice = "cancelled" | "failed" | "developer";
 
 export type GoogleAuthPhase = "idle" | "signing-in" | "signing-out";
 
@@ -73,7 +73,13 @@ const errorText = (error: unknown): string => {
 const isSignInCancelled = (error: unknown): boolean => {
   const text = errorText(error).toLowerCase();
 
-  return text.includes("cancel") || text.includes("12501");
+  return text.includes("cancel") || text.includes("12501") || /\b16\b/.test(text);
+};
+
+const isDeveloperError = (error: unknown): boolean => {
+  const text = errorText(error).toLowerCase();
+
+  return text.includes("developer_error") || text.includes("developer console") || /\b10\b/.test(text);
 };
 
 const beginSession = () => {
@@ -195,7 +201,9 @@ export const signInWithGoogleAccount = async (): Promise<void> => {
   update({...snapshot, phase: "signing-in", notice: null});
 
   try {
-    const result = await FirebaseAuthentication.signInWithGoogle();
+    const result = await FirebaseAuthentication.signInWithGoogle({
+      useCredentialManager: false,
+    });
 
     userVersion += 1;
 
@@ -217,7 +225,7 @@ export const signInWithGoogleAccount = async (): Promise<void> => {
     update({
       ...snapshot,
       phase: "idle",
-      notice: isSignInCancelled(error) ? "cancelled" : "failed",
+      notice: isSignInCancelled(error) ? "cancelled" : isDeveloperError(error) ? "developer" : "failed",
     });
   } finally {
     requestLock = false;

@@ -265,9 +265,9 @@ function AccessPanel() {
             {t("googleSignInCancelled")}
           </p>
         ) : null}
-        {auth.notice === "failed" ? (
+        {auth.notice === "failed" || auth.notice === "developer" ? (
           <p className={`${PANEL_STATUS_CLASS} text-[#ffb4a2]`} role="alert" style={PANEL_TITLE_STYLE}>
-            {t("googleSignInFailed")}
+            {t(auth.notice === "developer" ? "googleSignInDeveloper" : "googleSignInFailed")}
           </p>
         ) : null}
       </div>

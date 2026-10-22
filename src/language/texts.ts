@@ -256,6 +256,13 @@ const UI_TEXTS: TextEntry[] = [
     fr: "Joueur",
   },
   {
+    key: "googleSignInDeveloper",
+    it: "Accesso non riuscito. L'impronta SHA di questo APK non è registrata su Firebase.",
+    en: "Sign-in failed. This APK's SHA fingerprint is not registered in Firebase.",
+    es: "Acceso fallido. La huella SHA de este APK no está registrada en Firebase.",
+    fr: "Connexion impossible. L'empreinte SHA de cet APK n'est pas enregistrée dans Firebase.",
+  },
+  {
     key: "googleSignInFailed",
     it: "Accesso non riuscito. Riprova.",
     en: "Sign-in failed. Try again.",
