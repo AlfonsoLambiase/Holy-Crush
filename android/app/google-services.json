@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "430274376796",
+    "project_id": "holy-crush",
+    "storage_bucket": "holy-crush.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:430274376796:android:db1a53ac9128135e982299",
+        "android_client_info": {
+          "package_name": "com.orbitagames.holycrush"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "430274376796-p0os378m7lctaf38sv14b7f6c09ordbe.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.orbitagames.holycrush",
+            "certificate_hash": "f091b9101f27d48501b83cc461964af115f9ea59"
+          }
+        },
+        {
+          "client_id": "430274376796-ho544rinmoogfa3d820loaa2nseic98h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcVVfUNOpUu3JgOrXvui4VAMZNixCsrms"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "430274376796-ho544rinmoogfa3d820loaa2nseic98h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

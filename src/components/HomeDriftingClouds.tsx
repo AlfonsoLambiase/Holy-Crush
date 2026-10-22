@@ -163,7 +163,9 @@ export function HomeDriftingClouds({visible, paused}: HomeDriftingCloudsProps) {
   const pauseStartedMsRef = useRef<number | null>(null);
   const [clouds, setClouds] = useState<PathCloud[]>([]);
 
-  pausedRef.current = paused;
+  useLayoutEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   useEffect(() => {
     if (paused) {

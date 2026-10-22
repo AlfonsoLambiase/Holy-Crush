@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore} from "react";
 
 import {
   CLOUD_CURTAIN_HOLD_MS,
@@ -13,6 +13,7 @@ import {LANGUAGE_LABELS, LANGUAGES} from "@/language";
 import {GoldTitle} from "@/components/GoldTitle";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick, playNoTouch} from "@/settings/click";
+import {useGoogleAuth} from "@/settings/google-auth";
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
 import {type GameModeId, getGameMode, setGameMode} from "@/settings/game-mode";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
@@ -170,12 +171,17 @@ function TestamentCard({
 
 const APP_CORNER_BTN_CLASS = "h-[min(16vw,4.75rem)] w-[min(16vw,4.75rem)]";
 
-const PANEL_ICON_BTN_CLASS =
-  "flex h-[min(14vw,4rem)] w-[min(14vw,4rem)] shrink-0 items-center justify-center rounded-full border-2 border-[#a67c22] bg-[#3d2614] text-[#fff8dc] shadow-[0_0_10px_rgba(255,214,120,0.35)] transition-transform duration-100 active:scale-95";
+const GOOGLE_BUTTON_CLASS =
+  "flex h-10 w-full max-w-xs items-center justify-center gap-2.5 rounded border border-[#747775] bg-white px-3 text-sm font-medium text-[#1f1f1f] shadow-sm transition-opacity disabled:opacity-60";
+
+const GOOGLE_BUTTON_FONT = {fontFamily: "Roboto, Arial, sans-serif"} as const;
+
+const PANEL_STATUS_CLASS =
+  "text-center font-display text-[clamp(0.95rem,3.2vw,1.15rem)] font-bold leading-snug text-[#fff8dc]";
 
 function GoogleMark() {
   return (
-    <svg aria-hidden className="h-[52%] w-[52%]" viewBox="0 0 48 48">
+    <svg aria-hidden className="h-[18px] w-[18px] shrink-0" viewBox="0 0 48 48">
       <path
         fill="#FFC107"
         d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"
@@ -198,27 +204,72 @@ function GoogleMark() {
 
 function AccessPanel() {
   const {t} = useLanguage();
+  const auth = useGoogleAuth();
+  const busy = auth.phase !== "idle";
+  const accountName = auth.user ? auth.user.displayName ?? t("googlePlayer") : null;
 
   return (
-    <div className="flex w-full flex-col items-center">
+    <div className="flex w-full flex-col items-center pb-[env(safe-area-inset-bottom)]">
       <GoldTitle titleClassName={PANEL_SECTION_TITLE_CLASS} titleStyle={PANEL_TITLE_STYLE}>
         {t("access")}
       </GoldTitle>
-      <div className="mt-4 flex w-full max-w-sm flex-col items-center gap-4 max-[700px]:mt-3 sm:mt-6 sm:gap-6">
-        <p
-          className="text-center font-display text-[clamp(1.05rem,3.6vw,1.45rem)] font-bold leading-snug text-[#fff8dc] sm:text-xl"
-          style={PANEL_TITLE_STYLE}
-        >
-          {t("googleSignIn")}
-        </p>
-        <button
-          aria-label={t("googleSignIn")}
-          className={PANEL_ICON_BTN_CLASS}
-          type="button"
-          onClick={() => playClick()}
-        >
-          <GoogleMark />
-        </button>
+      <div className="mt-4 flex w-full max-w-sm flex-col items-center gap-3 max-[700px]:mt-3 sm:mt-6 sm:gap-4">
+        {!auth.ready ? (
+          <p className={PANEL_STATUS_CLASS} style={PANEL_TITLE_STYLE}>
+            {t("loading")}
+          </p>
+        ) : !auth.native ? (
+          <p className={PANEL_STATUS_CLASS} style={PANEL_TITLE_STYLE}>
+            {t("googleSignInAndroidOnly")}
+          </p>
+        ) : accountName ? (
+          <>
+            <p className={`${PANEL_STATUS_CLASS} w-full truncate`} style={PANEL_TITLE_STYLE}>
+              {accountName}
+            </p>
+            <button
+              className="font-display text-lg font-bold text-[#ffd76a] underline-offset-4 disabled:opacity-60"
+              disabled={busy}
+              type="button"
+              onClick={() => {
+                playClick();
+                auth.signOut();
+              }}
+            >
+              {t("googleSignOut")}
+            </button>
+          </>
+        ) : (
+          <button
+            aria-busy={busy}
+            className={GOOGLE_BUTTON_CLASS}
+            disabled={busy}
+            style={GOOGLE_BUTTON_FONT}
+            type="button"
+            onClick={() => {
+              playClick();
+              auth.signIn();
+            }}
+          >
+            <GoogleMark />
+            <span>{t("googleSignIn")}</span>
+          </button>
+        )}
+        {auth.phase === "signing-in" ? (
+          <p className={PANEL_STATUS_CLASS} style={PANEL_TITLE_STYLE}>
+            {t("googleSigningIn")}
+          </p>
+        ) : null}
+        {auth.notice === "cancelled" ? (
+          <p className={PANEL_STATUS_CLASS} style={PANEL_TITLE_STYLE}>
+            {t("googleSignInCancelled")}
+          </p>
+        ) : null}
+        {auth.notice === "failed" ? (
+          <p className={`${PANEL_STATUS_CLASS} text-[#ffb4a2]`} role="alert" style={PANEL_TITLE_STYLE}>
+            {t("googleSignInFailed")}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -385,13 +436,32 @@ function HomeImageButton({
   );
 }
 
+const subscribeNothing = () => () => {};
+
+const subscribeReducedMotion = (onChange: () => void) => {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  media.addEventListener("change", onChange);
+
+  return () => media.removeEventListener("change", onChange);
+};
+
+const prefersReducedMotion = () =>
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 export function HomeScreen() {
   const {language, setLanguage, t} = useLanguage();
+
+  useGoogleAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [gridsOpen, setGridsOpen] = useState(false);
+  const reducedMotion = useSyncExternalStore(subscribeReducedMotion, prefersReducedMotion, () => false);
   const [introMoveStarted, setIntroMoveStarted] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const [logoIntroReady, setLogoIntroReady] = useState(false);
+  const introMoveVisible = introMoveStarted || reducedMotion;
+  const introDone = introComplete || reducedMotion;
+  const logoReady = logoIntroReady || reducedMotion;
   const logoWrapRef = useRef<HTMLDivElement>(null);
   const [isStartPressed, setIsStartPressed] = useState(false);
   const [isTestamentOpen, setIsTestamentOpen] = useState(false);
@@ -401,20 +471,27 @@ export function HomeScreen() {
   const [showWorld, setShowWorld] = useState(false);
   const homeShellRef = useRef<HTMLDivElement>(null);
   const [phaserBootStart, setPhaserBootStart] = useState<BootStartScene>("default");
-  const [testGameMode, setTestGameMode] = useState<GameModeId>(0);
-  const [testStageIndex, setTestStageIndex] = useState(0);
-  const [testStartMode, setTestStartMode] = useState<TestStageStartMode>("map");
+  const storedTestGameMode = useSyncExternalStore(subscribeNothing, readTestGameMode, () => 0 as GameModeId);
+  const storedTestStageIndex = useSyncExternalStore(
+    subscribeNothing,
+    () => readTestStageSelection(readTestGameMode()),
+    () => 0,
+  );
+  const storedTestStartMode = useSyncExternalStore(
+    subscribeNothing,
+    readTestStageStartMode,
+    () => "map" as TestStageStartMode,
+  );
+  const [testGameModeDraft, setTestGameMode] = useState<GameModeId | null>(null);
+  const [testStageIndexDraft, setTestStageIndex] = useState<number | null>(null);
+  const [testStartModeDraft, setTestStartMode] = useState<TestStageStartMode | null>(null);
+  const testGameMode = testGameModeDraft ?? storedTestGameMode;
+  const testStageIndex = testStageIndexDraft ?? storedTestStageIndex;
+  const testStartMode = testStartModeDraft ?? storedTestStartMode;
   const [pressedPanel, setPressedPanel] = useState<MenuButtonKey | null>(null);
   const [openPanel, setOpenPanel] = useState<MenuPanel | null>(null);
   const [isMusicOn, setIsMusicOn] = useState(isMusicEnabled);
   const [isEffectsOn, setIsEffectsOn] = useState(isEffectsEnabled);
-  useEffect(() => {
-    const mode = readTestGameMode();
-
-    setTestGameMode(mode);
-    setTestStageIndex(readTestStageSelection(mode));
-    setTestStartMode(readTestStageStartMode());
-  }, []);
 
   const syncLogoIntroMetrics = useCallback(() => {
     const el = logoWrapRef.current;
@@ -437,31 +514,23 @@ export function HomeScreen() {
   }, []);
 
   useLayoutEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!syncLogoIntroMetrics() || reducedMotion || logoIntroReady) return;
 
-    if (reducedMotion) {
-      syncLogoIntroMetrics();
-      setLogoIntroReady(true);
-      setIntroMoveStarted(true);
-      setIntroComplete(true);
+    const frame = requestAnimationFrame(() => setLogoIntroReady(true));
 
-      return;
-    }
-
-    if (syncLogoIntroMetrics()) setLogoIntroReady(true);
-  }, [syncLogoIntroMetrics]);
+    return () => cancelAnimationFrame(frame);
+  }, [logoIntroReady, reducedMotion, syncLogoIntroMetrics]);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (reducedMotion) return;
 
     const holdTimer = setTimeout(() => setIntroMoveStarted(true), INTRO_HOLD_MS);
 
     return () => clearTimeout(holdTimer);
-  }, []);
+  }, [reducedMotion]);
 
   useEffect(() => {
-    if (!logoIntroReady || introComplete) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!logoIntroReady || introComplete || reducedMotion) return;
 
     const failSafe = setTimeout(
       () => setIntroComplete(true),
@@ -469,7 +538,7 @@ export function HomeScreen() {
     );
 
     return () => clearTimeout(failSafe);
-  }, [introComplete, logoIntroReady]);
+  }, [introComplete, logoIntroReady, reducedMotion]);
 
   useEffect(() => {
     if (isPlaying || showWorld || !isMusicOn) return;
@@ -478,12 +547,6 @@ export function HomeScreen() {
   }, [isPlaying, showWorld, isMusicOn]);
 
   //* Mappa mondi sopra Phaser: stesso angolo HUD del btnRead in stage-map (playBook).
-  useEffect(() => {
-    if (!showWorld || !isPlaying) return;
-
-    setIsPlaying(false);
-  }, [showWorld, isPlaying]);
-
   useEffect(() => {
     const root = document.querySelector<HTMLElement>("[data-phaser-root]");
 
@@ -579,12 +642,12 @@ export function HomeScreen() {
           showWorld ? "home-shell-suspended invisible pointer-events-none" : ""
         }`}
       >
-      <HomeLightFall paused={showWorld || !introComplete} />
-      <HomeDriftingClouds paused={showWorld} visible={introComplete} />
+      <HomeLightFall paused={showWorld || !introDone} />
+      <HomeDriftingClouds paused={showWorld} visible={introDone} />
       <div
         ref={logoWrapRef}
-        className={`home-logo-intro ${logoIntroReady ? "home-logo-intro--animate" : ""} ${
-          introComplete ? "home-logo-intro--done" : ""
+        className={`home-logo-intro ${logoReady ? "home-logo-intro--animate" : ""} ${
+          introDone ? "home-logo-intro--done" : ""
         }`}
         style={
           {
@@ -603,7 +666,7 @@ export function HomeScreen() {
           className="h-auto w-full drop-shadow-xl"
           height={702}
           onLoad={() => {
-            if (logoIntroReady) return;
+            if (logoReady) return;
 
             if (syncLogoIntroMetrics()) setLogoIntroReady(true);
           }}
@@ -615,9 +678,9 @@ export function HomeScreen() {
 
       <div
         className={`absolute bottom-[12vh] left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-[3.5vh] transition-all duration-500 ${
-          introMoveStarted ? "opacity-100" : "pointer-events-none translate-y-4 opacity-0"
+          introMoveVisible ? "opacity-100" : "pointer-events-none translate-y-4 opacity-0"
         }`}
-        style={{transitionDelay: introMoveStarted ? `${INTRO_MOVE_MS * 0.6}ms` : "0ms"}}
+        style={{transitionDelay: introMoveVisible ? `${INTRO_MOVE_MS * 0.6}ms` : "0ms"}}
       >
         {isStageStartTestEnabled() ? (
           <StageStartTestPanel

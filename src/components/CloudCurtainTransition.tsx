@@ -223,11 +223,19 @@ export function CloudCurtainTransition({
   const wingsClosed = phase === "closing" || phase === "open";
   const phaseRef = useRef(phase);
   const prevPhaseRef = useRef<CloudCurtainPhase>("idle");
-  const [blockTouch, setBlockTouch] = useState(false);
+  const [touchPhase, setTouchPhase] = useState(phase);
+  const [touchUnlocked, setTouchUnlocked] = useState(false);
 
-  phaseRef.current = phase;
+  if (phase !== touchPhase) {
+    setTouchPhase(phase);
+    setTouchUnlocked(false);
+  }
+
+  const blockTouch = phase !== "idle" && !(phase === "opening" && touchUnlocked);
 
   useEffect(() => {
+    phaseRef.current = phase;
+
     if (hidden) return;
 
     const prev = prevPhaseRef.current;
@@ -267,23 +275,13 @@ export function CloudCurtainTransition({
   }, [hidden, phase]);
 
   useEffect(() => {
-    if (phase === "idle") {
-      setBlockTouch(false);
-      return;
-    }
-
-    if (phase !== "opening") {
-      setBlockTouch(true);
-      return;
-    }
-
-    setBlockTouch(true);
+    if (phase !== "opening") return;
 
     const unlockIn = Math.max(
       0,
       CLOUD_CURTAIN_TRANSITION_MS + CLOUD_CURTAIN_STAGGER_MS - TOUCH_UNLOCK_EARLY_MS,
     );
-    const timer = window.setTimeout(() => setBlockTouch(false), unlockIn);
+    const timer = window.setTimeout(() => setTouchUnlocked(true), unlockIn);
 
     return () => window.clearTimeout(timer);
   }, [phase]);

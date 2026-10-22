@@ -143,7 +143,7 @@ export class ItemsBar {
     const safeBottom = Number(this.scene.registry.get("safeBottom")) || 0;
     const bottomMargin = this.scaleOf(38, 72) + safeBottom;
     const sideInset = this.scaleOf(HEADER_INSET_MIN, HEADER_INSET_MAX);
-    let y = height - bottomMargin - frameH / 2;
+    const y = height - bottomMargin - frameH / 2;
 
     const safeTop = Number(this.scene.registry.get("safeTop")) || 0;
     const cornerBtnH = resolveHeaderMetrics(

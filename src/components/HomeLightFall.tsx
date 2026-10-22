@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useRef} from "react";
+import {useEffect, useLayoutEffect, useRef} from "react";
 
 const ORB_COUNT = 12;
 
@@ -24,7 +24,9 @@ export function HomeLightFall({paused = false}: HomeLightFallProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pausedRef = useRef(paused);
 
-  pausedRef.current = paused;
+  useLayoutEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

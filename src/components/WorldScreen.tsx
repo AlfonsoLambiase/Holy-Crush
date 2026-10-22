@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useRef, useState, useSyncExternalStore} from "react";
 
 import {ShopMarket} from "@/components/ShopMarket";
 import {StageHudBar} from "@/components/StageHudBar";
@@ -101,6 +101,8 @@ const WORLD_MAP_TUTORIAL_PAGES = [
 /** Seconda pagina tutorial mondi → evidenzia il mercato. */
 const WORLD_MAP_TUTORIAL_SHOP_PAGE = 1;
 
+const subscribeNothing = () => () => {};
+
 const defaultHudMetrics = (): StageHudMetrics => ({
   headerCenterY: 58,
   heartSize: 62,
@@ -115,7 +117,13 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
   const [viewportH, setViewportH] = useState(0);
   const [shopOpen, setShopOpen] = useState(false);
   const [shopPressed, setShopPressed] = useState(false);
-  const [worldMapTutorialOpen, setWorldMapTutorialOpen] = useState(false);
+  const worldMapTutorialPending = useSyncExternalStore(
+    subscribeNothing,
+    shouldShowWorldMapTutorial,
+    () => false,
+  );
+  const [worldMapTutorialClosed, setWorldMapTutorialClosed] = useState(false);
+  const worldMapTutorialOpen = worldMapTutorialPending && !worldMapTutorialClosed;
   const [worldMapTutorialPage, setWorldMapTutorialPage] = useState(0);
   const [hudMetrics, setHudMetrics] = useState<StageHudMetrics>(defaultHudMetrics);
   const scrollRef = useRef(0);
@@ -132,12 +140,6 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
     return () => {
       popReactHudOverlay();
     };
-  }, []);
-
-  useEffect(() => {
-    if (shouldShowWorldMapTutorial()) {
-      setWorldMapTutorialOpen(true);
-    }
   }, []);
 
   useEffect(() => {
@@ -500,7 +502,7 @@ export function WorldScreen({onEnter, onBack}: WorldScreenProps) {
           onPageChange={setWorldMapTutorialPage}
           onComplete={() => {
             markWorldMapTutorialSeen();
-            setWorldMapTutorialOpen(false);
+            setWorldMapTutorialClosed(true);
             setWorldMapTutorialPage(0);
           }}
         />

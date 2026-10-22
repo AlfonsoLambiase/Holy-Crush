@@ -1,4 +1,4 @@
-package com.holycrush.app;
+package com.orbitagames.holycrush;
 
 import com.getcapacitor.BridgeActivity;
 

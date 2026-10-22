@@ -19,13 +19,15 @@ type TestStagePickerProps = {
 
 export function TestStagePicker({gameMode, stageIndex, onStageIndexChange}: TestStagePickerProps) {
   const stageCount = getStageCountForMode(gameMode);
+  const [menuMode, setMenuMode] = useState(gameMode);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const listId = useId();
 
-  useEffect(() => {
+  if (menuMode !== gameMode) {
+    setMenuMode(gameMode);
     setOpen(false);
-  }, [gameMode]);
+  }
 
   useEffect(() => {
     if (!open) return;
