@@ -1,3 +1,5 @@
+import {notifyLocalSave} from "./local-save-signal";
+
 export type BoosterId = "super" | "mega" | "maxi" | "ultra";
 
 export const BOOSTER_MAX = 5;
@@ -7,7 +9,11 @@ type Stock = Record<BoosterId, number>;
 
 const emptyStock = (): Stock => ({super: 0, mega: 0, maxi: 0, ultra: 0});
 
-const clampCount = (value: number) => Math.min(BOOSTER_MAX, Math.max(0, Math.floor(value)));
+const clampCount = (value: number) => {
+  if (!Number.isFinite(value)) return 0;
+
+  return Math.min(BOOSTER_MAX, Math.max(0, Math.floor(value)));
+};
 
 const readStock = (): Stock => {
   if (typeof window === "undefined") return emptyStock();
@@ -34,6 +40,20 @@ const writeStock = (stock: Stock) => {
   if (typeof window === "undefined") return;
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(stock));
+  notifyLocalSave();
+};
+
+export const getBoosterStock = (): Stock => readStock();
+
+export const setBoosterStock = (stock: Partial<Stock>): void => {
+  const current = readStock();
+
+  writeStock({
+    super: clampCount(Number(stock.super ?? current.super)),
+    mega: clampCount(Number(stock.mega ?? current.mega)),
+    maxi: clampCount(Number(stock.maxi ?? current.maxi)),
+    ultra: clampCount(Number(stock.ultra ?? current.ultra)),
+  });
 };
 
 export const getBoosterCount = (id: BoosterId): number => readStock()[id];

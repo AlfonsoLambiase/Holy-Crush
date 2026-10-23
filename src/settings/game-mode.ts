@@ -1,3 +1,5 @@
+import {notifyLocalSave} from "./local-save-signal";
+
 //* Nuovo Testamento (mode_0) e Antico Testamento (mode_1). Tutto ciò che cambia tra le due sta qui.
 
 export type GameModeId = 0 | 1;
@@ -78,7 +80,10 @@ export const getGameMode = (): GameModeId => {
 };
 
 export const setGameMode = (mode: GameModeId): void => {
+  if (typeof window === "undefined") return;
+
   localStorage.setItem(STORAGE_KEY, String(mode));
+  notifyLocalSave();
 };
 
 export const getModeConfig = (): GameModeConfig => GAME_MODES[getGameMode()];

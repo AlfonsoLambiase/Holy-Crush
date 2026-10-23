@@ -1,3 +1,4 @@
+import {notifyLocalSave} from "./local-save-signal";
 import {getClearedCount} from "./progress";
 
 const FILL_STEP = 0.1;
@@ -41,6 +42,7 @@ const writeStored = (value: number) => {
   if (typeof window === "undefined") return;
 
   localStorage.setItem(HEART_KEY, String(roundStep(value)));
+  notifyLocalSave();
 };
 
 const readRegenAnchor = (): number | null => {
@@ -55,6 +57,7 @@ const writeRegenAnchor = (timestamp: number) => {
   if (typeof window === "undefined") return;
 
   localStorage.setItem(HEART_REGEN_AT_KEY, String(Math.floor(timestamp)));
+  notifyLocalSave();
 };
 
 const ensureRegenAnchor = (now: number) => {
@@ -115,6 +118,26 @@ export const isHeartEmpty = (): boolean => getHeartRemaining() <= FULL_EPSILON;
 
 export const refillHeart = (): void => {
   writeStored(1);
+};
+
+export const readHeartSave = (): {remaining: number; credit: number; regenAt: number} => ({
+  remaining: typeof window === "undefined" ? 0 : getHeartRemaining(),
+  credit: readCredit(),
+  regenAt: readRegenAnchor() ?? 0,
+});
+
+export const writeHeartSave = (save: {remaining: number; credit: number; regenAt: number}): void => {
+  if (typeof window === "undefined") return;
+
+  localStorage.setItem(HEART_KEY, String(roundStep(save.remaining)));
+  const credit = Number(save.credit);
+
+  localStorage.setItem(HEART_CREDIT_KEY, String(Number.isFinite(credit) ? Math.max(0, credit) : 0));
+
+  if (save.regenAt > 0) localStorage.setItem(HEART_REGEN_AT_KEY, String(Math.floor(save.regenAt)));
+  else localStorage.removeItem(HEART_REGEN_AT_KEY);
+
+  notifyLocalSave();
 };
 
 export const spendHeart = (): void => {

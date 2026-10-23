@@ -3,6 +3,7 @@ import {createElement, type ReactNode} from "react";
 
 import {TestStagePicker} from "@/components/TestStagePicker";
 import {type GameModeId, getGameMode, setGameMode} from "@/settings/game-mode";
+import {notifyLocalSave} from "@/settings/local-save-signal";
 import {progressStorageKey} from "@/settings/progress";
 import {normalizeStageIndexForMode} from "@/settings/stage-map";
 import type {BootStartScene} from "./scenes/boot";
@@ -77,6 +78,7 @@ export const applyTestStageForStart = (
   const stage = normalizeStageIndexForMode(stageIndex, gameMode);
 
   localStorage.setItem(progressStorageKey(), JSON.stringify({stage, cleared: 0}));
+  notifyLocalSave();
 };
 
 export const bootStartForTestMode = (mode: TestStageStartMode): BootStartScene =>

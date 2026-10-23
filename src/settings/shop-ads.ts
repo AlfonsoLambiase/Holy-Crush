@@ -1,4 +1,5 @@
 import type {BoosterId} from "@/settings/boosters";
+import {notifyLocalSave} from "./local-save-signal";
 
 export type ShopAdId = "energy" | "moves" | BoosterId;
 
@@ -49,6 +50,18 @@ const writeProgress = (progress: Progress) => {
   if (typeof window === "undefined") return;
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  notifyLocalSave();
+};
+
+export const setShopAdProgress = (progress: Partial<Progress>): void => {
+  const next = emptyProgress();
+  const current = readProgress();
+
+  (Object.keys(next) as ShopAdId[]).forEach((id) => {
+    next[id] = Math.max(0, Math.floor(Number(progress[id] ?? current[id]) || 0));
+  });
+
+  writeProgress(next);
 };
 
 export const getShopAdProgress = (): Progress => readProgress();

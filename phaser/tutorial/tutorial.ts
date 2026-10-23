@@ -14,8 +14,8 @@ import {
   storyFontSize,
 } from "../shared/story-panel";
 import {TUTORIAL_PAGES} from "./tutorial-text";
+import {isTutorialSeen, setTutorialSeen} from "./tutorial-seen";
 
-const STORAGE_KEY = "holy-crush-tutorial-seen";
 //* Sopra il menu impostazioni (44-48) e la barra booster.
 const DEPTH = 60;
 const OVERLAY_ALPHA = 0.72;
@@ -38,11 +38,8 @@ export type PageOptions = {
 
 const imageKeys = (): string[] => [...new Set(TUTORIAL_PAGES.map((page) => page.image))];
 
-const isSeen = (): boolean =>
-  typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY) === "1";
-
 export const shouldShowTutorial = (level: number): boolean =>
-  level === 1 && getStageIndex() === 0 && !isSeen();
+  level === 1 && getStageIndex() === 0 && !isTutorialSeen();
 
 const pageText = (index: number): string => {
   const {text} = TUTORIAL_PAGES[index];
@@ -241,7 +238,7 @@ export class TutorialScreen {
 
   //* Segna il tutorial come visto e libera le immagini.
   finish(): void {
-    if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, "1");
+    setTutorialSeen(true);
 
     for (const key of imageKeys()) {
       if (this.scene.textures.exists(key)) this.scene.textures.remove(key);

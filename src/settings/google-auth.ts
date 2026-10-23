@@ -6,6 +6,7 @@ import {
 import {useSyncExternalStore} from "react";
 
 export type GoogleAccount = {
+  uid: string;
   displayName: string | null;
 };
 
@@ -43,11 +44,11 @@ const isAndroid = (): boolean =>
   typeof window !== "undefined" && Capacitor.getPlatform() === "android";
 
 const toAccount = (user: FirebaseUser | null): GoogleAccount | null => {
-  if (!user || user.isAnonymous) return null;
+  if (!user || user.isAnonymous || !user.uid) return null;
 
   const displayName = user.displayName?.trim();
 
-  return {displayName: displayName ? displayName : null};
+  return {uid: user.uid, displayName: displayName ? displayName : null};
 };
 
 const emit = () => {
@@ -194,6 +195,9 @@ const subscribe = (listener: () => void) => {
 const getSnapshot = () => snapshot;
 const getServerSnapshot = () => serverSnapshot;
 
+export const subscribeGoogleAuth = subscribe;
+export const getGoogleAuthSnapshot = getSnapshot;
+
 export const signInWithGoogleAccount = async (): Promise<void> => {
   if (!isAndroid() || requestLock || snapshot.phase !== "idle" || snapshot.user) return;
 
@@ -237,11 +241,16 @@ export const signInWithGoogleAccount = async (): Promise<void> => {
 export const signOutGoogleAccount = async (): Promise<void> => {
   if (!isAndroid() || requestLock || snapshot.phase !== "idle" || !snapshot.user) return;
 
+  const uid = snapshot.user.uid;
+
   requestLock = true;
   userVersion += 1;
   update({...snapshot, user: null, phase: "signing-out", notice: null});
 
   try {
+    const {accountSignOutFlush} = await import("./account-save");
+
+    await accountSignOutFlush(uid);
     await FirebaseAuthentication.signOut();
     update({...snapshot, user: null, phase: "idle", notice: null});
   } catch {

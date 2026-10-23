@@ -1,4 +1,5 @@
 /// <reference types="@capacitor-firebase/authentication" />
+/// <reference types="@capacitor-firebase/firestore" />
 
 import type { CapacitorConfig } from '@capacitor/cli';
 

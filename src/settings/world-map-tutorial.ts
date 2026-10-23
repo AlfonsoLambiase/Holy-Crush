@@ -1,3 +1,5 @@
+import {notifyLocalSave} from "./local-save-signal";
+
 const STORAGE_KEY = "holy-crush-world-map-tutorial-seen";
 
 export const shouldShowWorldMapTutorial = (): boolean => {
@@ -6,8 +8,15 @@ export const shouldShowWorldMapTutorial = (): boolean => {
   return localStorage.getItem(STORAGE_KEY) !== "1";
 };
 
-export const markWorldMapTutorialSeen = (): void => {
+export const setWorldMapTutorialSeen = (seen: boolean): void => {
   if (typeof window === "undefined") return;
 
-  localStorage.setItem(STORAGE_KEY, "1");
+  if (seen) localStorage.setItem(STORAGE_KEY, "1");
+  else localStorage.removeItem(STORAGE_KEY);
+
+  notifyLocalSave();
+};
+
+export const markWorldMapTutorialSeen = (): void => {
+  setWorldMapTutorialSeen(true);
 };

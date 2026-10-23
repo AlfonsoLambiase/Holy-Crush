@@ -1,54 +1,79 @@
-import {getModeConfig} from "./game-mode";
-import {getStageCount, getStageMap, normalizeStageIndex} from "./stage-map";
+import {type GameModeId, getGameMode, getModeConfig, getModeConfigForMode, getStageCountForMode} from "./game-mode";
+import {notifyLocalSave} from "./local-save-signal";
+import {getStageCount, getStageMap, normalizeStageIndexForMode} from "./stage-map";
 import {getWorldCount, getWorldStageRange} from "./world-map";
 
 //* Ogni modalità ha il suo progresso
 export const progressStorageKey = (): string => getModeConfig().progressKey;
 
-type Progress = {
+export type StageProgress = {
   stage: number;
   cleared: number;
 };
 
-const emptyProgress = (): Progress => ({stage: 0, cleared: 0});
+const emptyProgress = (): StageProgress => ({stage: 0, cleared: 0});
 
-const readProgress = (): Progress => {
+const levelsFor = (mode: GameModeId, stage: number): number => {
+  const config = getModeConfigForMode(mode);
+  const count = getStageCountForMode(mode);
+
+  if (config.finalStageLevels != null && count > 0 && stage === count - 1) {
+    return config.finalStageLevels;
+  }
+
+  return config.stageLevels;
+};
+
+export const normalizeStageProgress = (
+  mode: GameModeId,
+  stageValue: number,
+  clearedValue: number,
+): StageProgress => clampProgress(mode, stageValue, clearedValue);
+
+const clampProgress = (mode: GameModeId, stageValue: number, clearedValue: number): StageProgress => {
+  const stage = Number.isFinite(stageValue)
+    ? normalizeStageIndexForMode(Math.max(0, Math.floor(stageValue)), mode)
+    : 0;
+  const cleared = Number.isFinite(clearedValue)
+    ? Math.min(levelsFor(mode, stage), Math.max(0, Math.floor(clearedValue)))
+    : 0;
+
+  return {stage, cleared};
+};
+
+export const readProgressForMode = (mode: GameModeId): StageProgress => {
   if (typeof window === "undefined") return emptyProgress();
 
-  const raw = localStorage.getItem(progressStorageKey());
+  const raw = localStorage.getItem(getModeConfigForMode(mode).progressKey);
 
   if (!raw) return emptyProgress();
 
   if (raw.startsWith("{")) {
     try {
-      const parsed = JSON.parse(raw) as Partial<Progress>;
-      const stageValue = Number(parsed.stage);
-      const stage = Number.isFinite(stageValue)
-        ? normalizeStageIndex(Math.max(0, Math.floor(stageValue)))
-        : 0;
-      const cleared = Number(parsed.cleared);
+      const parsed = JSON.parse(raw) as Partial<StageProgress>;
 
-      return {
-        stage,
-        cleared: Number.isFinite(cleared)
-          ? Math.min(getStageMap(stage).levels, Math.max(0, Math.floor(cleared)))
-          : 0,
-      };
+      return clampProgress(mode, Number(parsed.stage), Number(parsed.cleared));
     } catch {
       return emptyProgress();
     }
   }
 
-  const cleared = Number(raw);
-
-  return {
-    stage: 0,
-    cleared: Number.isFinite(cleared) ? Math.min(getStageMap(0).levels, Math.max(0, Math.floor(cleared))) : 0,
-  };
+  return clampProgress(mode, 0, Number(raw));
 };
 
-const writeProgress = (progress: Progress) => {
-  localStorage.setItem(progressStorageKey(), JSON.stringify(progress));
+export const writeProgressForMode = (mode: GameModeId, progress: StageProgress): void => {
+  if (typeof window === "undefined") return;
+
+  const next = clampProgress(mode, progress.stage, progress.cleared);
+
+  localStorage.setItem(getModeConfigForMode(mode).progressKey, JSON.stringify(next));
+  notifyLocalSave();
+};
+
+const readProgress = (): StageProgress => readProgressForMode(getGameMode());
+
+const writeProgress = (progress: StageProgress) => {
+  writeProgressForMode(getGameMode(), progress);
 };
 
 //* Indice file opening: op_0 …; scenery: stage-scenery-assets.ts

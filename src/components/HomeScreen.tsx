@@ -14,6 +14,7 @@ import {GoldTitle} from "@/components/GoldTitle";
 import {useLanguage} from "@/language/LanguageProvider";
 import {playClick, playNoTouch} from "@/settings/click";
 import {useGoogleAuth} from "@/settings/google-auth";
+import {getRemoteSaveRevision, startAccountSave, subscribeRemoteSave} from "@/settings/account-save";
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
 import {type GameModeId, getGameMode, setGameMode} from "@/settings/game-mode";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
@@ -492,6 +493,16 @@ export function HomeScreen() {
   const [openPanel, setOpenPanel] = useState<MenuPanel | null>(null);
   const [isMusicOn, setIsMusicOn] = useState(isMusicEnabled);
   const [isEffectsOn, setIsEffectsOn] = useState(isEffectsEnabled);
+  const remoteRevision = useSyncExternalStore(subscribeRemoteSave, getRemoteSaveRevision, () => 0);
+  const [seenRemoteRevision, setSeenRemoteRevision] = useState(remoteRevision);
+
+  if (seenRemoteRevision !== remoteRevision) {
+    setSeenRemoteRevision(remoteRevision);
+    setIsMusicOn(isMusicEnabled());
+    setIsEffectsOn(isEffectsEnabled());
+  }
+
+  useEffect(() => startAccountSave(), []);
 
   const syncLogoIntroMetrics = useCallback(() => {
     const el = logoWrapRef.current;

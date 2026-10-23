@@ -2,6 +2,8 @@
 
 import {createContext, useContext, useMemo, useSyncExternalStore} from "react";
 
+import {notifyLocalSave} from "@/settings/local-save-signal";
+
 import {DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY, isLanguage, t, type Language} from ".";
 
 type LanguageContextValue = {
@@ -33,7 +35,14 @@ const getServerLanguage = () => DEFAULT_LANGUAGE;
 const setStoredLanguage = (language: Language) => {
   currentLanguage = language;
   localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  notifyLocalSave();
   listeners.forEach((listener) => listener());
+};
+
+export const applyLanguage = (language: Language): void => {
+  if (typeof window === "undefined" || currentLanguage === language) return;
+
+  setStoredLanguage(language);
 };
 
 export function LanguageProvider({children}: {children: React.ReactNode}) {
