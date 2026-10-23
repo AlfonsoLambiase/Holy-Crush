@@ -284,6 +284,13 @@ const UI_TEXTS: TextEntry[] = [
     fr: "La connexion Google est disponible dans l'application Android.",
   },
   {
+    key: "googleSignInSaveProgress",
+    it: "Accedi con Google per salvare i tuoi progressi di gioco",
+    en: "Sign in with Google to save your game progress",
+    es: "Accede con Google para guardar tu progreso del juego",
+    fr: "Connecte-toi avec Google pour sauvegarder ta progression de jeu",
+  },
+  {
     key: "language",
     it: "Lingua",
     en: "Language",

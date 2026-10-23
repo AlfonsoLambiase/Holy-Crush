@@ -227,8 +227,9 @@ function AccessPanel() {
               {accountName}
             </p>
             <button
-              className="font-display text-lg font-bold text-[#ffd76a] underline-offset-4 disabled:opacity-60"
+              className={`${PANEL_STATUS_CLASS} disabled:opacity-60`}
               disabled={busy}
+              style={PANEL_TITLE_STYLE}
               type="button"
               onClick={() => {
                 playClick();
@@ -239,20 +240,25 @@ function AccessPanel() {
             </button>
           </>
         ) : (
-          <button
-            aria-busy={busy}
-            className={GOOGLE_BUTTON_CLASS}
-            disabled={busy}
-            style={GOOGLE_BUTTON_FONT}
-            type="button"
-            onClick={() => {
-              playClick();
-              auth.signIn();
-            }}
-          >
-            <GoogleMark />
-            <span>{t("googleSignIn")}</span>
-          </button>
+          <>
+            <p className={PANEL_STATUS_CLASS} style={PANEL_TITLE_STYLE}>
+              {t("googleSignInSaveProgress")}
+            </p>
+            <button
+              aria-busy={busy}
+              className={GOOGLE_BUTTON_CLASS}
+              disabled={busy}
+              style={GOOGLE_BUTTON_FONT}
+              type="button"
+              onClick={() => {
+                playClick();
+                auth.signIn();
+              }}
+            >
+              <GoogleMark />
+              <span>{t("googleSignIn")}</span>
+            </button>
+          </>
         )}
         {auth.phase === "signing-in" ? (
           <p className={PANEL_STATUS_CLASS} style={PANEL_TITLE_STYLE}>
