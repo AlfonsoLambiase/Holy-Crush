@@ -1,5 +1,5 @@
 import {type GameModeId, getGameMode, getModeConfig, getModeConfigForMode, getStageCountForMode} from "./game-mode";
-import {notifyLocalSave} from "./local-save-signal";
+import {notifyLevelWon, notifyLocalSave} from "./local-save-signal";
 import {getStageCount, getStageMap, normalizeStageIndexForMode} from "./stage-map";
 import {getWorldCount, getWorldStageRange} from "./world-map";
 
@@ -134,11 +134,13 @@ export const registerWin = (level?: number): RegisterWinResult => {
       stage: nextStage >= getStageCount() ? 0 : nextStage,
       cleared: 0,
     });
+    notifyLevelWon();
 
     return "stage";
   }
 
   writeProgress({...progress, cleared: frontier});
+  notifyLevelWon();
 
   return "level";
 };

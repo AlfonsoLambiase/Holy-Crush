@@ -241,16 +241,11 @@ export const signInWithGoogleAccount = async (): Promise<void> => {
 export const signOutGoogleAccount = async (): Promise<void> => {
   if (!isAndroid() || requestLock || snapshot.phase !== "idle" || !snapshot.user) return;
 
-  const uid = snapshot.user.uid;
-
   requestLock = true;
   userVersion += 1;
   update({...snapshot, user: null, phase: "signing-out", notice: null});
 
   try {
-    const {accountSignOutFlush} = await import("./account-save");
-
-    await accountSignOutFlush(uid);
     await FirebaseAuthentication.signOut();
     update({...snapshot, user: null, phase: "idle", notice: null});
   } catch {

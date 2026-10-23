@@ -3,8 +3,8 @@ export const LOCAL_SAVE_STAMP_KEY = "holy-crush-saved-at";
 
 type Listener = () => void;
 
-const listeners = new Set<Listener>();
 let muted = 0;
+const levelWonListeners = new Set<Listener>();
 
 export const muteLocalSaveSignal = (): (() => void) => {
   muted += 1;
@@ -18,13 +18,16 @@ export const notifyLocalSave = (): void => {
   if (typeof window === "undefined" || muted > 0) return;
 
   localStorage.setItem(LOCAL_SAVE_STAMP_KEY, String(Date.now()));
-  listeners.forEach((listener) => listener());
 };
 
-export const subscribeLocalSave = (listener: Listener): (() => void) => {
-  listeners.add(listener);
+export const notifyLevelWon = (): void => {
+  levelWonListeners.forEach((listener) => listener());
+};
 
-  return () => listeners.delete(listener);
+export const subscribeLevelWon = (listener: Listener): (() => void) => {
+  levelWonListeners.add(listener);
+
+  return () => levelWonListeners.delete(listener);
 };
 
 export const readLocalSaveStamp = (): number => {

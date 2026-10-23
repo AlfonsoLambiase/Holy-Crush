@@ -16,7 +16,7 @@ import {
   LOCAL_SAVE_STAMP_KEY,
   muteLocalSaveSignal,
   readLocalSaveStamp,
-  subscribeLocalSave,
+  subscribeLevelWon,
 } from "./local-save-signal";
 import {isMusicEnabled, setMusicEnabled} from "./music";
 import {
@@ -52,15 +52,14 @@ type PlaySave = {
 
 type CloudSave = PlaySave & {updatedAt: number};
 
-const PUSH_DELAY_MS = 1000;
-const SIGN_OUT_FLUSH_MS = 5000;
+const CLOUD_EVERY_LEVELS = 5;
+const CLOUD_WIN_KEY = "holy-crush-cloud-wins";
 const BOOSTERS: BoosterId[] = ["super", "mega", "maxi", "ultra"];
 const ADS: ShopAdId[] = ["energy", "moves", "super", "mega", "ultra", "maxi"];
 
 let activeUid: string | null = null;
 let pendingUid: string | null = null;
 let pullGeneration = 0;
-let pushTimer = 0;
 let writeChain: Promise<void> = Promise.resolve();
 let remoteRevision = 0;
 const remoteListeners = new Set<() => void>();
@@ -415,14 +414,6 @@ const pullAccount = async (uid: string, generation: number): Promise<void> => {
     applyPlay(merged);
     bumpRemote();
   }
-
-  if (!cloud.save || !samePlay(cloud.save, merged)) {
-    try {
-      await flushAccountSave(uid);
-    } catch {
-      return;
-    }
-  }
 };
 
 const signedInUid = (): string | null => {
@@ -438,7 +429,6 @@ const followAuth = (): void => {
 
   if (next === activeUid || (next !== null && next === pendingUid)) return;
 
-  window.clearTimeout(pushTimer);
   activeUid = null;
   pendingUid = next;
   const generation = ++pullGeneration;
@@ -448,19 +438,36 @@ const followAuth = (): void => {
   void pullAccount(next, generation);
 };
 
-const schedulePush = (): void => {
-  if (!activeUid) return;
+const readCloudWinCount = (): number => {
+  if (typeof window === "undefined") return 0;
+
+  const value = Number(localStorage.getItem(CLOUD_WIN_KEY));
+
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+};
+
+const writeCloudWinCount = (count: number): void => {
+  localStorage.setItem(CLOUD_WIN_KEY, String(count));
+};
+
+/** Un documento completo ogni 5 livelli vinti. Nel mezzo non parte nessuna richiesta. */
+const noteAccountLevelWon = (): void => {
+  const next = readCloudWinCount() + 1;
+
+  writeCloudWinCount(next);
+
+  if (next < CLOUD_EVERY_LEVELS || !activeUid) return;
 
   const uid = activeUid;
 
-  window.clearTimeout(pushTimer);
-  pushTimer = window.setTimeout(() => {
-    void flushAccountSave(uid).catch(() => undefined);
-  }, PUSH_DELAY_MS);
+  void flushAccountSave(uid).then(
+    () => writeCloudWinCount(0),
+    () => undefined,
+  );
 };
 
 export const startAccountSave = (): (() => void) => {
-  const unlistenLocal = subscribeLocalSave(schedulePush);
+  const unlistenWins = subscribeLevelWon(noteAccountLevelWon);
   const unlistenAuth = subscribeGoogleAuth(followAuth);
 
   followAuth();
@@ -469,8 +476,7 @@ export const startAccountSave = (): (() => void) => {
     pullGeneration += 1;
     activeUid = null;
     pendingUid = null;
-    window.clearTimeout(pushTimer);
-    unlistenLocal();
+    unlistenWins();
     unlistenAuth();
   };
 };
@@ -482,11 +488,3 @@ export const subscribeRemoteSave = (listener: () => void): (() => void) => {
 };
 
 export const getRemoteSaveRevision = (): number => remoteRevision;
-
-export const accountSignOutFlush = (uid: string): Promise<void> =>
-  Promise.race([
-    flushAccountSave(uid).catch(() => undefined),
-    new Promise<void>((resolve) => {
-      window.setTimeout(resolve, SIGN_OUT_FLUSH_MS);
-    }),
-  ]);
