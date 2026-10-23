@@ -16,7 +16,7 @@ import {playClick, playNoTouch} from "@/settings/click";
 import {useGoogleAuth} from "@/settings/google-auth";
 import {getRemoteSaveRevision, startAccountSave, subscribeRemoteSave} from "@/settings/account-save";
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
-import {type GameModeId, getGameMode, setGameMode} from "@/settings/game-mode";
+import {type GameModeId, setGameMode} from "@/settings/game-mode";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
 import {getStageIndex, prepareEnterWorld} from "@/settings/progress";
 import {playStageTrack, playTrack, stopTrack} from "@/settings/soundtrack";
@@ -123,8 +123,6 @@ const TESTAMENTS: readonly {mode: GameModeId; label: string; src: string}[] = [
   {mode: 0, label: "newTestament", src: "/images/ui_game/mode_0.png"},
   {mode: 1, label: "oldTestament", src: "/images/ui_game/mode_1.png"},
 ];
-
-const isTestStageMode = (): boolean => isStageStartTestEnabled();
 
 function TestamentCard({
   label,
@@ -807,11 +805,6 @@ export function HomeScreen() {
                   setGameMode(mode);
                   writeTestGameMode(mode);
                   setTestGameMode(mode);
-
-                  if (isTestStageMode()) {
-                    applyTestStageForStart(testStageIndex, testStartMode, mode);
-                  }
-
                   setPressedMode(mode);
                 }}
               />
@@ -938,13 +931,7 @@ export function HomeScreen() {
               setCurtainPhase("idle");
             }}
             onEnter={(worldIndex) => {
-              if (isTestStageMode()) {
-                applyTestStageForStart(testStageIndex, testStartMode, getGameMode());
-              } else {
-                prepareEnterWorld(worldIndex);
-              }
-
-              // Sempre opening dello stage effettivo (dopo prepareEnterWorld / test).
+              prepareEnterWorld(worldIndex);
               setPhaserBootStart("opening");
 
               playStageTrack(getStageIndex());
