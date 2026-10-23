@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MdLiveTv } from "react-icons/md";
 
 import { FadeScroll } from "@/components/FadeScroll";
@@ -16,6 +16,11 @@ import {
 } from "@/settings/boosters";
 import { playClick } from "@/settings/click";
 import { isHeartEmpty, refillHeart } from "@/settings/heart";
+import {
+  canRequestRewardedInterstitial,
+  rewardedInterstitialSlotForShopAd,
+  showRewardedInterstitial,
+} from "@/settings/rewarded-interstitials";
 import {
   getShopAdProgress,
   watchShopAd,
@@ -152,6 +157,8 @@ export function ShopMarket() {
   const [clockKeys, setClockKeys] = useState<Partial<Record<ShopAdId, number>>>(
     {}
   );
+  const watchingRef = useRef(false);
+  const [watching, setWatching] = useState(false);
 
   //* Il remount col key azzera il cerchio senza animarlo all'indietro.
   const playCompletion = (adId: ShopAdId) => {
@@ -173,14 +180,8 @@ export function ShopMarket() {
     setAdProgress(getShopAdProgress());
   };
 
-  const handleWatchAd = (item: (typeof SHOP_ITEMS)[number]) => {
+  const grantWatchedAd = (item: (typeof SHOP_ITEMS)[number]) => {
     const adId: ShopAdId = "booster" in item ? item.booster : "energy";
-    const locked =
-      "booster" in item ? isBoosterFull(item.booster) : !isHeartEmpty();
-
-    if (locked || completing[adId]) return;
-
-    playClick();
 
     if (watchShopAd(adId, item.ads)) {
       if ("booster" in item) addBooster(item.booster);
@@ -189,6 +190,34 @@ export function ShopMarket() {
     }
 
     refreshCounts();
+  };
+
+  const handleWatchAd = (item: (typeof SHOP_ITEMS)[number]) => {
+    const adId: ShopAdId = "booster" in item ? item.booster : "energy";
+    const locked =
+      "booster" in item ? isBoosterFull(item.booster) : !isHeartEmpty();
+
+    if (locked || completing[adId] || watchingRef.current) return;
+
+    playClick();
+
+    const slot = rewardedInterstitialSlotForShopAd(adId);
+
+    if (!slot || !canRequestRewardedInterstitial()) {
+      grantWatchedAd(item);
+
+      return;
+    }
+
+    watchingRef.current = true;
+    setWatching(true);
+
+    void showRewardedInterstitial(slot).then((earned) => {
+      watchingRef.current = false;
+      setWatching(false);
+
+      if (earned) grantWatchedAd(item);
+    });
   };
 
   return (
@@ -250,7 +279,7 @@ export function ShopMarket() {
                       ? "cursor-default text-[#e8e2dc] opacity-70"
                       : "text-white active:scale-95"
                   }`}
-                  disabled={adLocked || filling}
+                  disabled={adLocked || filling || watching}
                   type="button"
                   onClick={() => handleWatchAd(item)}
                 >

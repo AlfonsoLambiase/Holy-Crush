@@ -75,3 +75,15 @@ Esempio: Stage 2, livello 3 → riapre → Opening 2 → stage road dello Stage 
 - Pulsanti: `public/images/ui_game/btnPlay.png`, `btnPlayBlock.png`, `btnRead.png`, `btnExitGame.png`
 
 I file degli stage partono da 0 (`op_0` è l'Opening 1).
+
+## Annunci rewarded interstitial (Android)
+
+Configurazione in `src/settings/rewarded-interstitials.ts`. Due posizionamenti, formato rewarded interstitial: vita extra per l'energia (negozio e mappa stage) e oggetti bonus per le armi (negozio e barra in partita). Le mosse finite non usano questi annunci. Gli ID di produzione restano spenti con `USE_PRODUCTION_REWARDED_INTERSTITIALS`. Finché è `false` si usa solo il demo ufficiale Google per Android. Su Android il premio arriva solo dopo il callback dell'annuncio. Sul web il tap assegna ancora il premio senza chiamate native.
+
+Ancora da fare:
+
+1. Configurare e pubblicare il messaggio UMP per Holy Crush in AdMob.
+2. Implementare e verificare il consenso e le opzioni privacy prima delle richieste di annunci reali.
+3. Preparare la schermata introduttiva del rewarded interstitial con premio chiaramente indicato e possibilità di rinunciare.
+4. Testare su Android caricamento, premio, chiusura anticipata, errori e assenza di rete.
+5. Attivare gli ID reali solo al completamento della configurazione e delle verifiche. Rimettendo gli ID di produzione, oggi vuoti, in `REWARDED_INTERSTITIAL_PLACEMENTS`.

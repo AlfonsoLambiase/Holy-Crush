@@ -4,6 +4,11 @@ import {getCurrentLanguage, t} from "@/language";
 import {cappedDevicePixelRatio, layoutScaleForViewport} from "@/settings/app-header-layout";
 import {playClick} from "@/settings/click";
 import {getShopAdProgress, SHOP_AD_COST, watchShopAd, type ShopAdId} from "@/settings/shop-ads";
+import {
+  canRequestRewardedInterstitial,
+  rewardedInterstitialSlotForShopAd,
+  showRewardedInterstitial,
+} from "@/settings/rewarded-interstitials";
 import {CandyCrushAssetConf} from "./config/asset-conf.const";
 import {APP_FONT} from "./config/font.const";
 import {animatePopupClose, animatePopupOpen} from "./popup-motion";
@@ -188,20 +193,50 @@ export const showWatchAdPopup = (
     if (consumed || closing) return;
 
     playClick();
-    watch.advance(
-      () => {
-        if (consumed) return;
 
-        consumed = true;
+    const grant = () => {
+      watch.advance(
+        () => {
+          if (consumed) return;
 
-        try {
-          options.onWatch();
-        } catch {
-          consumed = false;
-        }
-      },
-      () => close(),
-    );
+          consumed = true;
+
+          try {
+            options.onWatch();
+          } catch {
+            consumed = false;
+          }
+        },
+        () => close(),
+      );
+    };
+
+    const slot = rewardedInterstitialSlotForShopAd(options.adId);
+
+    if (!slot || !canRequestRewardedInterstitial()) {
+      grant();
+
+      return;
+    }
+
+    consumed = true;
+    watchHit.disableInteractive();
+
+    void showRewardedInterstitial(slot).then((earned) => {
+      if (closing || !popup.active) return;
+
+      consumed = false;
+
+      if (!earned) {
+        watchHit.setInteractive({useHandCursor: true});
+
+        return;
+      }
+
+      grant();
+
+      if (!consumed) watchHit.setInteractive({useHandCursor: true});
+    });
   };
 
   watchHit.on("pointerdown", onWatchPress);

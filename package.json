@@ -16,6 +16,7 @@
     "mobile:ios": "npm run mobile:sync && cap open ios"
   },
   "dependencies": {
+    "@capacitor-community/admob": "8.2.1",
     "@capacitor-firebase/authentication": "^8.5.2",
     "@capacitor-firebase/firestore": "^8.5.2",
     "@capacitor/android": "^8.5.2",
