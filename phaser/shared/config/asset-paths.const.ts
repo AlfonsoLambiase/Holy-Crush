@@ -39,7 +39,7 @@ const STAGE_UI_KEYS = new Set([
 
 const MODE_STAGE_UI_KEYS = new Set(["containerScore"]);
 
-const HOME_UI_KEYS = new Set(["settingsHome"]);
+const HOME_UI_KEYS = new Set(["settingsHome", "popupShopMarket"]);
 
 const GAME_COMMON = `${IMAGES}/game_common`;
 
@@ -81,6 +81,7 @@ const FILE_NAME: Record<string, string> = {
   endWin: "endWin_0",
   endFailed: "endFailed_0",
   settingsHome: "settings",
+  popupShopMarket: "shop",
 };
 
 //* Cartella della modalità attiva (mode_0 / mode_1)

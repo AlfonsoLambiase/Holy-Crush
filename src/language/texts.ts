@@ -60,6 +60,20 @@ const UI_TEXTS: TextEntry[] = [
     fr: "VOIR L'ANNONCE",
   },
   {
+    key: "specialOfferTitle",
+    it: "OFFERTA SPECIALE",
+    en: "SPECIAL OFFER",
+    es: "OFERTA ESPECIAL",
+    fr: "OFFRE SPÉCIALE",
+  },
+  {
+    key: "specialOfferBody",
+    it: "Guarda 3 annunci per sbloccare:",
+    en: "Watch 3 ads to unlock:",
+    es: "Mira 3 anuncios para desbloquear:",
+    fr: "Regarde 3 annonces pour débloquer :",
+  },
+  {
     key: "energyEmptyTitle",
     it: "ENERGIA TERMINATA",
     en: "OUT OF ENERGY",

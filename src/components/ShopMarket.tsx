@@ -23,6 +23,7 @@ import {
 } from "@/settings/rewarded-interstitials";
 import {
   getShopAdProgress,
+  SHOP_AD_COST,
   watchShopAd,
   type ShopAdId,
 } from "@/settings/shop-ads";
@@ -42,14 +43,12 @@ const PANEL_SECTION_TITLE_CLASS =
 const SHOP_ITEMS = [
   {
     id: "energy",
-    ads: 1,
     src: "/images/ui_game/logo_stage_fill.png",
     titleKey: "shopEnergy",
     bodyKey: "shopEnergyBody",
   },
   {
     id: "super",
-    ads: 1,
     src: "/images/game_common/power-up/super.png",
     titleKey: "shopCross",
     bodyKey: "shopCrossBody",
@@ -57,7 +56,6 @@ const SHOP_ITEMS = [
   },
   {
     id: "mega",
-    ads: 1,
     src: "/images/game_common/power-up/mega.png",
     titleKey: "shopStar",
     bodyKey: "shopStarBody",
@@ -65,7 +63,6 @@ const SHOP_ITEMS = [
   },
   {
     id: "ultra",
-    ads: 2,
     src: "/images/game_common/power-up/ultra.png",
     titleKey: "shopScythe",
     bodyKey: "shopScytheBody",
@@ -73,13 +70,14 @@ const SHOP_ITEMS = [
   },
   {
     id: "maxi",
-    ads: 3,
     src: "/images/game_common/power-up/maxi.png",
     titleKey: "shopMaxi",
     bodyKey: "shopMaxiBody",
     booster: "maxi" as BoosterId,
   },
 ] as const;
+
+const shopAdsNeeded = (adId: ShopAdId) => SHOP_AD_COST[adId];
 
 const CLOCK_TURN = 2 * Math.PI * 9;
 const CLOCK_FILL_MS = 480;
@@ -182,8 +180,9 @@ export function ShopMarket() {
 
   const grantWatchedAd = (item: (typeof SHOP_ITEMS)[number]) => {
     const adId: ShopAdId = "booster" in item ? item.booster : "energy";
+    const adsNeeded = shopAdsNeeded(adId);
 
-    if (watchShopAd(adId, item.ads)) {
+    if (watchShopAd(adId, adsNeeded)) {
       if ("booster" in item) addBooster(item.booster);
       else refillHeart();
       playCompletion(adId);
@@ -239,11 +238,12 @@ export function ShopMarket() {
             const count =
               "booster" in item ? counts[item.booster] : energyEmpty ? 0 : 1;
             const adId: ShopAdId = "booster" in item ? item.booster : "energy";
+            const adsNeeded = shopAdsNeeded(adId);
             const filling = Boolean(completing[adId]);
             const adLocked =
               !filling &&
               ("booster" in item ? count >= BOOSTER_MAX : count > 0);
-            const fill = filling ? 1 : adProgress[adId] / item.ads;
+            const fill = filling ? 1 : adProgress[adId] / adsNeeded;
 
             return (
               <div
@@ -292,9 +292,9 @@ export function ShopMarket() {
                 </button>
                 <div className="flex flex-col items-center gap-1 max-[329px]:text-center">
                   <AdPhrase
-                    ads={item.ads}
+                    ads={adsNeeded}
                     text={
-                      item.ads === 1 ? t("shopAdNeeded") : t("shopAdsNeeded")
+                      adsNeeded === 1 ? t("shopAdNeeded") : t("shopAdsNeeded")
                     }
                   />
                   <span className="inline-flex items-center gap-0.5 rounded-full border border-[#e0c36a] bg-[#fff8e6] px-2 py-0.5 font-display text-[0.72rem] font-bold leading-none text-[#c4922a] @sm:text-sm">

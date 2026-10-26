@@ -60,6 +60,7 @@ export class Outro extends Phaser.Scene {
         this.registry.set("stageMapUnlockReveal", true);
       }
 
+      this.registry.set("stageMapAfterWin", true);
       this.scene.start(assetConf.scene.stageMap);
 
       return;

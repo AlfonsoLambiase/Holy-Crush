@@ -8,8 +8,8 @@ export const SHOP_AD_COST: Record<ShopAdId, number> = {
   moves: 1,
   super: 1,
   mega: 1,
-  ultra: 2,
-  maxi: 3,
+  ultra: 1,
+  maxi: 1,
 };
 
 const STORAGE_KEY = "holy-crush-shop-ads";

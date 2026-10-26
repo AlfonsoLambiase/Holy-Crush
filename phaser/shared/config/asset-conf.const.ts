@@ -82,6 +82,7 @@ export const CandyCrushAssetConf = {
     btnConfirm: "btnConfirm",
     btnCancel: "btnCancel",
     popupExitGame: "popupExitGame",
+    popupShopMarket: "popupShopMarket",
     containerScore: "containerScore",
     btnPlay: "btnPlay",
     btnPlayBlock: "btnPlayBlock",

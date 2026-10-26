@@ -27,6 +27,11 @@ const STAGE_MAP_IMAGES: ImageKey[] = [
   "logo_stage_bg",
   "logo_stage_fill",
   "popupExitGame",
+  "popupShopMarket",
+  "super",
+  "mega",
+  "maxi",
+  "ultra",
   "btnConfirm",
   "btnCancel",
 ];
@@ -91,6 +96,15 @@ const MAP_SHARED_IMAGES = new Set<ImageKey>([
   "popupExitGame",
   "btnConfirm",
   "btnCancel",
+  //* Stesso pack della partita: se li purghi in POST_RENDER dopo il preload del verse, la ItemsBar resta vuota.
+  "super",
+  "mega",
+  "maxi",
+  "ultra",
+  "super_disabled",
+  "mega_disabled",
+  "maxi_disabled",
+  "ultra_disabled",
 ]);
 
 const GAME_SPRITESHEETS: SpritesheetKey[] = [];

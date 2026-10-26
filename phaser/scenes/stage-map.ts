@@ -20,7 +20,12 @@ import {EventBus, PhaserEvents} from "../shared/event-bus";
 import {popupPlateScale} from "../shared/popup-plate-scale";
 import {dynamicValueForViewport} from "../shared/viewport-scale";
 import {roadTilesFor, stackedLevelPointsFallback, stackedLevelPointsFromImage} from "../shared/road-path";
+import {showSpecialOfferPopup, type SpecialOfferPopup} from "../shared/special-offer-popup";
 import {showWatchAdPopup, type WatchAdPopup} from "../shared/watch-ad-popup";
+import {
+  forfeitSpecialOffer,
+  resolveSpecialOfferForStageEntry,
+} from "@/settings/special-offer";
 import {DEFAULT_STAGE} from "../shared/config/asset-paths.const";
 import {loadStageMapBootAssets, purgeIdleMapTextures} from "../shared/utils/load-assets";
 
@@ -64,6 +69,7 @@ export class StageMapScene extends Phaser.Scene {
   #headerHeartY = 0;
   #headerHeartSize = 0;
   #energyPopup: WatchAdPopup | null = null;
+  #specialOfferPopup: SpecialOfferPopup | null = null;
   #rechargeTween: Phaser.Tweens.Tween | null = null;
   #rechargeSafety: Phaser.Time.TimerEvent | null = null;
   #heartSyncTimer: Phaser.Time.TimerEvent | null = null;
@@ -149,6 +155,7 @@ export class StageMapScene extends Phaser.Scene {
     this.#cancelRecharge();
     this.#recharging = false;
     this.#energyPopup = null;
+    this.#specialOfferPopup = null;
     this.#levelLayers = [];
     const {width, height} = this.scale;
     const stage = getStageIndex();
@@ -210,6 +217,52 @@ export class StageMapScene extends Phaser.Scene {
       EventBus.emit(PhaserEvents.OPENING_READY);
       this.#emitShellReady = false;
     }
+
+    this.#scheduleSpecialOfferAfterWin(unlockReveal);
+  }
+
+  #popupBlocksInput(): boolean {
+    return Boolean(this.#energyPopup || this.#specialOfferPopup);
+  }
+
+  #scheduleSpecialOfferAfterWin(unlockReveal: boolean) {
+    if (this.registry.get("stageMapAfterWin") !== true) return;
+
+    this.registry.remove("stageMapAfterWin");
+
+    const delay = unlockReveal ? UNLOCK_SWAY_MS + UNLOCK_FALL_MS + 320 : 360;
+
+    this.time.delayedCall(delay, () => this.#maybeShowSpecialOffer());
+  }
+
+  #maybeShowSpecialOffer(attempt = 0) {
+    if (this.#popupBlocksInput()) return;
+
+    if (this.#unlockRevealActive && attempt < 24) {
+      this.time.delayedCall(120, () => this.#maybeShowSpecialOffer(attempt + 1));
+
+      return;
+    }
+
+    const offer = resolveSpecialOfferForStageEntry();
+
+    if (!offer) return;
+
+    this.#specialOfferPopup = showSpecialOfferPopup(this, {
+      offer,
+      scale: popupPlateScale(this, assetConf.image.popupShopMarket),
+      textScale: 0.82,
+      onGranted: () => {
+        playRecharge();
+        this.#specialOfferPopup = null;
+      },
+      onForfeit: () => {
+        forfeitSpecialOffer();
+        this.#specialOfferPopup = null;
+      },
+    });
+
+    if (!this.#specialOfferPopup) forfeitSpecialOffer();
   }
 
   #placeRoad(
@@ -487,9 +540,9 @@ export class StageMapScene extends Phaser.Scene {
           return;
         }
 
-        if (isHeartEmpty() || this.#energyPopup) {
+        if (isHeartEmpty() || this.#popupBlocksInput()) {
           press(1);
-          if (isHeartEmpty() && !this.#energyPopup) this.#showEnergyPopup();
+          if (isHeartEmpty() && !this.#popupBlocksInput()) this.#showEnergyPopup();
 
           return;
         }
@@ -709,7 +762,7 @@ export class StageMapScene extends Phaser.Scene {
     this.#syncMapFade();
 
     this.#onScrollDown = (pointer: Phaser.Input.Pointer) => {
-      if (this.#energyPopup) return;
+      if (this.#popupBlocksInput()) return;
 
       this.#scrollVelocity = 0;
       this.#panFrom = pointer.y;
@@ -717,7 +770,7 @@ export class StageMapScene extends Phaser.Scene {
       this.#lastPanDy = 0;
     };
     this.#onScrollMove = (pointer: Phaser.Input.Pointer) => {
-      if (this.#panFrom === null || !pointer.isDown || this.#energyPopup) return;
+      if (this.#panFrom === null || !pointer.isDown || this.#popupBlocksInput()) return;
 
       const dy = pointer.y - this.#panFrom;
 
@@ -745,7 +798,7 @@ export class StageMapScene extends Phaser.Scene {
       });
     };
     this.#onScrollWheel = (_pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number) => {
-      if (this.#energyPopup) return;
+      if (this.#popupBlocksInput()) return;
 
       this.#scrollVelocity = 0;
       this.cameras.main.scrollY += dy * SCROLL_WHEEL_FACTOR;
@@ -759,7 +812,7 @@ export class StageMapScene extends Phaser.Scene {
   }
 
   #showEnergyPopup() {
-    if (this.#energyPopup) return;
+    if (this.#popupBlocksInput()) return;
 
     const language = getCurrentLanguage();
 
