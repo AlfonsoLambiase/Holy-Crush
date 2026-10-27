@@ -2,6 +2,7 @@ import * as Phaser from "phaser";
 
 export const PhaserEvents = {
   END_GAME: "endGame",
+  END_WIN: "endWin",
   EXIT_GAME: "exitGame",
   OPENING_READY: "openingReady",
 } as const;

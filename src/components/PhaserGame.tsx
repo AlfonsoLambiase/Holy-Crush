@@ -3,6 +3,7 @@
 import {useEffect, useRef, useState} from "react";
 import type * as PhaserType from "phaser";
 
+import {Confetti, playWinConfetti, type ConfettiRef} from "@/components/Confetti";
 import {useLanguage} from "@/language/LanguageProvider";
 import {cappedDevicePixelRatio, readSafeBottomCss, readSafeTopCss} from "@/settings/app-header-layout";
 
@@ -21,6 +22,8 @@ const readSafeBottom = (): number => readSafeBottomCss() * cappedDevicePixelRati
 export function PhaserGame({bootStart = "default", onExit}: PhaserGameProps) {
   const {t} = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
+  const confettiRef = useRef<ConfettiRef>(null);
+  const stopWinRef = useRef<(() => void) | null>(null);
   const onExitRef = useRef(onExit);
   const [isLoading, setIsLoading] = useState(true);
   const [dots, setDots] = useState(0);
@@ -52,15 +55,25 @@ export function PhaserGame({bootStart = "default", onExit}: PhaserGameProps) {
 
       const handleExit = () => onExitRef.current();
       const handleReady = () => setIsLoading(false);
+      const handleWin = () => {
+        const api = confettiRef.current;
+
+        if (!api) return;
+
+        stopWinRef.current?.();
+        stopWinRef.current = playWinConfetti(api);
+      };
 
       EventBus.on(PhaserEvents.EXIT_GAME, handleExit);
       EventBus.on(PhaserEvents.END_GAME, handleExit);
       EventBus.on(PhaserEvents.OPENING_READY, handleReady);
+      EventBus.on(PhaserEvents.END_WIN, handleWin);
 
       unbind = () => {
         EventBus.off(PhaserEvents.EXIT_GAME, handleExit);
         EventBus.off(PhaserEvents.END_GAME, handleExit);
         EventBus.off(PhaserEvents.OPENING_READY, handleReady);
+        EventBus.off(PhaserEvents.END_WIN, handleWin);
       };
 
       game = createGame({
@@ -76,6 +89,8 @@ export function PhaserGame({bootStart = "default", onExit}: PhaserGameProps) {
     return () => {
       disposed = true;
       unbind?.();
+      stopWinRef.current?.();
+      stopWinRef.current = null;
       game?.loop.stop();
       game?.destroy(true);
     };
@@ -87,7 +102,7 @@ export function PhaserGame({bootStart = "default", onExit}: PhaserGameProps) {
       {isLoading ? (
         <div
           aria-live="polite"
-          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black"
+          className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black"
         >
           <p className="text-center font-display text-lg tracking-wide text-[#fff8dc]">
             {t("loading")}
@@ -95,6 +110,11 @@ export function PhaserGame({bootStart = "default", onExit}: PhaserGameProps) {
           </p>
         </div>
       ) : null}
+      <Confetti
+        ref={confettiRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-20 size-full"
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {UIManager} from "../components/UIManager";
 import {AudioManager} from "../components/audioManager";
 import {StarsEffectManager} from "../components/starsEffectManager";
 import {CandyCrushAssetConf} from "../shared/config/asset-conf.const";
+import {EventBus, PhaserEvents} from "../shared/event-bus";
 import {popupPlateScale} from "../shared/popup-plate-scale";
 import {getViewportGlobalScale} from "../shared/viewport-scale";
 import {movesOutPopupTextScale, showWatchAdPopup} from "../shared/watch-ad-popup";
@@ -135,6 +136,9 @@ export class Game extends Phaser.Scene {
     const delay = won ? 1200 : 1000;
 
     this.audioManager.playAudio(won ? assetConf.audio.endWin : assetConf.audio.endFailed);
+
+    if (won) EventBus.emit(PhaserEvents.END_WIN);
+
     this.time.delayedCall(delay, () => {
       this.#openOutro(won ? "Win" : "Failed");
     });
