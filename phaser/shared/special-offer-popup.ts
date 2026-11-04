@@ -20,16 +20,31 @@ import {animatePopupClose, animatePopupOpen} from "./popup-motion";
 import {stylePopupBody, stylePopupTitle} from "./popup-text";
 
 const assetConf = CandyCrushAssetConf;
-const PLATE_KEY = "popupShopMarket";
+const PLATE_KEY = "gameContainer";
 
-const TITLE_FONT_MIN = 58;
-const TITLE_FONT_MAX = 76;
-const BODY_FONT_MIN = 44;
-const BODY_FONT_MAX = 58;
-const TITLE_BODY_GAP_RATIO = 0.035;
-const ITEMS_GAP_RATIO = 0.04;
-const BODY_ITEMS_GAP_RATIO = 0.035;
-const ITEMS_WATCH_GAP_RATIO = 0.045;
+const OFFER_ICON_ORDER: BoosterId[] = ["maxi", "ultra", "mega", "super"];
+
+const stackOfferItems = (items: BoosterId[]): {id: BoosterId; count: number}[] => {
+  const tally = new Map<BoosterId, number>();
+
+  for (const id of items) tally.set(id, (tally.get(id) ?? 0) + 1);
+
+  return OFFER_ICON_ORDER.filter((id) => tally.has(id)).map((id) => ({
+    id,
+    count: tally.get(id)!,
+  }));
+};
+
+const TITLE_FONT_MIN = 72;
+const TITLE_FONT_MAX = 94;
+const BODY_FONT_MIN = 54;
+const BODY_FONT_MAX = 72;
+/** Scala solo testi/icone dentro il PNG; la piastra resta a scala piena. */
+const CONTENT_LAYOUT_SCALE = 0.74;
+const TITLE_BODY_GAP_RATIO = 0.052;
+const BODY_ITEMS_GAP_RATIO = 0.048;
+const ITEMS_WATCH_GAP_RATIO = 0.055;
+const WATCH_LABEL_CLOCK_GAP_RATIO = 0.028;
 const BUTTON_WIDTH_RATIO = 0.74;
 
 export type SpecialOfferPopup = {
@@ -108,7 +123,7 @@ export const showSpecialOfferPopup = (
 
   const {width, height} = scene.scale;
   const scale = options.scale;
-  const textScale = options.textScale ?? 0.88;
+  const textScale = options.textScale ?? 1;
   const language = getCurrentLanguage();
   const adsRequired = SPECIAL_OFFER_ADS_REQUIRED;
 
@@ -150,22 +165,39 @@ export const showSpecialOfferPopup = (
   stylePopupTitle(title, titleSize);
   stylePopupBody(body, bodySize);
 
-  const iconSize = plate.width * 0.11;
-  const iconGap = iconSize * 0.12;
+  const stacks = stackOfferItems(options.offer.items);
+  const iconSize = plate.width * 0.14;
+  const iconGap = iconSize * 0.14;
+  const multFont = fontPx(scene, 48, 64) * textScale;
+  const cellW = iconSize + iconGap;
+  const cellH = iconSize + multFont * 1.15;
   const iconsRow = scene.add.container(0, 0);
 
-  options.offer.items.forEach((id, index) => {
+  stacks.forEach(({id, count}, index) => {
     const key = boosterTexture(id);
 
     if (!scene.textures.exists(key)) return;
 
-    const icon = scene.add.image(0, 0, key).setDisplaySize(iconSize, iconSize);
+    const cell = scene.add.container(0, 0);
+    const icon = scene.add.image(0, -multFont * 0.35, key).setDisplaySize(iconSize, iconSize);
+    const mult = scene.add
+      .text(0, iconSize * 0.42, `x${count}`, {
+        fontFamily: APP_FONT,
+        fontSize: `${multFont}px`,
+        align: "center",
+      })
+      .setOrigin(0.5, 0);
 
-    icon.x = (index - (options.offer.items.length - 1) / 2) * (iconSize + iconGap);
-    iconsRow.add(icon);
+    mult.setColor("#c4922a");
+    mult.setFontStyle("bold");
+    mult.setStroke("#fff8e6", Math.max(2, Math.round(multFont * 0.12)));
+
+    cell.add([icon, mult]);
+    cell.x = (index - (stacks.length - 1) / 2) * cellW;
+    iconsRow.add(cell);
   });
 
-  const labelFont = fontPx(scene, 40, 52) * textScale;
+  const labelFont = fontPx(scene, 50, 66) * textScale;
   const words = t("shopAdsNeeded", language);
   const number = scene.add
     .text(0, 0, String(adsRequired), {
@@ -188,7 +220,7 @@ export const showSpecialOfferPopup = (
   number.setX(-labelW / 2 + number.width);
   phrase.setX(number.x);
 
-  const watchRadius = Math.round(fontPx(scene, 72, 96) * textScale);
+  const watchRadius = Math.round(fontPx(scene, 76, 98) * textScale);
   const clock = scene.add.graphics();
   const ratioStart = options.offer.adsWatched / adsRequired;
 
@@ -200,16 +232,19 @@ export const showSpecialOfferPopup = (
     ? scene.add.image(0, 0, TV_KEY).setDisplaySize(watchRadius * 1.05, watchRadius * 1.05)
     : null;
 
-  const watchBlockH = labelFont + watchRadius * 2.4;
+  const labelClockGap = plate.height * WATCH_LABEL_CLOCK_GAP_RATIO;
+  const watchBlockH = labelFont + labelClockGap + watchRadius * 2.2;
   const watchChildren: Phaser.GameObjects.GameObject[] = [number, phrase, clock];
 
   if (tvIcon) watchChildren.push(tvIcon);
 
   const watchRoot = scene.add.container(0, 0, watchChildren);
 
-  number.setY(-watchBlockH / 2 + labelFont / 2);
-  phrase.setY(number.y);
-  clock.setY(watchBlockH / 2 - watchRadius);
+  const watchLabelY = -watchBlockH / 2 + labelFont / 2;
+
+  number.setY(watchLabelY);
+  phrase.setY(watchLabelY);
+  clock.setY(watchLabelY + labelFont / 2 + labelClockGap + watchRadius);
   tvIcon?.setY(clock.y);
 
   const titleGap = plate.height * TITLE_BODY_GAP_RATIO;
@@ -220,7 +255,7 @@ export const showSpecialOfferPopup = (
     titleGap +
     body.height +
     bodyItemsGap +
-    iconSize +
+    cellH +
     itemsWatchGap +
     watchBlockH;
   let y = -totalH / 2;
@@ -229,19 +264,23 @@ export const showSpecialOfferPopup = (
   y += title.height + titleGap;
   body.setY(y + body.height / 2);
   y += body.height + bodyItemsGap;
-  iconsRow.setY(y + iconSize / 2);
-  y += iconSize + itemsWatchGap;
+  iconsRow.setY(y + cellH / 2);
+  y += cellH + itemsWatchGap;
   watchRoot.setY(y + watchBlockH / 2);
 
-  popup.add([plate, title, body, iconsRow, watchRoot]);
+  const content = scene.add.container(0, 0, [title, body, iconsRow, watchRoot]);
+
+  content.setScale(CONTENT_LAYOUT_SCALE);
+  popup.add([plate, content]);
   popup.setScale(scale);
 
+  const contentScale = CONTENT_LAYOUT_SCALE * scale;
   const watchHit = scene.add
     .rectangle(
       width / 2,
-      height / 2 + watchRoot.y * scale,
-      watchRadius * 2.4 * scale,
-      watchRadius * 2.4 * scale,
+      height / 2 + watchRoot.y * contentScale,
+      watchRadius * 2.4 * contentScale,
+      watchRadius * 2.4 * contentScale,
       0xffffff,
       0.001,
     )

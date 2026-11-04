@@ -39,7 +39,7 @@ const STAGE_UI_KEYS = new Set([
 
 const MODE_STAGE_UI_KEYS = new Set(["containerScore"]);
 
-const HOME_UI_KEYS = new Set(["settingsHome", "popupShopMarket"]);
+const HOME_UI_KEYS = new Set(["settingsHome", "popupShopMarket", "gameContainer"]);
 
 const GAME_COMMON = `${IMAGES}/game_common`;
 

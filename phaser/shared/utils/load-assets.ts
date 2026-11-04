@@ -27,7 +27,7 @@ const STAGE_MAP_IMAGES: ImageKey[] = [
   "logo_stage_bg",
   "logo_stage_fill",
   "popupExitGame",
-  "popupShopMarket",
+  "gameContainer",
   "super",
   "mega",
   "maxi",
