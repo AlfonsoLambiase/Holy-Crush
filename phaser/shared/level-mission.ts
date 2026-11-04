@@ -1,4 +1,5 @@
 import type {GridSymbol} from "../grid/create-grid";
+import {STAGE_01_TWO_GOALS_FROM_LOCAL_LEVEL} from "../grid/stage-01/mission.const";
 import type {ObstacleCell} from "./obstacles";
 
 //* Una sola continuazione a partita. Il testo movesOutBody dice lo stesso numero.
@@ -36,6 +37,39 @@ const OBSTACLE: Record<Exclude<GoalKind, "collect">, readonly string[]> = {
 
 const OBSTACLE_KINDS = Object.keys(OBSTACLE) as Exclude<GoalKind, "collect">[];
 
+/** Ostacoli avanzati (stage alti): posizione fissa da evidenziare nel browser griglie. */
+export const SPECIAL_OBJECTIVE_SYMBOLS = new Set<GridSymbol>([
+  "H",
+  "J",
+  "C",
+  "D",
+  "L",
+  "R",
+  "V",
+  "X",
+  "Z",
+]);
+
+export function goalKindForObstacleSymbol(
+  symbol: GridSymbol,
+): Exclude<GoalKind, "collect"> | null {
+  if (symbol === ".") return null;
+
+  for (const kind of OBSTACLE_KINDS) {
+    if (OBSTACLE[kind].includes(symbol)) return kind;
+  }
+
+  return null;
+}
+
+export function isSpecialObjectiveSymbol(symbol: GridSymbol): boolean {
+  return SPECIAL_OBJECTIVE_SYMBOLS.has(symbol);
+}
+
+export function hasFixedObjectivePosition(kind: GoalKind): boolean {
+  return kind !== "collect";
+}
+
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
@@ -54,6 +88,17 @@ const levelProgress = ({localLevel, levelsInStage}: MissionProgression): number 
 /** Stage 1 → 1 obiettivo, stage 2 → 2, stage 3 → 3, stage 4+ → 4. */
 export const goalCountForStage = (stageIndex: number): number =>
   clamp(stageIndex + 1, 1, 4);
+
+export const goalCountForProgression = (progression: MissionProgression): number => {
+  if (
+    progression.stageIndex === 0 &&
+    progression.localLevel >= STAGE_01_TWO_GOALS_FROM_LOCAL_LEVEL
+  ) {
+    return 2;
+  }
+
+  return goalCountForStage(progression.stageIndex);
+};
 
 //* Icona dell'ostacolo più duro presente, così il giocatore riconosce il disegno.
 const iconFor = (kind: Exclude<GoalKind, "collect">, cells: GridSymbol[][]): string => {
@@ -104,12 +149,87 @@ const scaleMoves = (
   return clamp(moves - stagePenalty - levelPenalty - goalsPenalty, 11, 42);
 };
 
+/** Punteggio “carico di lavoro” del livello (obiettivi + ostacoli duri), non la forma. */
+const complexityScore = (
+  cells: GridSymbol[][],
+  goals: MissionGoal[],
+  collect: number,
+): number => {
+  let score = Math.max(0, goals.length - 2) * 3;
+
+  if (collect >= 30) score += 8;
+  else if (collect >= 26) score += 6;
+  else if (collect >= 22) score += 5;
+  else if (collect >= 18) score += 4;
+  else if (collect >= 14) score += 3;
+  else if (collect >= 11) score += 2;
+
+  score += Math.min(4, countSymbol(cells, ["J", "C", "D", "H"]));
+  score += Math.min(3, countSymbol(cells, ["V", "Z"]));
+  score += Math.min(2, countSymbol(cells, ["X", "R", "L"]));
+
+  const kinds = new Set(goals.map((goal) => goal.kind));
+
+  if (kinds.has("thorn")) score += 2;
+  if (kinds.has("terrain") && has(cells, "H")) score += 2;
+
+  return score;
+};
+
+/** Stage 6–20: qualche mossa in più solo sui livelli davvero pieni. Stage 5: eccezione rara (es. grid-0085). */
+const bonusMovesForComplexity = (
+  cells: GridSymbol[][],
+  progression: MissionProgression,
+  goals: MissionGoal[],
+  collect: number,
+): number => {
+  const score = complexityScore(cells, goals, collect);
+  const stage = progression.stageIndex;
+
+  if (stage >= 5) {
+    if (score < 6) return 0;
+    if (score < 10) return 3;
+    if (score < 14) return 5;
+    if (score < 18) return 7;
+
+    return 9;
+  }
+
+  if (stage === 4 && goals.length >= 4 && score >= 10) return 3;
+
+  return 0;
+};
+
+/** Collect molto alto negli stage avanzati: minimo di mosse, senza regalare la vittoria. */
+const minimumMovesForHeavyCollect = (
+  progression: MissionProgression,
+  collect: number,
+): number => {
+  if (progression.stageIndex < 5 || collect < 22) return 0;
+  if (collect >= 32) return 26;
+  if (collect >= 28) return 24;
+  if (collect >= 24) return 21;
+
+  return 19;
+};
+
+/** Quattro obiettivi solo ostacoli (niente raccolta): serve più margine negli stage alti. */
+const minimumMovesForObstacleOnlyGoals = (
+  progression: MissionProgression,
+  goals: MissionGoal[],
+  collect: number,
+): number => {
+  if (progression.stageIndex < 7 || collect > 0 || goals.length < 4) return 0;
+
+  return clamp(17 + Math.floor((progression.stageIndex - 6) / 2), 17, 22);
+};
+
 const buildGoals = (
   cells: GridSymbol[][],
   pieceIcon: string,
   progression: MissionProgression,
 ): MissionGoal[] => {
-  const goalCount = goalCountForStage(progression.stageIndex);
+  const goalCount = goalCountForProgression(progression);
   const ranked = OBSTACLE_KINDS.map((kind) => ({
     kind,
     total: countSymbol(cells, OBSTACLE[kind]),
@@ -154,10 +274,17 @@ export function missionForGrid(
 
   moves = scaleMoves(moves, progression, goals.length);
 
+  const collect = hasCollect ? scaleCollectTarget(open, progression, goals.length) : 0;
+
+  moves += bonusMovesForComplexity(cells, progression, goals, collect);
+  moves = Math.max(moves, minimumMovesForHeavyCollect(progression, collect));
+  moves = Math.max(moves, minimumMovesForObstacleOnlyGoals(progression, goals, collect));
+  moves = clamp(moves, 11, 48);
+
   return {
     moves,
     goals,
-    collect: hasCollect ? scaleCollectTarget(open, progression, goals.length) : 0,
+    collect,
   };
 }
 
