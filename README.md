@@ -94,7 +94,8 @@ Configurazione in `src/settings/rewarded-interstitials.ts`. Due posizionamenti, 
 Variabili opzionali (solo debug UMP su build con env; in produzione lasciare disattivate):
 
 - `NEXT_PUBLIC_HOLY_CRUSH_UMP_DEBUG=true` — abilita opzioni di richiesta con `debugGeography` + eventuali `NEXT_PUBLIC_HOLY_CRUSH_UMP_TEST_DEVICE_IDS` (ID separati da virgola; dispositivo deve essere registrato come test in AdMob).
-- `NEXT_PUBLIC_HOLY_CRUSH_UMP_DEBUG_GEOGRAPHY` — con debug attivo: `EEA` (default, messaggi tipo GDPR), `US` (prova messaggio USA regolamentato), `OTHER`, oppure `DISABLED` / `OFF` per non forzare geografia.
+- `NEXT_PUBLIC_HOLY_CRUSH_UMP_DEBUG_GEOGRAPHY` — con debug attivo: `EEA` (default, messaggi tipo GDPR), `US` → enum plugin `AdmobConsentDebugGeography.US` (UMP: *regulated US state*), `OTHER`, oppure `DISABLED` / `OFF` per non forzare geografia.
+- `NEXT_PUBLIC_HOLY_CRUSH_UMP_LOG_CONSENT=true` — log in console WebView con prefisso `[HolyCrush UMP]` (`canRequestAds`, `status`, `isConsentFormAvailable`, `privacyOptionsRequirementStatus`). In Logcat filtra per `HolyCrush UMP`. Solo build di laboratorio.
 - `NEXT_PUBLIC_HOLY_CRUSH_UMP_ENABLE_RESET=true` — mostra il pulsante di test che chiama `resetConsentInfo()` (mai in produzione).
 
 ### Prove su dispositivo (da fare manualmente)

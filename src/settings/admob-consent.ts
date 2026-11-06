@@ -30,13 +30,59 @@ const isUmpDebugEnabled = (): boolean =>
 export const isUmpResetConsentButtonEnabled = (): boolean =>
   process.env.NEXT_PUBLIC_HOLY_CRUSH_UMP_ENABLE_RESET === "true";
 
+/**
+ * Log su console (Logcat tag Chromium/WebView: vedi filtro "HolyCrush UMP") dopo ogni aggiornamento stato.
+ * Solo build con questa env; disattiva in produzione.
+ */
+const isUmpConsentLogEnabled = (): boolean =>
+  process.env.NEXT_PUBLIC_HOLY_CRUSH_UMP_LOG_CONSENT === "true";
+
+const logUmpConsent = (context: string, info: AdmobConsentInfo | null): void => {
+  if (!isAndroidNative() || !isUmpConsentLogEnabled()) return;
+
+  // eslint-disable-next-line no-console -- solo con NEXT_PUBLIC_HOLY_CRUSH_UMP_LOG_CONSENT
+  console.info(`[HolyCrush UMP] ${context} ${JSON.stringify(info)}`);
+};
+
+type UmpRequestDiagnostics = {
+  /** `NEXT_PUBLIC_HOLY_CRUSH_UMP_DEBUG === "true"` */
+  umpDebugEnvActive: boolean;
+  /** Geografia passata in `requestConsentInfo` (`undefined` = nessuna opzione debug, SDK usa posizione reale). */
+  debugGeographyPassedToRequest:
+    | "none_not_set"
+    | "US_REGULATED_STATE"
+    | "EEA"
+    | "OTHER"
+    | "NOT_EEA_deprecated";
+  /** true se `testDeviceIdentifiers` è presente e non vuoto (conteggio senza valori). */
+  testDeviceIdsConfigured: boolean;
+  testDeviceIdCount: number;
+};
+
+const logUmpRequestDiagnostics = (
+  phase: string,
+  options: import("@capacitor-community/admob").AdmobConsentRequestOptions | undefined,
+  diag: UmpRequestDiagnostics,
+): void => {
+  if (!isAndroidNative() || !isUmpConsentLogEnabled()) return;
+
+  const payload = {
+    phase,
+    ...diag,
+    debugGeographyEnumNumeric: options?.debugGeography,
+  };
+
+  // eslint-disable-next-line no-console -- solo con NEXT_PUBLIC_HOLY_CRUSH_UMP_LOG_CONSENT
+  console.info(`[HolyCrush UMP] diagnostics ${JSON.stringify(payload)}`);
+};
+
 type AdmobModule = typeof import("@capacitor-community/admob");
 type AdmobConsentInfo = import("@capacitor-community/admob").AdmobConsentInfo;
 
 /**
  * Con debug UMP attivo, sceglie la geografia simulata (solo dispositivi di test in AdMob).
- * Valori: EEA (messaggi tipo GDPR), US (stati USA regolamentati), OTHER.
- * Default EEA se la variabile manca (compatibilità README precedente).
+ * `NEXT_PUBLIC_HOLY_CRUSH_UMP_DEBUG_GEOGRAPHY=US` → `AdmobConsentDebugGeography.US` (valore SDK 3 = UMP *regulated US state*).
+ * Vedi `node_modules/@capacitor-community/admob/dist/esm/consent/consent-debug-geography.enum.d.ts`.
  */
 const resolveDebugGeography = async (): Promise<
   import("@capacitor-community/admob").AdmobConsentDebugGeography | undefined
@@ -61,21 +107,61 @@ const resolveDebugGeography = async (): Promise<
   }
 };
 
-const buildConsentRequestOptions = async (): Promise<
-  import("@capacitor-community/admob").AdmobConsentRequestOptions | undefined
-> => {
+const buildConsentRequestOptions = async (): Promise<{
+  options: import("@capacitor-community/admob").AdmobConsentRequestOptions | undefined;
+  diagnostics: UmpRequestDiagnostics;
+}> => {
+  const umpDebugEnvActive = isUmpDebugEnabled();
+  const ids = parseTestDeviceIds();
   const debugGeo = await resolveDebugGeography();
+  const {AdmobConsentDebugGeography} = await import("@capacitor-community/admob");
 
-  if (debugGeo === undefined) return undefined;
+  if (debugGeo === undefined) {
+    return {
+      options: undefined,
+      diagnostics: {
+        umpDebugEnvActive,
+        debugGeographyPassedToRequest: "none_not_set",
+        testDeviceIdsConfigured: ids.length > 0,
+        testDeviceIdCount: ids.length,
+      },
+    };
+  }
 
   const opts: import("@capacitor-community/admob").AdmobConsentRequestOptions = {
     debugGeography: debugGeo,
   };
-  const ids = parseTestDeviceIds();
 
   if (ids.length > 0) opts.testDeviceIdentifiers = ids;
 
-  return opts;
+  let debugGeographyPassedToRequest: UmpRequestDiagnostics["debugGeographyPassedToRequest"];
+
+  switch (debugGeo) {
+    case AdmobConsentDebugGeography.US:
+      debugGeographyPassedToRequest = "US_REGULATED_STATE";
+      break;
+    case AdmobConsentDebugGeography.EEA:
+      debugGeographyPassedToRequest = "EEA";
+      break;
+    case AdmobConsentDebugGeography.OTHER:
+      debugGeographyPassedToRequest = "OTHER";
+      break;
+    case AdmobConsentDebugGeography.NOT_EEA:
+      debugGeographyPassedToRequest = "NOT_EEA_deprecated";
+      break;
+    default:
+      debugGeographyPassedToRequest = "none_not_set";
+  }
+
+  return {
+    options: opts,
+    diagnostics: {
+      umpDebugEnvActive,
+      debugGeographyPassedToRequest,
+      testDeviceIdsConfigured: ids.length > 0,
+      testDeviceIdCount: ids.length,
+    },
+  };
 };
 
 let consentModulePromise: Promise<AdmobModule> | null = null;
@@ -141,7 +227,9 @@ const runLaunchConsentLocked = async (): Promise<void> => {
   if (!isAndroidNative()) return;
 
   const {AdMob, AdmobConsentStatus} = await loadAdmob();
-  const options = await buildConsentRequestOptions();
+  const {options, diagnostics} = await buildConsentRequestOptions();
+
+  logUmpRequestDiagnostics("before requestConsentInfo (launch/foreground)", options, diagnostics);
 
   try {
     let info = await AdMob.requestConsentInfo(options);
@@ -151,8 +239,10 @@ const runLaunchConsentLocked = async (): Promise<void> => {
     }
 
     latestConsentInfo = info;
+    logUmpConsent("after launch/foreground + optional consent form", info);
   } catch {
     latestConsentInfo = null;
+    logUmpConsent("after launch/foreground (error)", null);
   }
 
   syncAdMobInitWithConsent();
@@ -217,12 +307,16 @@ export const refreshConsentInfo = async (): Promise<void> => {
   if (!isAndroidNative()) return;
 
   const {AdMob} = await loadAdmob();
-  const options = await buildConsentRequestOptions();
+  const {options, diagnostics} = await buildConsentRequestOptions();
+
+  logUmpRequestDiagnostics("before requestConsentInfo (refresh)", options, diagnostics);
 
   try {
     latestConsentInfo = await AdMob.requestConsentInfo(options);
+    logUmpConsent("after refreshConsentInfo", latestConsentInfo);
   } catch {
     latestConsentInfo = null;
+    logUmpConsent("after refreshConsentInfo (error)", null);
   }
 
   syncAdMobInitWithConsent();
