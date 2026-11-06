@@ -458,6 +458,41 @@ const UI_TEXTS: TextEntry[] = [
     es: "CARGANDO",
     fr: "CHARGEMENT",
   },
+  {
+    key: "settingsPrivacySection",
+    it: "Privacy e annunci",
+    en: "Privacy & ads",
+    es: "Privacidad y anuncios",
+    fr: "Confidentialité et annonces",
+  },
+  {
+    key: "settingsPrivacyOptions",
+    it: "Opzioni privacy",
+    en: "Privacy options",
+    es: "Opciones de privacidad",
+    fr: "Options de confidentialité",
+  },
+  {
+    key: "settingsPrivacyPolicy",
+    it: "Privacy Policy",
+    en: "Privacy Policy",
+    es: "Política de privacidad",
+    fr: "Politique de confidentialité",
+  },
+  {
+    key: "settingsTermsOfUse",
+    it: "Termini di utilizzo",
+    en: "Terms of Use",
+    es: "Términos de uso",
+    fr: "Conditions d'utilisation",
+  },
+  {
+    key: "settingsUmpResetTest",
+    it: "Reset consenso (test UMP)",
+    en: "Reset consent (UMP test)",
+    es: "Restablecer consentimiento (test UMP)",
+    fr: "Réinitialiser le consentement (test UMP)",
+  },
 ];
 
 export const TEXTS: TextEntry[] = [...UI_TEXTS, ...OPENING_TEXTS, ...OPENING_OLD_TESTAMENT_TEXTS];

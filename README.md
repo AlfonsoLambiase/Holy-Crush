@@ -78,12 +78,32 @@ I file degli stage partono da 0 (`op_0` è l'Opening 1).
 
 ## Annunci rewarded interstitial (Android)
 
-Configurazione in `src/settings/rewarded-interstitials.ts`. Due posizionamenti, formato rewarded interstitial: vita extra per l'energia (negozio e mappa stage) e oggetti bonus per le armi (negozio e barra in partita). Le mosse finite non usano questi annunci. Gli ID di produzione restano spenti con `USE_PRODUCTION_REWARDED_INTERSTITIALS`. Finché è `false` si usa solo il demo ufficiale Google per Android. Su Android il premio arriva solo dopo il callback dell'annuncio. Sul web il tap assegna ancora il premio senza chiamate native.
+Configurazione in `src/settings/rewarded-interstitials.ts`. Due posizionamenti, formato rewarded interstitial: vita extra per l'energia (negozio e mappa stage) e oggetti bonus per le armi (negozio e barra in partita). Le mosse finite non usano questi annunci. Gli ID di produzione restano spenti con `USE_PRODUCTION_REWARDED_INTERSTITIALS`. Finché è `false` si usa solo il demo ufficiale Google per Android. Su Android il premio è considerato valido solo quando si risolve la Promise di `showRewardInterstitialAd` (conferma nativa al premio) oppure quando chiude senza premio (`Dismissed` vince la race). Sul web il tap assegna ancora il premio senza chiamate native.
 
-Ancora da fare:
+### UMP e AdMob (implementato in codice)
 
-1. Configurare e pubblicare il messaggio UMP per Holy Crush in AdMob.
-2. Implementare e verificare il consenso e le opzioni privacy prima delle richieste di annunci reali.
-3. Preparare la schermata introduttiva del rewarded interstitial con premio chiaramente indicato e possibilità di rinunciare.
-4. Testare su Android caricamento, premio, chiusura anticipata, errori e assenza di rete.
-5. Attivare gli ID reali solo al completamento della configurazione e delle verifiche. Rimettendo gli ID di produzione, oggi vuoti, in `REWARDED_INTERSTITIAL_PLACEMENTS`.
+- Messaggi pubblicati in AdMob (configurazione lato console): **Holy Crush Android GDPR v1** (area europea) e **Holy Crush Android USA Privacy v1** (stati USA regolamentati).
+- Flusso centralizzato in `src/settings/admob-consent.ts`:
+  - Alla **prima apertura** della sessione WebView su Android: `requestConsentInfo()` e, se richiesto, `showConsentForm()`.
+  - Ogni volta che l'app torna in **foreground** (plugin `@capacitor/app`, evento `appStateChange`): nuovo `requestConsentInfo()` così cambi di messaggio o di scelte lato AdMob restano aggiornati senza dover killare il processo.
+- Dopo ogni aggiornamento del consenso, se `canRequestAds` diventa `false`, lo stato di `AdMob.initialize` viene azzerato così le nuove richieste non usano uno stato SDK obsoleto.
+- Le richieste annunci passano solo se `canRequestAds` è `true` sull'ultimo `AdmobConsentInfo` restituito dall'SDK (nessun aggiramento).
+- `src/settings/rewarded-interstitials.ts` attende quel flusso e inizializza `AdMob.initialize()` solo quando `canRequestAds` è consentito.
+- Nelle **Impostazioni** della Home (`src/components/HomeScreen.tsx`): **Opzioni privacy** quando `privacyOptionsRequirementStatus === REQUIRED` (vale per messaggi EU e USA: il pulsante può restare necessario anche se `status` non è `REQUIRED`); il tap chiama `showPrivacyOptionsForm()`, poi `requestConsentInfo()`. Link a Privacy Policy e Termini da `src/settings/legal-urls.ts`.
+
+Variabili opzionali (solo debug UMP su build con env; in produzione lasciare disattivate):
+
+- `NEXT_PUBLIC_HOLY_CRUSH_UMP_DEBUG=true` — abilita opzioni di richiesta con `debugGeography` + eventuali `NEXT_PUBLIC_HOLY_CRUSH_UMP_TEST_DEVICE_IDS` (ID separati da virgola; dispositivo deve essere registrato come test in AdMob).
+- `NEXT_PUBLIC_HOLY_CRUSH_UMP_DEBUG_GEOGRAPHY` — con debug attivo: `EEA` (default, messaggi tipo GDPR), `US` (prova messaggio USA regolamentato), `OTHER`, oppure `DISABLED` / `OFF` per non forzare geografia.
+- `NEXT_PUBLIC_HOLY_CRUSH_UMP_ENABLE_RESET=true` — mostra il pulsante di test che chiama `resetConsentInfo()` (mai in produzione).
+
+### Prove su dispositivo (da fare manualmente)
+
+Verificare su APK/device: primo avvio e form consenso, rifiuto (nessun annuncio se `canRequestAds` false), riapertura app, Opzioni privacy dalle Impostazioni, assenza di rete, chiusura anticipata annuncio, premio una sola volta.
+
+Ancora da fare (prodotto):
+
+1. Compilare gli URL in `src/settings/legal-urls.ts` e verificare i link.
+2. Preparare la schermata introduttiva del rewarded interstitial con premio chiaramente indicato e possibilità di rinunciare.
+3. Completare test su dispositivo reale come sopra.
+4. Attivare gli ID reali solo al completamento delle verifiche. Rimettendo gli ID di produzione, oggi vuoti, in `REWARDED_INTERSTITIAL_PLACEMENTS`.

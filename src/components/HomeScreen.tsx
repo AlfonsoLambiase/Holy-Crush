@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import {App} from "@capacitor/app";
+import {Capacitor} from "@capacitor/core";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore} from "react";
 
 import {
@@ -12,6 +14,17 @@ import {
 import {LANGUAGE_LABELS, LANGUAGES} from "@/language";
 import {GoldTitle} from "@/components/GoldTitle";
 import {useLanguage} from "@/language/LanguageProvider";
+import {
+  getConsentStateVersion,
+  isUmpResetConsentButtonEnabled,
+  openPrivacyOptionsFormFlow,
+  requestAndroidUmpOnAppForeground,
+  requestAndroidUmpOnLaunch,
+  resetUmpConsentForTesting,
+  shouldShowPrivacyOptionsEntry,
+  subscribeConsentUi,
+} from "@/settings/admob-consent";
+import {HOLY_CRUSH_PRIVACY_POLICY_URL, HOLY_CRUSH_TERMS_OF_USE_URL} from "@/settings/legal-urls";
 import {playClick, playNoTouch} from "@/settings/click";
 import {useGoogleAuth} from "@/settings/google-auth";
 import {getRemoteSaveRevision, startAccountSave, subscribeRemoteSave} from "@/settings/account-save";
@@ -105,7 +118,6 @@ const PANEL_TITLE_STYLE: React.CSSProperties = {
 
 const PANEL_SECTION_TITLE_CLASS =
   "font-display text-xl font-bold text-[#ffd76a] max-[380px]:text-lg sm:text-2xl md:text-3xl";
-const PANEL_BODY_TEXT_CLASS = "font-accent text-lg font-bold text-[#fff8dc] sm:text-xl";
 const PANEL_LANGUAGE_VALUE_CLASS =
   "font-display text-xl font-bold text-[#fff8dc] sm:text-2xl";
 
@@ -177,6 +189,97 @@ const GOOGLE_BUTTON_FONT = {fontFamily: "Roboto, Arial, sans-serif"} as const;
 
 const PANEL_STATUS_CLASS =
   "text-center font-display text-[clamp(0.95rem,3.2vw,1.15rem)] font-bold leading-snug text-[#fff8dc]";
+
+const SETTINGS_LINK_BTN_CLASS =
+  "mt-2 w-full max-w-sm shrink-0 rounded-lg border border-[#a67c22] bg-[#3d2614] px-3 py-2.5 font-display text-[clamp(0.85rem,3vw,1rem)] font-bold text-[#fff8dc] shadow-[0_0_8px_rgba(255,214,120,0.25)] transition-opacity disabled:opacity-50";
+
+function SettingsPrivacyRows({t}: {t: (key: string) => string}) {
+  useSyncExternalStore(
+    (onStoreChange) => subscribeConsentUi(onStoreChange),
+    getConsentStateVersion,
+    () => 0,
+  );
+
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  const isAndroidNative =
+    typeof window !== "undefined" && Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
+
+  const privacyUrl = HOLY_CRUSH_PRIVACY_POLICY_URL.trim();
+  const termsUrl = HOLY_CRUSH_TERMS_OF_USE_URL.trim();
+  const showPrivacyOptions = isAndroidNative && shouldShowPrivacyOptionsEntry();
+  const showLegalLinks = Boolean(privacyUrl || termsUrl);
+  const showUmpSection = isAndroidNative && (showPrivacyOptions || isUmpResetConsentButtonEnabled());
+
+  if (!showLegalLinks && !showUmpSection) return null;
+
+  const openExternal = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+    playClick();
+  };
+
+  return (
+    <>
+      <GoldTitle
+        className="mt-4 max-[700px]:mt-3 sm:mt-6"
+        titleClassName={PANEL_SECTION_TITLE_CLASS}
+        titleStyle={PANEL_TITLE_STYLE}
+      >
+        {t("settingsPrivacySection")}
+      </GoldTitle>
+      <div className="mt-3 flex w-full max-w-sm flex-col items-stretch gap-2 self-center">
+        {showPrivacyOptions ? (
+          <button
+            className={SETTINGS_LINK_BTN_CLASS}
+            disabled={busyKey !== null}
+            type="button"
+            onClick={() => {
+              playClick();
+              setBusyKey("privacyOptions");
+              void openPrivacyOptionsFormFlow().finally(() => setBusyKey(null));
+            }}
+          >
+            {busyKey === "privacyOptions" ? t("loading") : t("settingsPrivacyOptions")}
+          </button>
+        ) : null}
+        {privacyUrl ? (
+          <button
+            className={SETTINGS_LINK_BTN_CLASS}
+            disabled={busyKey !== null}
+            type="button"
+            onClick={() => openExternal(privacyUrl)}
+          >
+            {t("settingsPrivacyPolicy")}
+          </button>
+        ) : null}
+        {termsUrl ? (
+          <button
+            className={SETTINGS_LINK_BTN_CLASS}
+            disabled={busyKey !== null}
+            type="button"
+            onClick={() => openExternal(termsUrl)}
+          >
+            {t("settingsTermsOfUse")}
+          </button>
+        ) : null}
+        {isAndroidNative && isUmpResetConsentButtonEnabled() ? (
+          <button
+            className={`${SETTINGS_LINK_BTN_CLASS} text-[#ffb4a2]`}
+            disabled={busyKey !== null}
+            type="button"
+            onClick={() => {
+              playClick();
+              setBusyKey("umpReset");
+              void resetUmpConsentForTesting().finally(() => setBusyKey(null));
+            }}
+          >
+            {busyKey === "umpReset" ? t("loading") : t("settingsUmpResetTest")}
+          </button>
+        ) : null}
+      </div>
+    </>
+  );
+}
 
 function GoogleMark() {
   return (
@@ -507,6 +610,24 @@ export function HomeScreen() {
   }
 
   useEffect(() => startAccountSave(), []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") return;
+
+    void requestAndroidUmpOnLaunch();
+
+    let listener: {remove: () => Promise<void>} | null = null;
+
+    void App.addListener("appStateChange", ({isActive}) => {
+      if (isActive) void requestAndroidUmpOnAppForeground();
+    }).then((handle) => {
+      listener = handle;
+    });
+
+    return () => {
+      void listener?.remove();
+    };
+  }, []);
 
   const syncLogoIntroMetrics = useCallback(() => {
     const el = logoWrapRef.current;
@@ -903,6 +1024,8 @@ export function HomeScreen() {
                   }}
                 />
               </div>
+
+              <SettingsPrivacyRows t={t} />
             </>
           ) : openPanel === "share" ? (
             <SharePanel />

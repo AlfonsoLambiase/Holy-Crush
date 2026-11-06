@@ -21,6 +21,7 @@
     "@capacitor-firebase/authentication": "^8.5.2",
     "@capacitor-firebase/firestore": "^8.5.2",
     "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.2",
     "@capacitor/ios": "^8.5.2",
     "canvas-confetti": "^1.9.4",

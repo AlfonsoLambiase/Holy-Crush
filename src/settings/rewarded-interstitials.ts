@@ -1,5 +1,12 @@
 import {Capacitor, type PluginListenerHandle} from "@capacitor/core";
 
+import {
+  awaitAndroidUmpLaunchComplete,
+  ensureAdMobInitializedWhenAllowed,
+  getAdsConsentEpoch,
+  getLatestConsentInfo,
+  isPrivacyOrConsentFlowActive,
+} from "@/settings/admob-consent";
 import type {ShopAdId} from "@/settings/shop-ads";
 
 /** App ID AdMob Android. È nel manifest, non è un ad unit. */
@@ -79,7 +86,6 @@ export const canRequestRewardedInterstitial = (): boolean => {
 };
 
 let showingRewardedInterstitial = false;
-let rewardedInterstitialReady = false;
 
 const releaseListeners = (handles: PluginListenerHandle[]) => {
   handles.splice(0).forEach((handle) => {
@@ -87,15 +93,22 @@ const releaseListeners = (handles: PluginListenerHandle[]) => {
   });
 };
 
+const canProceedWithAdFlow = (epochStart: number): boolean =>
+  !isPrivacyOrConsentFlowActive() &&
+  getAdsConsentEpoch() === epochStart &&
+  Boolean(getLatestConsentInfo()?.canRequestAds);
+
 /**
  * Carica e mostra il rewarded interstitial solo dopo una richiesta esplicita.
- * true solo se arriva il premio. Chiusura anticipata, errore o doppio tap: false.
- * Il blocco resta finché l'annuncio non si chiude, così il premio non si assegna due volte.
+ * true solo se il SDK conferma il premio (risoluzione Promise show / evento Rewarded).
+ * Chiusura senza premio, errore o richiesta obsoleta: false.
  */
 export const showRewardedInterstitial = async (
   slot: RewardedInterstitialSlot,
 ): Promise<boolean> => {
   if (!canRequestRewardedInterstitial() || showingRewardedInterstitial) return false;
+
+  const epochStart = getAdsConsentEpoch();
 
   showingRewardedInterstitial = true;
 
@@ -111,22 +124,52 @@ export const showRewardedInterstitial = async (
   };
 
   try {
+    await awaitAndroidUmpLaunchComplete();
+
+    if (!canProceedWithAdFlow(epochStart)) {
+      stop();
+
+      return false;
+    }
+
+    const initialized = await ensureAdMobInitializedWhenAllowed();
+
+    if (!initialized || !canProceedWithAdFlow(epochStart)) {
+      stop();
+
+      return false;
+    }
+
     const {AdMob, RewardInterstitialAdPluginEvents} = await import("@capacitor-community/admob");
 
-    if (!rewardedInterstitialReady) {
-      await AdMob.initialize();
-      rewardedInterstitialReady = true;
+    if (!canProceedWithAdFlow(epochStart)) {
+      stop();
+
+      return false;
     }
 
     const request = rewardedInterstitialRequest(slot);
-    const loaded = await AdMob.prepareRewardInterstitialAd({
-      adId: request.adId,
-      isTesting: request.isTesting,
-    });
+    let loaded;
+
+    try {
+      loaded = await AdMob.prepareRewardInterstitialAd({
+        adId: request.adId,
+        isTesting: request.isTesting,
+      });
+    } catch {
+      stop();
+
+      return false;
+    }
+
+    if (!canProceedWithAdFlow(epochStart)) {
+      stop();
+
+      return false;
+    }
 
     return await new Promise<boolean>((resolve) => {
       let settled = false;
-      let earned = false;
 
       const finish = (value: boolean) => {
         if (settled) return;
@@ -137,26 +180,42 @@ export const showRewardedInterstitial = async (
 
       void (async () => {
         try {
+          let dismissResolver: (() => void) | null = null;
+          const dismissed = new Promise<void>((res) => {
+            dismissResolver = res;
+          });
+          let failedResolver: (() => void) | null = null;
+          const failedToShow = new Promise<void>((res) => {
+            failedResolver = res;
+          });
+
           handles.push(
-            await AdMob.addListener(RewardInterstitialAdPluginEvents.Rewarded, () => {
-              earned = true;
-              finish(true);
-            }),
             await AdMob.addListener(RewardInterstitialAdPluginEvents.Dismissed, () => {
-              finish(earned);
-              stop();
+              dismissResolver?.();
+              dismissResolver = null;
             }),
             await AdMob.addListener(RewardInterstitialAdPluginEvents.FailedToShow, () => {
-              finish(false);
-              stop();
+              failedResolver?.();
+              failedResolver = null;
             }),
           );
 
-          await AdMob.showRewardInterstitialAd({adId: loaded.adUnitId || request.adId});
-          earned = true;
-          finish(true);
+          const adKey = loaded.adUnitId || request.adId;
+          const rewardPromise = AdMob.showRewardInterstitialAd({adId: adKey}).then(() => true as const);
+          const dismissPromise = dismissed.then(() => false as const);
+          const failedPromise = failedToShow.then(() => false as const);
+
+          const outcome = await Promise.race([rewardPromise, dismissPromise, failedPromise]);
+
+          if (!canProceedWithAdFlow(epochStart)) {
+            finish(false);
+          } else if (!settled) {
+            finish(outcome);
+          }
+
+          stop();
         } catch {
-          finish(earned);
+          finish(false);
           stop();
         }
       })();
