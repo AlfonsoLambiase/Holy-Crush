@@ -7,3 +7,7 @@ export const HOLY_CRUSH_PRIVACY_POLICY_URL =
 
 export const HOLY_CRUSH_TERMS_OF_USE_URL =
   "https://mastrolonardogames.com/games/holy-crush/terms/";
+
+/** Istruzioni per richiedere l’eliminazione account (nessuna cancellazione in-app). */
+export const HOLY_CRUSH_DELETE_ACCOUNT_URL =
+  "https://mastrolonardogames.com/games/holy-crush/delete-account/";

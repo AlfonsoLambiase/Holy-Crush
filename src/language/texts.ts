@@ -487,6 +487,13 @@ const UI_TEXTS: TextEntry[] = [
     fr: "Conditions d'utilisation",
   },
   {
+    key: "settingsRequestAccountDeletion",
+    it: "Richiedi eliminazione account",
+    en: "Request account deletion",
+    es: "Solicitar eliminación de cuenta",
+    fr: "Demander la suppression du compte",
+  },
+  {
     key: "settingsUmpResetTest",
     it: "Reset consenso (test UMP)",
     en: "Reset consent (UMP test)",

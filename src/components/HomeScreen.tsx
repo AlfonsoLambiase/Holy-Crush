@@ -24,7 +24,11 @@ import {
   shouldShowPrivacyOptionsEntry,
   subscribeConsentUi,
 } from "@/settings/admob-consent";
-import {HOLY_CRUSH_PRIVACY_POLICY_URL, HOLY_CRUSH_TERMS_OF_USE_URL} from "@/settings/legal-urls";
+import {
+  HOLY_CRUSH_DELETE_ACCOUNT_URL,
+  HOLY_CRUSH_PRIVACY_POLICY_URL,
+  HOLY_CRUSH_TERMS_OF_USE_URL,
+} from "@/settings/legal-urls";
 import {playClick, playNoTouch} from "@/settings/click";
 import {useGoogleAuth} from "@/settings/google-auth";
 import {getRemoteSaveRevision, startAccountSave, subscribeRemoteSave} from "@/settings/account-save";
@@ -207,8 +211,9 @@ function SettingsPrivacyRows({t}: {t: (key: string) => string}) {
 
   const privacyUrl = HOLY_CRUSH_PRIVACY_POLICY_URL.trim();
   const termsUrl = HOLY_CRUSH_TERMS_OF_USE_URL.trim();
+  const deleteAccountUrl = HOLY_CRUSH_DELETE_ACCOUNT_URL.trim();
   const showPrivacyOptions = isAndroidNative && shouldShowPrivacyOptionsEntry();
-  const showLegalLinks = Boolean(privacyUrl || termsUrl);
+  const showLegalLinks = Boolean(privacyUrl || termsUrl || deleteAccountUrl);
   const showUmpSection = isAndroidNative && (showPrivacyOptions || isUmpResetConsentButtonEnabled());
 
   if (!showLegalLinks && !showUmpSection) return null;
@@ -260,6 +265,16 @@ function SettingsPrivacyRows({t}: {t: (key: string) => string}) {
             onClick={() => openExternal(termsUrl)}
           >
             {t("settingsTermsOfUse")}
+          </button>
+        ) : null}
+        {deleteAccountUrl ? (
+          <button
+            className={SETTINGS_LINK_BTN_CLASS}
+            disabled={busyKey !== null}
+            type="button"
+            onClick={() => openExternal(deleteAccountUrl)}
+          >
+            {t("settingsRequestAccountDeletion")}
           </button>
         ) : null}
         {isAndroidNative && isUmpResetConsentButtonEnabled() ? (
