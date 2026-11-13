@@ -1,4 +1,3 @@
-import {Capacitor} from "@capacitor/core";
 import {createElement, type ReactNode} from "react";
 
 import {TestStagePicker} from "@/components/TestStagePicker";
@@ -14,10 +13,13 @@ const SESSION_GAME_MODE_KEY = "holy-crush-test-game-mode";
 
 export type TestStageStartMode = "opening" | "map";
 
+/**
+ * Controlli test in home (stage / griglie): disattivati di default.
+ * Il pannello e i pulsanti restano nel codice; per riattivarli in locale:
+ * `NEXT_PUBLIC_ENABLE_STAGE_PICKER=true` in `.env.local`, poi rebuild.
+ */
 export const isStageStartTestEnabled = (): boolean =>
-  process.env.NODE_ENV === "development" ||
-  process.env.NEXT_PUBLIC_ENABLE_STAGE_PICKER === "true" ||
-  (typeof window !== "undefined" && Capacitor.isNativePlatform());
+  process.env.NEXT_PUBLIC_ENABLE_STAGE_PICKER === "true";
 
 export const readTestGameMode = (): GameModeId => {
   if (typeof sessionStorage === "undefined") return getGameMode();
