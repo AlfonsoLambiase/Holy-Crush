@@ -13,6 +13,14 @@ import {
 
 import {LANGUAGE_LABELS, LANGUAGES} from "@/language";
 import {GoldTitle} from "@/components/GoldTitle";
+import {
+  PANEL_OUTLINE,
+  PANEL_SECTION_TITLE_CLASS,
+  PANEL_STATUS_CLASS,
+  PANEL_TEXT_GLOW,
+  PANEL_TITLE_STYLE,
+  SETTINGS_LINK_BTN_CLASS,
+} from "@/components/home-panel-styles";
 import {useLanguage} from "@/language/LanguageProvider";
 import {
   getConsentStateVersion,
@@ -38,6 +46,7 @@ import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
 import {getStageIndex, prepareEnterWorld} from "@/settings/progress";
 import {playStageTrack, playTrack, stopTrack} from "@/settings/soundtrack";
 
+import {HomeImageButton} from "./HomeImageButton";
 import {HomeDriftingClouds} from "./HomeDriftingClouds";
 import {HomeLightFall} from "./HomeLightFall";
 import {SharePanel} from "./SharePanel";
@@ -62,6 +71,7 @@ import {PhaserGame} from "./PhaserGame";
 import {GridBrowser} from "./GridBrowser";
 import {HomePlayTutorial} from "./HomePlayTutorial";
 import {WorldScreen} from "./WorldScreen";
+import {AppVersionGate} from "./AppVersionGate";
 import {
   markHomePlayTutorialSeen,
   shouldShowHomePlayTutorial,
@@ -107,21 +117,6 @@ const START_FLOAT = {duration: "4.8s", delay: "0s", x: "2px", y: "-4px"};
 type MenuButtonKey = (typeof MENU_BUTTONS)[number]["key"];
 type MenuPanel = (typeof MENU_BUTTONS)[number]["panel"];
 
-const PANEL_TEXT_GLOW =
-  "0 0 8px rgba(255,236,170,0.55), 0 2px 2px rgba(0,0,0,0.45)";
-
-const PANEL_OUTLINE: React.CSSProperties = {
-  WebkitTextStroke: "2px #2a160ccc",
-  paintOrder: "stroke fill",
-};
-
-const PANEL_TITLE_STYLE: React.CSSProperties = {
-  textShadow: PANEL_TEXT_GLOW,
-  ...PANEL_OUTLINE,
-};
-
-const PANEL_SECTION_TITLE_CLASS =
-  "font-display text-xl font-bold text-[#ffd76a] max-[380px]:text-lg sm:text-2xl md:text-3xl";
 const PANEL_LANGUAGE_VALUE_CLASS =
   "font-display text-xl font-bold text-[#fff8dc] sm:text-2xl";
 
@@ -190,12 +185,6 @@ const GOOGLE_BUTTON_CLASS =
   "flex h-10 w-full max-w-xs items-center justify-center gap-2.5 rounded border border-[#747775] bg-white px-3 text-sm font-medium text-[#1f1f1f] shadow-sm transition-opacity disabled:opacity-60";
 
 const GOOGLE_BUTTON_FONT = {fontFamily: "Roboto, Arial, sans-serif"} as const;
-
-const PANEL_STATUS_CLASS =
-  "text-center font-display text-[clamp(0.95rem,3.2vw,1.15rem)] font-bold leading-snug text-[#fff8dc]";
-
-const SETTINGS_LINK_BTN_CLASS =
-  "mt-2 w-full max-w-sm shrink-0 rounded-lg border border-[#a67c22] bg-[#3d2614] px-3 py-2.5 font-display text-[clamp(0.85rem,3vw,1rem)] font-bold text-[#fff8dc] shadow-[0_0_8px_rgba(255,214,120,0.25)] transition-opacity disabled:opacity-50";
 
 function SettingsPrivacyRows({t}: {t: (key: string) => string}) {
   useSyncExternalStore(
@@ -484,76 +473,6 @@ function LanguageArrow({direction, onClick}: {direction: -1 | 1; onClick: () => 
         style={PANEL_OUTLINE}
       >
         {isLeft ? "‹" : "›"}
-      </span>
-    </button>
-  );
-}
-
-type CloudFloat = {
-  duration: string;
-  delay: string;
-  x: string;
-  y: string;
-};
-
-type HomeImageButtonProps = {
-  alt: string;
-  src: string;
-  width: number;
-  height: number;
-  className: string;
-  float: CloudFloat;
-  isPressed?: boolean;
-  children?: React.ReactNode;
-  onClick?: () => void;
-};
-
-function HomeImageButton({
-  alt,
-  src,
-  width,
-  height,
-  className,
-  float,
-  isPressed = false,
-  children,
-  onClick,
-}: HomeImageButtonProps) {
-  return (
-    <button
-      aria-label={alt}
-      className={`${className} home-cloud group relative touch-manipulation`}
-      style={{
-        "--cloud-duration": float.duration,
-        "--cloud-delay": float.delay,
-        "--cloud-x": float.x,
-        "--cloud-y": float.y,
-      } as React.CSSProperties}
-      type="button"
-      onClick={() => {
-        playClick();
-        onClick?.();
-      }}
-    >
-      <span
-        className={`relative block w-full transition-transform duration-100 ease-out ${
-          isPressed
-            ? "translate-y-1 scale-[0.93]"
-            : "group-active:translate-y-1 group-active:scale-[0.93]"
-        }`}
-      >
-        <Image
-          alt={alt}
-          className={`h-auto w-full transition-[filter] duration-100 ease-out ${
-            isPressed
-              ? "brightness-90 drop-shadow-none"
-              : "drop-shadow-lg group-active:brightness-90 group-active:drop-shadow-none"
-          }`}
-          height={height}
-          src={src}
-          width={width}
-        />
-        {children}
       </span>
     </button>
   );
@@ -1103,6 +1022,8 @@ export function HomeScreen() {
       )}
 
       {gridsOpen ? <GridBrowser onClose={() => setGridsOpen(false)} /> : null}
+
+      <AppVersionGate homeUiActive={!isPlaying && !showWorld} />
     </div>
   );
 }
