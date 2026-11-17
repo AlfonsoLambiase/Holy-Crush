@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "430274376796-bjc47lck5bos7pnrhnrufh5tqdj6ieo0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.orbitagames.holycrush",
+            "certificate_hash": "73e3386c21de808ec711d92d046b598af63e1083"
+          }
+        },
+        {
           "client_id": "430274376796-p0os378m7lctaf38sv14b7f6c09ordbe.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

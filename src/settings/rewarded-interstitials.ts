@@ -85,6 +85,11 @@ export const canRequestRewardedInterstitial = (): boolean => {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 };
 
+export type RewardedInterstitialUiHooks = {
+  /** true mentre si carica / si attende l’apertura dell’annuncio (non durante la visione). */
+  onAdLoading?: (loading: boolean) => void;
+};
+
 let showingRewardedInterstitial = false;
 
 const releaseListeners = (handles: PluginListenerHandle[]) => {
@@ -98,19 +103,24 @@ const canProceedWithAdFlow = (epochStart: number): boolean =>
   getAdsConsentEpoch() === epochStart &&
   Boolean(getLatestConsentInfo()?.canRequestAds);
 
+const setLoading = (hooks: RewardedInterstitialUiHooks | undefined, loading: boolean) => {
+  hooks?.onAdLoading?.(loading);
+};
+
 /**
  * Carica e mostra il rewarded interstitial solo dopo una richiesta esplicita.
- * true solo se il SDK conferma il premio (risoluzione Promise show / evento Rewarded).
- * Chiusura senza premio, errore o richiesta obsoleta: false.
+ * true solo se il premio è confermato e l’annuncio è stato chiuso (Dismissed).
  */
 export const showRewardedInterstitial = async (
   slot: RewardedInterstitialSlot,
+  hooks?: RewardedInterstitialUiHooks,
 ): Promise<boolean> => {
   if (!canRequestRewardedInterstitial() || showingRewardedInterstitial) return false;
 
   const epochStart = getAdsConsentEpoch();
 
   showingRewardedInterstitial = true;
+  setLoading(hooks, true);
 
   const handles: PluginListenerHandle[] = [];
   let released = false;
@@ -120,6 +130,7 @@ export const showRewardedInterstitial = async (
 
     released = true;
     showingRewardedInterstitial = false;
+    setLoading(hooks, false);
     releaseListeners(handles);
   };
 
@@ -170,53 +181,49 @@ export const showRewardedInterstitial = async (
 
     return await new Promise<boolean>((resolve) => {
       let settled = false;
+      let rewarded = false;
 
       const finish = (value: boolean) => {
         if (settled) return;
 
         settled = true;
+        stop();
         resolve(value);
       };
 
       void (async () => {
         try {
-          let dismissResolver: (() => void) | null = null;
-          const dismissed = new Promise<void>((res) => {
-            dismissResolver = res;
-          });
-          let failedResolver: (() => void) | null = null;
-          const failedToShow = new Promise<void>((res) => {
-            failedResolver = res;
-          });
-
           handles.push(
+            await AdMob.addListener(RewardInterstitialAdPluginEvents.Rewarded, () => {
+              rewarded = true;
+            }),
+            await AdMob.addListener(RewardInterstitialAdPluginEvents.Showed, () => {
+              setLoading(hooks, false);
+            }),
             await AdMob.addListener(RewardInterstitialAdPluginEvents.Dismissed, () => {
-              dismissResolver?.();
-              dismissResolver = null;
+              if (!canProceedWithAdFlow(epochStart)) {
+                finish(false);
+
+                return;
+              }
+
+              finish(rewarded);
             }),
             await AdMob.addListener(RewardInterstitialAdPluginEvents.FailedToShow, () => {
-              failedResolver?.();
-              failedResolver = null;
+              finish(false);
+            }),
+            await AdMob.addListener(RewardInterstitialAdPluginEvents.FailedToLoad, () => {
+              finish(false);
             }),
           );
 
           const adKey = loaded.adUnitId || request.adId;
-          const rewardPromise = AdMob.showRewardInterstitialAd({adId: adKey}).then(() => true as const);
-          const dismissPromise = dismissed.then(() => false as const);
-          const failedPromise = failedToShow.then(() => false as const);
 
-          const outcome = await Promise.race([rewardPromise, dismissPromise, failedPromise]);
-
-          if (!canProceedWithAdFlow(epochStart)) {
-            finish(false);
-          } else if (!settled) {
-            finish(outcome);
-          }
-
-          stop();
+          void AdMob.showRewardInterstitialAd({adId: adKey}).catch(() => {
+            if (!settled) finish(false);
+          });
         } catch {
           finish(false);
-          stop();
         }
       })();
     });

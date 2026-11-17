@@ -44,6 +44,7 @@ import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
 import {type GameModeId, setGameMode} from "@/settings/game-mode";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
 import {getStageIndex, prepareEnterWorld} from "@/settings/progress";
+import {getNativeAppVersion} from "@/settings/app-version-config";
 import {playStageTrack, playTrack, stopTrack} from "@/settings/soundtrack";
 
 import {HomeImageButton} from "./HomeImageButton";
@@ -185,6 +186,33 @@ const GOOGLE_BUTTON_CLASS =
   "flex h-10 w-full max-w-xs items-center justify-center gap-2.5 rounded border border-[#747775] bg-white px-3 text-sm font-medium text-[#1f1f1f] shadow-sm transition-opacity disabled:opacity-60";
 
 const GOOGLE_BUTTON_FONT = {fontFamily: "Roboto, Arial, sans-serif"} as const;
+
+function SettingsAppVersion({t}: {t: (key: string) => string}) {
+  const [version, setVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getNativeAppVersion().then((value) => {
+      if (!cancelled && value) setVersion(value);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!version) return null;
+
+  return (
+    <p
+      className={`${PANEL_STATUS_CLASS} mt-5 max-[700px]:mt-4 opacity-90 sm:mt-6`}
+      style={PANEL_TITLE_STYLE}
+    >
+      {t("settingsAppVersion")} {version}
+    </p>
+  );
+}
 
 function SettingsPrivacyRows({t}: {t: (key: string) => string}) {
   useSyncExternalStore(
@@ -960,6 +988,7 @@ export function HomeScreen() {
               </div>
 
               <SettingsPrivacyRows t={t} />
+              <SettingsAppVersion t={t} />
             </>
           ) : openPanel === "share" ? (
             <SharePanel />

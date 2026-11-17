@@ -9,6 +9,7 @@ import {
   rewardedInterstitialSlotForShopAd,
   showRewardedInterstitial,
 } from "@/settings/rewarded-interstitials";
+import {showAdLoadingOverlay, showAdUnavailableNotice} from "./ad-flow-overlay";
 import {CandyCrushAssetConf} from "./config/asset-conf.const";
 import {APP_FONT} from "./config/font.const";
 import {animatePopupClose, animatePopupOpen} from "./popup-motion";
@@ -196,6 +197,7 @@ export const showWatchAdPopup = (
 
     const grant = () => {
       watch.advance(
+        () => {},
         () => {
           if (consumed) return;
 
@@ -206,8 +208,9 @@ export const showWatchAdPopup = (
           } catch {
             consumed = false;
           }
+
+          close();
         },
-        () => close(),
       );
     };
 
@@ -221,21 +224,22 @@ export const showWatchAdPopup = (
 
     consumed = true;
     watchHit.disableInteractive();
+    const loading = showAdLoadingOverlay(scene);
 
     void showRewardedInterstitial(slot).then((earned) => {
+      loading.destroy();
+
       if (closing || !popup.active) return;
 
       consumed = false;
 
       if (!earned) {
-        watchHit.setInteractive({useHandCursor: true});
+        showAdUnavailableNotice(scene, () => close());
 
         return;
       }
 
       grant();
-
-      if (!consumed) watchHit.setInteractive({useHandCursor: true});
     });
   };
 
@@ -391,8 +395,6 @@ const addWatchVisual = (
     const done = watchShopAd(adId, ads);
     const to = done ? 1 : getShopAdProgress()[adId] / ads;
 
-    if (done) onDone();
-
     tween?.stop();
     tween = scene.tweens.add({
       targets: state,
@@ -404,6 +406,7 @@ const addWatchVisual = (
         redraw(to);
 
         if (done) onFilled();
+        else onDone();
       },
     });
   };

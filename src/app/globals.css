@@ -222,6 +222,16 @@ canvas {
   );
 }
 
+@keyframes ad-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ad-loading-spin {
+  animation: ad-loading-spin 0.75s linear infinite;
+}
+
 .cloud-curtain-side {
   position: fixed;
   width: 0;

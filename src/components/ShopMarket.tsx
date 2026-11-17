@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { MdLiveTv } from "react-icons/md";
 
+import { AdLoadingOverlay } from "@/components/AdLoadingOverlay";
 import { FadeScroll } from "@/components/FadeScroll";
 import { GoldTitle } from "@/components/GoldTitle";
 import { useLanguage } from "@/language/LanguageProvider";
@@ -157,6 +158,7 @@ export function ShopMarket() {
   );
   const watchingRef = useRef(false);
   const [watching, setWatching] = useState(false);
+  const [adNotice, setAdNotice] = useState<string | null>(null);
 
   //* Il remount col key azzera il cerchio senza animarlo all'indietro.
   const playCompletion = (adId: ShopAdId) => {
@@ -208,22 +210,42 @@ export function ShopMarket() {
       return;
     }
 
-    watchingRef.current = true;
-    setWatching(true);
+    setAdNotice(null);
 
-    void showRewardedInterstitial(slot).then((earned) => {
+    void showRewardedInterstitial(slot, {
+      onAdLoading: (loading) => {
+        watchingRef.current = loading;
+        setWatching(loading);
+      },
+    }).then((earned) => {
       watchingRef.current = false;
       setWatching(false);
 
-      if (earned) grantWatchedAd(item);
+      if (earned) {
+        grantWatchedAd(item);
+
+        return;
+      }
+
+      setAdNotice(t("adUnavailable"));
+      window.setTimeout(() => setAdNotice(null), 2000);
     });
   };
 
   return (
     <div
-      className="shop-market @container flex min-h-0 w-full max-w-full flex-1 flex-col items-stretch"
+      className="shop-market @container relative flex min-h-0 w-full max-w-full flex-1 flex-col items-stretch"
       data-shop-scroll
     >
+      {watching ? <AdLoadingOverlay className="absolute inset-0 z-30" /> : null}
+      {adNotice ? (
+        <p
+          className="absolute inset-x-2 top-1/2 z-40 -translate-y-1/2 rounded-lg border border-[#a67c22] bg-[#3d2614]/95 px-3 py-2 text-center font-display text-[clamp(0.8rem,3vw,0.95rem)] font-bold text-[#fff8dc] shadow-lg"
+          role="alert"
+        >
+          {adNotice}
+        </p>
+      ) : null}
       <GoldTitle
         className="shrink-0"
         titleClassName={PANEL_SECTION_TITLE_CLASS}

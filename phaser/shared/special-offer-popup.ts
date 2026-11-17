@@ -16,6 +16,7 @@ import {
 } from "@/settings/special-offer";
 import {CandyCrushAssetConf} from "./config/asset-conf.const";
 import {APP_FONT} from "./config/font.const";
+import {showAdLoadingOverlay, showAdUnavailableNotice} from "./ad-flow-overlay";
 import {animatePopupClose, animatePopupOpen} from "./popup-motion";
 import {stylePopupBody, stylePopupTitle} from "./popup-text";
 
@@ -382,8 +383,11 @@ export const showSpecialOfferPopup = (
 
     watching = true;
     watchHit.disableInteractive();
+    const loading = showAdLoadingOverlay(scene);
 
     void showRewardedInterstitial("bonusItems").then((earned) => {
+      loading.destroy();
+
       if (closing || !popup.active) {
         watching = false;
 
@@ -392,7 +396,7 @@ export const showSpecialOfferPopup = (
 
       if (!earned) {
         watching = false;
-        watchHit.setInteractive({useHandCursor: true});
+        showAdUnavailableNotice(scene, () => close(true));
 
         return;
       }
