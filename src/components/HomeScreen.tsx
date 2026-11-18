@@ -178,13 +178,13 @@ function TestamentCard({
       <span className="relative min-h-0 w-full flex-1">
         <Image
           alt=""
-          className={`object-cover object-center ${disabled ? "brightness-[0.62] saturate-[0.72]" : ""}`}
+          className={`object-cover object-center ${disabled ? "brightness-[0.38] saturate-[0.45]" : ""}`}
           fill
           sizes="28rem"
           src={src}
         />
         {disabled && lockLabel ? (
-          <span className="absolute inset-0 flex items-center justify-center bg-black/30 px-3 text-center font-display text-[clamp(0.78rem,2.7vw,1.05rem)] font-bold leading-snug text-[#fff8dc]">
+          <span className="absolute inset-0 flex items-center justify-center bg-black/58 px-3 text-center font-display text-[clamp(0.78rem,2.7vw,1.05rem)] font-bold leading-snug text-[#fff8dc]">
             <span style={{textShadow: PANEL_TEXT_GLOW}}>{lockLabel}</span>
           </span>
         ) : null}
@@ -196,7 +196,7 @@ function TestamentCard({
 const APP_CORNER_BTN_CLASS = "h-[min(16vw,4.75rem)] w-[min(16vw,4.75rem)]";
 
 const GOOGLE_BUTTON_CLASS =
-  "flex h-10 w-full max-w-xs items-center justify-center gap-2.5 rounded border border-[#747775] bg-white px-3 text-sm font-medium text-[#1f1f1f] shadow-sm transition-opacity disabled:opacity-60";
+  "flex min-h-11 w-full items-center justify-center gap-2 self-stretch rounded border border-[#747775] bg-white px-3 py-2 text-[clamp(0.7rem,3.4vw,0.875rem)] font-medium leading-tight text-[#1f1f1f] shadow-sm transition-opacity disabled:opacity-60";
 
 const GOOGLE_BUTTON_FONT = {fontFamily: "Roboto, Arial, sans-serif"} as const;
 
@@ -404,7 +404,9 @@ function AccessPanel() {
               }}
             >
               <GoogleMark />
-              <span>{t("googleSignIn")}</span>
+              <span className="min-w-0 text-center leading-tight" style={GOOGLE_BUTTON_FONT}>
+                {t("googleSignIn")}
+              </span>
             </button>
           </>
         )}

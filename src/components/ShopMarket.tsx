@@ -85,29 +85,11 @@ const CLOCK_FILL_MS = 480;
 //* Resta pieno un attimo prima di svuotarsi per il prossimo giro.
 const CLOCK_HOLD_MS = 260;
 
-function AdPhrase({ ads, text }: { ads: number; text: string }) {
-  const split = text.indexOf(" ");
-  const head = split < 0 ? text : text.slice(0, split);
-  const tail = split < 0 ? "" : text.slice(split + 1);
-
-  return (
-    <p className="text-balance text-center font-display text-[length:min(0.72rem,2.45cqi)] font-bold leading-[1.15] text-[#f3e6c8]">
-      <span className="text-[#ffd76a]">{ads}</span> {head}
-      {tail ? (
-        <>
-          <br />
-          {tail}
-        </>
-      ) : null}
-    </p>
-  );
-}
-
 function AdClock({ ratio, disabled }: { ratio: number; disabled: boolean }) {
   const turn = disabled ? 0 : Math.min(1, Math.max(0, ratio)) * CLOCK_TURN;
 
   return (
-    <svg aria-hidden className="absolute inset-0" viewBox="0 0 36 36">
+    <svg aria-hidden className="absolute inset-0 block h-full w-full" viewBox="0 0 36 36">
       <circle cx="18" cy="18" fill={disabled ? "#8a8079" : "#1a0f08"} r="18" />
       <circle
         cx="18"
@@ -290,28 +272,30 @@ export function ShopMarket() {
 
                 <button
                   aria-label={t("watchAd")}
-                  className={`relative grid aspect-square w-full place-items-center overflow-hidden rounded-full transition-transform duration-100 ${
+                  className={`relative grid size-[13cqi] shrink-0 place-items-center self-center overflow-hidden rounded-full p-0 transition-transform duration-100 disabled:opacity-100 ${
                     adLocked
-                      ? "cursor-default text-[#e8e2dc] opacity-70"
+                      ? "cursor-default text-[#e8e2dc]"
                       : "text-white active:scale-95"
                   }`}
                   disabled={adLocked || filling || watching}
                   type="button"
                   onClick={() => handleWatchAd(item)}
                 >
-                  <AdClock
-                    key={clockKeys[adId] ?? 0}
-                    disabled={adLocked}
-                    ratio={fill}
-                  />
-                  <MdLiveTv aria-hidden className="relative h-[55%] w-[55%]" />
+                  <span
+                    className={`absolute inset-0 grid place-items-center ${
+                      adLocked ? "origin-center scale-[0.92]" : ""
+                    }`}
+                  >
+                    <AdClock
+                      key={clockKeys[adId] ?? 0}
+                      disabled={adLocked}
+                      ratio={fill}
+                    />
+                    <MdLiveTv aria-hidden className="relative z-[1] h-[55%] w-[55%]" />
+                  </span>
                 </button>
 
-                <div className="flex min-w-0 flex-col items-center gap-[0.7cqi]">
-                  <AdPhrase
-                    ads={adsNeeded}
-                    text={adsNeeded === 1 ? t("shopAdNeeded") : t("shopAdsNeeded")}
-                  />
+                <div className="flex min-w-0 items-center justify-center">
                   <span
                     key={pulse}
                     className={`inline-flex max-w-full items-center gap-[0.3cqi] rounded-full border border-[#e0c36a] bg-[#fff8e6] px-[1cqi] py-[0.35cqi] font-display text-[length:min(0.8rem,2.5cqi)] font-bold leading-none text-[#c4922a] ${
