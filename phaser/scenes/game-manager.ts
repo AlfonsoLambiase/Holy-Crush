@@ -74,6 +74,7 @@ import {
   type ObstacleCell,
 } from "../shared/obstacles";
 import {
+  countFiends,
   injectRuntimeFiends,
   isFiend,
   listFiendCells,
@@ -281,9 +282,13 @@ export class GameManager extends Phaser.Scene {
     if (!this.#shape) return;
 
     const language = getCurrentLanguage();
-    let tips = pendingObstacleTips(this.#shape.cells, this.#goals, getStageIndex()).filter(
-      (tip) => !isObstacleTipSeen(tip.id),
-    );
+    const hasFiendsOnBoard = countFiends(this.obstacles) > 0;
+    let tips = pendingObstacleTips(
+      this.#shape.cells,
+      this.#goals,
+      getStageIndex(),
+      hasFiendsOnBoard,
+    ).filter((tip) => !isObstacleTipSeen(tip.id));
 
     if (skipCollect) tips = tips.filter((tip) => tip.id !== "collect");
 

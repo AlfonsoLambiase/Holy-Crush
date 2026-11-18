@@ -14,6 +14,7 @@ export type ObstacleTipId =
   | "thorn"
   | "rock"
   | "wall"
+  | "fiend"
   | "goals_two"
   | "goals_three"
   | "goals_four";
@@ -158,6 +159,18 @@ export const OBSTACLE_TIPS: ObstacleTip[] = [
     present: (cells) => hasAny(cells, "X"),
   },
   {
+    id: "fiend",
+    order: 85,
+    image: "tutorial_0",
+    text: {
+      it: "Attento ai simboli demoniaci, sono imprevedibili e se non li sconfiggi si spostano in continuazione!",
+      en: "Watch out for demonic symbols — they're unpredictable, and if you don't defeat them they keep moving!",
+      es: "Cuidado con los símbolos demoníacos: son impredecibles y, si no los derrotas, ¡se mueven sin parar!",
+      fr: "Attention aux symboles démoniaques : ils sont imprévisibles et, si tu ne les vaincs pas, ils n'arrêtent pas de bouger !",
+    },
+    present: (cells) => hasAny(cells, "Z"),
+  },
+  {
     id: "goals_two",
     order: 90,
     image: "tutorial_0",
@@ -199,9 +212,12 @@ export const pendingObstacleTips = (
   cells: GridSymbol[][],
   goals: MissionGoal[],
   stageIndex: number,
+  hasFiendsOnBoard = false,
 ): ObstacleTip[] =>
   OBSTACLE_TIPS.filter((tip) => {
-    if (tip.present && !tip.present(cells)) return false;
+    if (tip.id === "fiend") {
+      if (!tip.present?.(cells) && !hasFiendsOnBoard) return false;
+    } else if (tip.present && !tip.present(cells)) return false;
     if (tip.mission && !tip.mission({goals, stageIndex})) return false;
     if (!tip.present && !tip.mission) return false;
 
