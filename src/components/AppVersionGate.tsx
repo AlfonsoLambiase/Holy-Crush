@@ -13,14 +13,12 @@ import {
   setStoredLegalVersion,
 } from "@/settings/app-version-config";
 import {playClick} from "@/settings/click";
+import {GAME_SHARE_URL} from "@/settings/share-link";
 
 const LEGAL_PANEL_DELAY_FIRST_MS = 400;
 const LEGAL_PANEL_DELAY_REVISION_MS = 1500;
 
 const START_FLOAT = {duration: "4.8s", delay: "0s", x: "2px", y: "-4px"} as const;
-
-const PREVIEW_STORE_URL =
-  "https://play.google.com/store/apps/details?id=com.orbitagames.holycrush";
 
 type DevVersionPreview = "update" | "legal-welcome" | "legal-revision" | null;
 
@@ -54,7 +52,7 @@ export function AppVersionGate({homeUiActive}: AppVersionGateProps) {
     const preview = readDevVersionPreview();
     if (preview === "update") {
       setDevPreview("update");
-      setStoreUrl(PREVIEW_STORE_URL);
+      setStoreUrl(GAME_SHARE_URL);
       return;
     }
 

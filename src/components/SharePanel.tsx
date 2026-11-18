@@ -1,5 +1,7 @@
 "use client";
 
+import {Capacitor} from "@capacitor/core";
+import {Share} from "@capacitor/share";
 import {useState} from "react";
 
 import {GoldTitle} from "@/components/GoldTitle";
@@ -118,23 +120,29 @@ export function SharePanel() {
     openWindow(`https://t.me/share/url?${query.toString()}`);
   };
 
-  const shareNative = async () => {
-    if (!shareUrl || !navigator.share) {
+  const copyLink = async (announce = true) => {
+    if (!shareUrl) {
       playNoTouch();
 
-      return;
+      return false;
     }
 
-    playClick();
+    if (announce) playClick();
 
     try {
-      await navigator.share({title: "Holy Crush", text: shareText, url: shareUrl});
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+
+      return true;
     } catch {
-      /* utente ha annullato */
+      playNoTouch();
+
+      return false;
     }
   };
 
-  const copyLink = async () => {
+  const shareNative = async () => {
     if (!shareUrl) {
       playNoTouch();
 
@@ -143,13 +151,27 @@ export function SharePanel() {
 
     playClick();
 
+    const payload = {title: "Holy Crush", text: shareText, url: shareUrl};
+
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      playNoTouch();
+      if (Capacitor.isNativePlatform()) {
+        await Share.share({...payload, dialogTitle: t("share")});
+
+        return;
+      }
+
+      if (typeof navigator.share === "function") {
+        await navigator.share(payload);
+
+        return;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error ?? "");
+
+      if (/cancel|abort|dismiss/i.test(message)) return;
     }
+
+    await copyLink(false);
   };
 
   return (

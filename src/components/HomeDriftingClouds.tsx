@@ -11,6 +11,8 @@ const CLOUD_ASSETS = [
 
 const CLOUD_COUNT = 4;
 const CLOUD_BAND_SCREEN_FRACTION = 0.42;
+//* Stesso abbassamento del logo home: sui device fisici la fascia era troppo alta.
+const CLOUD_DROP_SCREEN_FRACTION = 0.045;
 
 type CloudPoint = readonly [number, number];
 type CloudPath = readonly CloudPoint[];
@@ -137,7 +139,7 @@ const pathPosition = (
 
   return {
     x: nx * viewportW,
-    y: ny * bandH,
+    y: ny * bandH + viewportH * CLOUD_DROP_SCREEN_FRACTION,
   };
 };
 

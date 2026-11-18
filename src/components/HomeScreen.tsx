@@ -43,7 +43,7 @@ import {getRemoteSaveRevision, startAccountSave, subscribeRemoteSave} from "@/se
 import {isEffectsEnabled, setEffectsEnabled} from "@/settings/effects";
 import {type GameModeId, setGameMode} from "@/settings/game-mode";
 import {isMusicEnabled, setMusicEnabled} from "@/settings/music";
-import {getStageIndex, prepareEnterWorld} from "@/settings/progress";
+import {getStageIndex, isOldTestamentUnlocked, prepareEnterWorld} from "@/settings/progress";
 import {getNativeAppVersion} from "@/settings/app-version-config";
 import {playStageTrack, playTrack, stopTrack} from "@/settings/soundtrack";
 
@@ -126,6 +126,7 @@ type TestamentCardProps = {
   src: string;
   className?: string;
   disabled?: boolean;
+  lockLabel?: string;
   isPressed?: boolean;
   tutorialHighlight?: boolean;
   onClick: () => void;
@@ -141,6 +142,7 @@ function TestamentCard({
   src,
   className = "",
   disabled = false,
+  lockLabel,
   isPressed = false,
   tutorialHighlight = false,
   onClick,
@@ -151,7 +153,7 @@ function TestamentCard({
         tutorialHighlight ? "home-mode-tutorial-glow" : ""
       } ${
         disabled
-          ? "cursor-not-allowed opacity-45 brightness-[0.55] saturate-50"
+          ? "cursor-not-allowed"
           : isPressed
             ? "translate-y-1 scale-[0.97]"
             : "active:translate-y-1 active:scale-[0.97]"
@@ -174,7 +176,18 @@ function TestamentCard({
         {label}
       </span>
       <span className="relative min-h-0 w-full flex-1">
-        <Image alt="" className="object-cover object-center" fill sizes="28rem" src={src} />
+        <Image
+          alt=""
+          className={`object-cover object-center ${disabled ? "brightness-[0.62] saturate-[0.72]" : ""}`}
+          fill
+          sizes="28rem"
+          src={src}
+        />
+        {disabled && lockLabel ? (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/30 px-3 text-center font-display text-[clamp(0.78rem,2.7vw,1.05rem)] font-bold leading-snug text-[#fff8dc]">
+            <span style={{textShadow: PANEL_TEXT_GLOW}}>{lockLabel}</span>
+          </span>
+        ) : null}
       </span>
     </button>
   );
@@ -603,7 +616,10 @@ export function HomeScreen() {
     if (height < 1) return false;
 
     const fromY = window.innerHeight / 2 - height / 2;
-    const toY = Math.max(0, window.innerHeight * 0.01);
+    const safeTop =
+      Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) ||
+      0;
+    const toY = Math.max(safeTop, window.innerHeight * 0.055);
 
     el.style.setProperty("--home-logo-from-y", `${fromY}px`);
     el.style.setProperty("--home-logo-to-y", `${toY}px`);
@@ -879,25 +895,31 @@ export function HomeScreen() {
                 className="pointer-events-none absolute inset-0 z-[1] rounded-lg bg-black/25"
               />
             ) : null}
-            {TESTAMENTS.map(({mode, label, src}, index) => (
-              <TestamentCard
-                key={mode}
-                className={`relative z-[2] ${index > 0 ? "mt-1" : ""}`}
-                label={t(label)}
-                src={src}
-                isPressed={pressedMode === mode}
-                tutorialHighlight={homePlayTutorialOpen}
-                onClick={() => {
-                  if (pressedMode !== null || homePlayTutorialOpen) return;
+            {TESTAMENTS.map(({mode, label, src}, index) => {
+              const locked = mode === 1 && !isOldTestamentUnlocked();
 
-                  playClick();
-                  setGameMode(mode);
-                  writeTestGameMode(mode);
-                  setTestGameMode(mode);
-                  setPressedMode(mode);
-                }}
-              />
-            ))}
+              return (
+                <TestamentCard
+                  key={mode}
+                  className={`relative z-[2] ${index > 0 ? "mt-1" : ""}`}
+                  disabled={locked}
+                  lockLabel={locked ? t("oldTestamentLocked") : undefined}
+                  label={t(label)}
+                  src={src}
+                  isPressed={pressedMode === mode}
+                  tutorialHighlight={homePlayTutorialOpen && !locked}
+                  onClick={() => {
+                    if (pressedMode !== null || homePlayTutorialOpen) return;
+
+                    playClick();
+                    setGameMode(mode);
+                    writeTestGameMode(mode);
+                    setTestGameMode(mode);
+                    setPressedMode(mode);
+                  }}
+                />
+              );
+            })}
           </div>
         </WoodPanel>
       )}

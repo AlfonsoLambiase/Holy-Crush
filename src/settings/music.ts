@@ -3,9 +3,9 @@ import {notifyLocalSave} from "./local-save-signal";
 const STORAGE_KEY = "holy-crush-music";
 
 export const isMusicEnabled = (): boolean => {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined") return true;
 
-  return localStorage.getItem(STORAGE_KEY) === "on";
+  return localStorage.getItem(STORAGE_KEY) !== "off";
 };
 
 export const setMusicEnabled = (enabled: boolean) => {

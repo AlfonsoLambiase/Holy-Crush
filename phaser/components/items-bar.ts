@@ -40,6 +40,10 @@ const DEPTH_ZONE = 13;
 const SHOWCASE_DEPTH = 60;
 const SHOWCASE_PULSE_SCALE = 1.1;
 const SHOWCASE_PULSE_MS = 520;
+const SHOWCASE_LIFT_MS = 640;
+const SHOWCASE_LIFT_HOLD_MS = 180;
+const SHOWCASE_LIFT_GAP_MS = 280;
+const SHOWCASE_LIFT_START_MS = 420;
 //* Un filo più piccoli degli obj in griglia (0.9).
 const ICON_FIT = 0.72;
 const SLOTS: {
@@ -98,6 +102,9 @@ export class ItemsBar {
   #settingsMenu: GameSettingsMenu | null = null;
   #unlimited = false;
   #showcaseScales = new Map<Phaser.GameObjects.Image, number>();
+  #showcaseHomeY = new Map<Phaser.GameObjects.Image, number>();
+  #showcaseToken = 0;
+  #liftEvent: Phaser.Time.TimerEvent | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -314,8 +321,14 @@ export class ItemsBar {
     this.#slots.forEach((slot) => this.#sync(slot.id));
   }
 
-  //* Slot sopra l'oscuramento, pieni e pulsanti. Con false tornano al loro posto.
+  //* Slot sopra l'oscuramento, pieni e pulsanti. Uno alla volta esce dal riquadro e torna.
   showcase(on: boolean): void {
+    this.#showcaseToken += 1;
+    const token = this.#showcaseToken;
+
+    this.#liftEvent?.remove(false);
+    this.#liftEvent = null;
+
     const offset = on ? SHOWCASE_DEPTH : -SHOWCASE_DEPTH;
 
     for (const slot of this.#slots) {
@@ -325,6 +338,9 @@ export class ItemsBar {
         if (!on) {
           this.scene.tweens.killTweensOf(image);
           image.setScale(this.#showcaseScales.get(image) ?? image.scale);
+          const homeY = this.#showcaseHomeY.get(image);
+
+          if (homeY != null) image.setY(homeY);
           continue;
         }
 
@@ -340,7 +356,53 @@ export class ItemsBar {
       }
     }
 
-    if (!on) this.#showcaseScales.clear();
+    if (!on) {
+      this.#showcaseScales.clear();
+      this.#showcaseHomeY.clear();
+
+      return;
+    }
+
+    this.#liftEvent = this.scene.time.delayedCall(SHOWCASE_LIFT_START_MS, () => {
+      this.#liftNext(0, token);
+    });
+  }
+
+  //* Demo di trascinamento: l'icona sale e rientra, gli altri continuano a pulsare.
+  #liftNext(index: number, token: number): void {
+    if (token !== this.#showcaseToken || this.#slots.length === 0) return;
+
+    const slot = this.#slots[index % this.#slots.length];
+    const icons = [slot.iconDisabled, ...slot.iconFill.objects];
+    const lift = Math.max(42, slot.frameW * 0.9);
+
+    for (const image of icons) {
+      if (!this.#showcaseHomeY.has(image)) this.#showcaseHomeY.set(image, image.y);
+
+      image.y = this.#showcaseHomeY.get(image) ?? image.y;
+    }
+
+    this.scene.tweens.add({
+      targets: icons,
+      y: `-=${lift}`,
+      duration: SHOWCASE_LIFT_MS,
+      yoyo: true,
+      hold: SHOWCASE_LIFT_HOLD_MS,
+      ease: "Sine.easeInOut",
+      onComplete: () => {
+        for (const image of icons) {
+          const homeY = this.#showcaseHomeY.get(image);
+
+          if (homeY != null) image.y = homeY;
+        }
+
+        if (token !== this.#showcaseToken) return;
+
+        this.#liftEvent = this.scene.time.delayedCall(SHOWCASE_LIFT_GAP_MS, () => {
+          this.#liftNext(index + 1, token);
+        });
+      },
+    });
   }
 
   #count(id: BoosterId): number {

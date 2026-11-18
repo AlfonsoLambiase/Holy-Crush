@@ -14,6 +14,24 @@ export type StageProgress = {
 
 const emptyProgress = (): StageProgress => ({stage: 0, cleared: 0});
 
+//* Indici da 0. Completato lo stage 4, il progresso passa a 5: lo stage 5 è appena sbloccato.
+const OLD_TESTAMENT_UNLOCK_STAGE = 5;
+const OLD_TESTAMENT_UNLOCK_KEY = "holy-crush-old-testament-unlocked";
+
+const rememberOldTestamentUnlock = (stage: number): void => {
+  if (typeof window === "undefined" || stage < OLD_TESTAMENT_UNLOCK_STAGE) return;
+  if (localStorage.getItem(OLD_TESTAMENT_UNLOCK_KEY) === "1") return;
+
+  localStorage.setItem(OLD_TESTAMENT_UNLOCK_KEY, "1");
+};
+
+export const isOldTestamentUnlocked = (): boolean => {
+  if (typeof window === "undefined") return false;
+  if (localStorage.getItem(OLD_TESTAMENT_UNLOCK_KEY) === "1") return true;
+
+  return readProgressForMode(0).stage >= OLD_TESTAMENT_UNLOCK_STAGE;
+};
+
 const levelsFor = (mode: GameModeId, stage: number): number => {
   const config = getModeConfigForMode(mode);
   const count = getStageCountForMode(mode);
@@ -67,6 +85,8 @@ export const writeProgressForMode = (mode: GameModeId, progress: StageProgress):
 
   const next = clampProgress(mode, progress.stage, progress.cleared);
 
+  if (mode === 0) rememberOldTestamentUnlock(next.stage);
+
   localStorage.setItem(getModeConfigForMode(mode).progressKey, JSON.stringify(next));
   notifyLocalSave();
 };
@@ -108,6 +128,8 @@ export const isWorldUnlocked = (worldIndex: number): boolean => {
 
 /** Allinea lo stage salvato al mondo scelto (progresso in corso o replay dal primo stage del mondo). */
 export const prepareEnterWorld = (worldIndex: number): void => {
+  rememberOldTestamentUnlock(readProgressForMode(0).stage);
+
   if (!isWorldUnlocked(worldIndex)) return;
 
   const {first, last} = getWorldStageRange(worldIndex);

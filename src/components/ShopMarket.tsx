@@ -85,6 +85,24 @@ const CLOCK_FILL_MS = 480;
 //* Resta pieno un attimo prima di svuotarsi per il prossimo giro.
 const CLOCK_HOLD_MS = 260;
 
+function AdPhrase({ ads, text }: { ads: number; text: string }) {
+  const split = text.indexOf(" ");
+  const head = split < 0 ? text : text.slice(0, split);
+  const tail = split < 0 ? "" : text.slice(split + 1);
+
+  return (
+    <p className="text-balance text-center font-display text-[length:min(0.72rem,2.45cqi)] font-bold leading-[1.15] text-[#f3e6c8]">
+      <span className="text-[#ffd76a]">{ads}</span> {head}
+      {tail ? (
+        <>
+          <br />
+          {tail}
+        </>
+      ) : null}
+    </p>
+  );
+}
+
 function AdClock({ ratio, disabled }: { ratio: number; disabled: boolean }) {
   const turn = disabled ? 0 : Math.min(1, Math.max(0, ratio)) * CLOCK_TURN;
 
@@ -117,29 +135,6 @@ function AdClock({ ratio, disabled }: { ratio: number; disabled: boolean }) {
   );
 }
 
-const CARD_LABEL_CLASS =
-  "font-display text-[0.68rem] font-bold leading-tight @sm:text-[0.8rem]";
-
-function AdPhrase({ ads, text }: { ads: number; text: string }) {
-  const split = text.indexOf(" ");
-  const head = split < 0 ? text : text.slice(0, split);
-  const tail = split < 0 ? "" : text.slice(split + 1);
-
-  return (
-    <p
-      className={`whitespace-nowrap text-left text-[#f3e6c8] max-[329px]:text-center ${CARD_LABEL_CLASS}`}
-    >
-      <span className="text-[#ffd76a]">{ads}</span> {head}
-      {tail ? (
-        <>
-          <br />
-          {tail}
-        </>
-      ) : null}
-    </p>
-  );
-}
-
 export function ShopMarket() {
   const { t } = useLanguage();
   const [counts, setCounts] = useState(() => ({
@@ -159,6 +154,7 @@ export function ShopMarket() {
   const watchingRef = useRef(false);
   const [watching, setWatching] = useState(false);
   const [adNotice, setAdNotice] = useState<string | null>(null);
+  const [badgePulse, setBadgePulse] = useState<Partial<Record<string, number>>>({});
 
   //* Il remount col key azzera il cerchio senza animarlo all'indietro.
   const playCompletion = (adId: ShopAdId) => {
@@ -188,6 +184,7 @@ export function ShopMarket() {
       if ("booster" in item) addBooster(item.booster);
       else refillHeart();
       playCompletion(adId);
+      setBadgePulse((prev) => ({ ...prev, [item.id]: (prev[item.id] ?? 0) + 1 }));
     }
 
     refreshCounts();
@@ -237,7 +234,7 @@ export function ShopMarket() {
       className="shop-market @container relative flex min-h-0 w-full max-w-full flex-1 flex-col items-stretch"
       data-shop-scroll
     >
-      {watching ? <AdLoadingOverlay className="absolute inset-0 z-30" /> : null}
+      {watching ? <AdLoadingOverlay className="fixed inset-0 z-[80]" /> : null}
       {adNotice ? (
         <p
           className="absolute inset-x-2 top-1/2 z-40 -translate-y-1/2 rounded-lg border border-[#a67c22] bg-[#3d2614]/95 px-3 py-2 text-center font-display text-[clamp(0.8rem,3vw,0.95rem)] font-bold text-[#fff8dc] shadow-lg"
@@ -254,8 +251,8 @@ export function ShopMarket() {
         {t("shop")}
       </GoldTitle>
 
-      <FadeScroll className="mt-2 flex-1">
-        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-y-1.5 pb-1 max-[329px]:flex max-[329px]:flex-col">
+      <FadeScroll className="mt-[2cqi] min-h-0 flex-1">
+        <div className="@container flex w-full min-w-0 flex-col gap-[1.6cqi] pb-[1cqi]">
           {SHOP_ITEMS.map((item) => {
             const count =
               "booster" in item ? counts[item.booster] : energyEmpty ? 0 : 1;
@@ -266,37 +263,34 @@ export function ShopMarket() {
               !filling &&
               ("booster" in item ? count >= BOOSTER_MAX : count > 0);
             const fill = filling ? 1 : adProgress[adId] / adsNeeded;
+            const pulse = badgePulse[item.id] ?? 0;
 
             return (
               <div
                 key={item.id}
-                className="col-span-4 grid min-w-0 grid-cols-subgrid items-start gap-x-1.5 rounded-2xl border border-[#3d2614]/50 bg-[#5c3a14]/90 px-1.5 py-2 text-left max-[329px]:flex max-[329px]:flex-col max-[329px]:items-center max-[329px]:gap-y-2 @sm:gap-x-2 @sm:px-2"
+                className="grid w-full min-w-0 items-center rounded-[3cqi] border border-[#3d2614]/50 bg-[#5c3a14]/90 text-left [grid-template-columns:15cqi_minmax(0,1fr)_13cqi_18cqi] gap-x-[1.6cqi] px-[1.8cqi] py-[1.7cqi]"
               >
-                <div className="contents max-[329px]:flex max-[329px]:w-full max-[329px]:min-w-0 max-[329px]:items-start max-[329px]:gap-x-1.5">
-                  <Image
-                    alt=""
-                    className="mt-0.5 h-9 w-9 shrink-0 self-center object-contain @sm:h-11 @sm:w-11"
-                    draggable={false}
-                    height={88}
-                    src={item.src}
-                    width={88}
-                  />
+                <Image
+                  alt=""
+                  className="aspect-square w-full object-contain"
+                  draggable={false}
+                  height={128}
+                  src={item.src}
+                  width={128}
+                />
 
-                  <div className="min-w-0 max-[329px]:flex-1">
-                    <p
-                      className={`uppercase text-[#fff8dc] ${CARD_LABEL_CLASS}`}
-                    >
-                      {t(item.titleKey)}
-                    </p>
-                    <p className="mt-0.5 font-accent text-[0.58rem] leading-snug text-[#f3e6c8] @sm:text-[0.68rem]">
-                      {t(item.bodyKey)}
-                    </p>
-                  </div>
+                <div className="min-w-0">
+                  <p className="font-display text-[length:min(0.95rem,3.2cqi)] font-bold uppercase leading-tight text-[#fff8dc]">
+                    {t(item.titleKey)}
+                  </p>
+                  <p className="mt-[0.4cqi] font-accent text-[length:min(0.72rem,2.35cqi)] leading-snug text-[#f3e6c8]">
+                    {t(item.bodyKey)}
+                  </p>
                 </div>
 
                 <button
                   aria-label={t("watchAd")}
-                  className={`relative mt-0.5 grid h-9 w-9 shrink-0 place-items-center self-center overflow-hidden rounded-full transition-transform duration-100 ${
+                  className={`relative grid aspect-square w-full place-items-center overflow-hidden rounded-full transition-transform duration-100 ${
                     adLocked
                       ? "cursor-default text-[#e8e2dc] opacity-70"
                       : "text-white active:scale-95"
@@ -310,20 +304,24 @@ export function ShopMarket() {
                     disabled={adLocked}
                     ratio={fill}
                   />
-                  <MdLiveTv aria-hidden className="relative h-5 w-5" />
+                  <MdLiveTv aria-hidden className="relative h-[55%] w-[55%]" />
                 </button>
-                <div className="flex flex-col items-center gap-1 max-[329px]:text-center">
+
+                <div className="flex min-w-0 flex-col items-center gap-[0.7cqi]">
                   <AdPhrase
                     ads={adsNeeded}
-                    text={
-                      adsNeeded === 1 ? t("shopAdNeeded") : t("shopAdsNeeded")
-                    }
+                    text={adsNeeded === 1 ? t("shopAdNeeded") : t("shopAdsNeeded")}
                   />
-                  <span className="inline-flex items-center gap-0.5 rounded-full border border-[#e0c36a] bg-[#fff8e6] px-2 py-0.5 font-display text-[0.72rem] font-bold leading-none text-[#c4922a] @sm:text-sm">
+                  <span
+                    key={pulse}
+                    className={`inline-flex max-w-full items-center gap-[0.3cqi] rounded-full border border-[#e0c36a] bg-[#fff8e6] px-[1cqi] py-[0.35cqi] font-display text-[length:min(0.8rem,2.5cqi)] font-bold leading-none text-[#c4922a] ${
+                      pulse > 0 ? "shop-count-zoom" : ""
+                    }`}
+                  >
                     <svg
                       aria-hidden
                       viewBox="0 0 24 24"
-                      className="h-3.5 w-3.5 fill-[#e0b44a]"
+                      className="h-[2.4cqi] w-[2.4cqi] fill-[#e0b44a]"
                     >
                       <path d="m12 2 2.7 6.5L22 9.2l-5 4.4 1.5 6.9L12 17.3 5.5 20.5 7 13.6 2 9.2l7.3-.7L12 2z" />
                     </svg>

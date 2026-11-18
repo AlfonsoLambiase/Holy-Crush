@@ -411,10 +411,10 @@ const UI_TEXTS: TextEntry[] = [
   },
   {
     key: "homePlayTutorial1",
-    it: "Il Nuovo racconta la storia di Gesù il figlio dell'uomo, quello Antico narra di altri episodi biblici. Provali entrambi e divertiti!",
-    en: "The New Testament tells the story of Jesus, the Son of Man; the Old recounts other biblical episodes. Try both and have fun!",
-    es: "El Nuevo cuenta la historia de Jesús, el Hijo del Hombre; el Antiguo narra otros episodios bíblicos. ¡Pruébalos ambos y diviértete!",
-    fr: "Le Nouveau raconte l'histoire de Jésus, le Fils de l'homme ; l'Ancien relate d'autres épisodes bibliques. Essaie-les tous les deux et amuse-toi !",
+    it: "Il Nuovo racconta la storia di Gesù il figlio dell'uomo, quello Antico narra di altri episodi biblici e si sblocca dopo lo stage 5.",
+    en: "The New Testament tells the story of Jesus, the Son of Man; the Old recounts other biblical episodes and unlocks after stage 5.",
+    es: "El Nuevo cuenta la historia de Jesús, el Hijo del Hombre; el Antiguo narra otros episodios bíblicos y se desbloquea tras el stage 5.",
+    fr: "Le Nouveau raconte l'histoire de Jésus, le Fils de l'homme ; l'Ancien relate d'autres épisodes bibliques et se débloque après le stage 5.",
   },
   {
     key: "worldMapTutorial0",
@@ -457,6 +457,13 @@ const UI_TEXTS: TextEntry[] = [
     en: "Old Testament",
     es: "Antiguo Testamento",
     fr: "Ancien Testament",
+  },
+  {
+    key: "oldTestamentLocked",
+    it: "Disponibile dopo aver completato lo stage 5",
+    en: "Available after completing stage 5",
+    es: "Disponible tras completar el stage 5",
+    fr: "Disponible après avoir terminé le stage 5",
   },
   {
     key: "loading",
